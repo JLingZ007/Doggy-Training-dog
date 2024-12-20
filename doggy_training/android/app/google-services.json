@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "451937564533",
+    "project_id": "doggy-training-51e3d",
+    "storage_bucket": "doggy-training-51e3d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:451937564533:android:0022abe90a75ea2237c53c",
+        "android_client_info": {
+          "package_name": "com.example.doggy_training"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnEWkE9JJkKXUIdlNnsPjmyvBBpHXxpNQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
