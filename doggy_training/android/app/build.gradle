@@ -1,0 +1,45 @@
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    id "dev.flutter.flutter-gradle-plugin"
+}
+
+android {
+    namespace = "com.example.doggy_training"
+    compileSdk = flutter.compileSdkVersion
+    ndkVersion = flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_1_8
+    }
+
+    defaultConfig {
+        applicationId = "com.example.doggy_training"
+        minSdk = flutter.minSdkVersion
+        targetSdk = flutter.targetSdkVersion
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
+    }
+
+    buildTypes {
+        release {
+            signingConfig = signingConfigs.debug
+        }
+    }
+
+    dependencies {
+        implementation platform('com.google.firebase:firebase-bom:31.1.0') // Firebase BOM
+        implementation 'com.google.firebase:firebase-analytics'
+        // สามารถเพิ่ม Firebase packages อื่นๆ เช่น:
+        // implementation 'com.google.firebase:firebase-auth'
+        // implementation 'com.google.firebase:firebase-firestore'
+    }
+}
+
+apply plugin: 'com.google.gms.google-services'  // เพิ่มบรรทัดนี้
