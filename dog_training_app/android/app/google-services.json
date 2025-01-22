@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "527653732367",
+    "project_id": "datadoggy-43c89",
+    "storage_bucket": "datadoggy-43c89.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:527653732367:android:34b84b5a8f72400020237a",
+        "android_client_info": {
+          "package_name": "com.example.dog_training_app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCID_eXhLWhMaDRb0VIdLgSjWkzL6xozGE"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
