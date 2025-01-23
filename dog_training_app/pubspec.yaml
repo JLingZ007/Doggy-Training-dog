@@ -9,9 +9,14 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
-  video_player: ^2.5.1
-  firebase_core: ^3.10.0
-  cloud_firestore: ^5.6.1
+  video_player: ^2.5.1 # เวอร์ชันล่าสุดสำหรับการเล่นวิดีโอ
+  firebase_core: ^3.10.0 # ใช้ Firebase Core ล่าสุด
+  cloud_firestore: ^5.6.1 # Firestore ล่าสุด
+  firebase_auth: ^5.4.0 # Authentication ล่าสุด
+  firebase_storage: ^12.4.0 # สำหรับอัปโหลดไฟล์/รูปภาพ
+  firebase_messaging: ^15.2.0 # สำหรับ Push Notification
+
+
 
 
 

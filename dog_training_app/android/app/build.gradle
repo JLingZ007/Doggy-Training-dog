@@ -40,7 +40,7 @@ dependencies {
     implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
     implementation platform('com.google.firebase:firebase-bom:32.0.0') // Firebase BOM เพื่อจัดการเวอร์ชัน
 
-    // เพิ่ม Firebase Libraries ที่ต้องการ
+    // เพิ่ม Firebase Libraries 
     implementation 'com.google.firebase:firebase-analytics'
     implementation 'com.google.firebase:firebase-auth'
     implementation 'com.google.firebase:firebase-firestore'

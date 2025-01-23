@@ -1,6 +1,27 @@
 import 'package:flutter/material.dart';
+import 'routes/app_navigator.dart';
+import 'routes/app_routes.dart';
+import 'firebase_options.dart';
+import 'package:firebase_core/firebase_core.dart';
 
-void main() {
+  const FirebaseOptions web = FirebaseOptions(
+    apiKey: "AIzaSyBahPCzPOwsxEEinx8n6gAOHAPABQfAS7s",
+    authDomain: "doggy-training-51e3d.firebaseapp.com",
+    projectId: "doggy-training-51e3d",
+    storageBucket: "doggy-training-51e3d.firebasestorage.app",
+    messagingSenderId: "451937564533",
+    appId: "1:451937564533:web:ea4f784b31d479a737c53c",
+    measurementId: "G-7LPLJXHWNF"
+  );
+
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  // เริ่มต้น Firebase ด้วย FirebaseOptions
+  await Firebase.initializeApp(
+    options: web,
+  );
+
   runApp(MyApp());
 }
 
@@ -10,7 +31,8 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: 'Doggy Training',
       debugShowCheckedModeBanner: false,
-      home: MainPage(),
+      initialRoute: AppRoutes.mainPage, // เส้นทางเริ่มต้น
+      onGenerateRoute: AppNavigator.onGenerateRoute, // ใช้ Navigator ที่สร้างไว้
     );
   }
 }
@@ -27,7 +49,7 @@ class MainPage extends StatelessWidget {
         ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
-        elevation: 0, // ทำให้แถบ AppBar เป็นแบบโปร่งใส
+        elevation: 0, // ทำให้ AppBar โปร่งใส
       ),
       body: Center(
         child: Column(
@@ -45,7 +67,8 @@ class MainPage extends StatelessWidget {
             // ปุ่ม "เริ่มต้นใช้งาน"
             ElevatedButton(
               onPressed: () {
-                // เพิ่มการนำทางไปยังหน้าอื่น (ถ้าต้องการ)
+                // นำทางไปยังหน้า HomePage
+                Navigator.pushNamed(context, '/home');
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,

@@ -5,7 +5,7 @@ buildscript {
     }
     dependencies {
         classpath 'com.android.tools.build:gradle:8.0.2' // Gradle Plugin เวอร์ชันที่รองรับ Flutter
-        classpath 'com.google.gms:google-services:4.3.15' // Plugin สำหรับ Firebase
+        classpath 'com.google.gms:google-services:4.4.0' // Plugin สำหรับ Firebase
     }
 }
 

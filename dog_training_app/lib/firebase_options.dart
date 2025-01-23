@@ -41,13 +41,13 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBahPCzPOwsxEEinx8n6gAOHAPABQfAS7s',
-    appId: '1:451937564533:web:ea4f784b31d479a737c53c',
-    messagingSenderId: '451937564533',
-    projectId: 'doggy-training-51e3d',
-    authDomain: 'doggy-training-51e3d.firebaseapp.com',
-    storageBucket: 'doggy-training-51e3d.firebasestorage.app',
-    measurementId: 'G-7LPLJXHWNF',
+    apiKey: "AIzaSyBahPCzPOwsxEEinx8n6gAOHAPABQfAS7s",
+    authDomain: "doggy-training-51e3d.firebaseapp.com",
+    projectId: "doggy-training-51e3d",
+    storageBucket: "doggy-training-51e3d.firebasestorage.app",
+    messagingSenderId: "451937564533",
+    appId: "1:451937564533:web:ea4f784b31d479a737c53c",
+    measurementId: "G-7LPLJXHWNF"
   );
 
   static const FirebaseOptions android = FirebaseOptions(

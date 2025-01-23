@@ -1,108 +1,52 @@
 import 'package:flutter/material.dart';
+import '../routes/app_routes.dart';
 
 class SlideBar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Drawer(
-      child: Container(
-        color: Colors.brown[50],
-        child: Column(
-          children: [
-            // ส่วนหัว (รูปภาพ + ข้อมูล)
-            UserAccountsDrawerHeader(
-              decoration: BoxDecoration(
-                color: Colors.brown[100],
-              ),
-              currentAccountPicture: ClipOval(
-                child: Image.asset(
-                  'assets/images/dog_profile.png', // ใส่ path ของรูปภาพ
-                  fit: BoxFit.cover,
-                ),
-              ),
-              accountName: Text(
-                'ชื่อสุนัข: Buddy',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-              ),
-              accountEmail: Text(
-                'พันธุ์: Pomeranian',
-                style: TextStyle(fontSize: 16),
-              ),
+      child: ListView(
+        children: [
+          UserAccountsDrawerHeader(
+            decoration: BoxDecoration(
+              color: Colors.brown[200],
             ),
-
-            // เมนูต่าง ๆ
-            Expanded(
-              child: ListView(
-                children: [
-                  _buildDrawerItem(
-                    context,
-                    icon: Icons.home,
-                    title: 'หน้าหลัก',
-                    onTap: () {},
-                  ),
-                  _buildDrawerItem(
-                    context,
-                    icon: Icons.person,
-                    title: 'โปรไฟล์',
-                    onTap: () {},
-                  ),
-                  _buildDrawerItem(
-                    context,
-                    icon: Icons.group,
-                    title: 'ชุมชน',
-                    onTap: () {},
-                  ),
-                  _buildDrawerItem(
-                    context,
-                    icon: Icons.book,
-                    title: 'คอร์สของฉัน',
-                    onTap: () {},
-                  ),
-                  _buildDrawerItem(
-                    context,
-                    icon: Icons.menu_book,
-                    title: 'คอร์สทั้งหมด',
-                    onTap: () {},
-                  ),
-                  _buildDrawerItem(
-                    context,
-                    icon: Icons.pets,
-                    title: 'นกหวีดและคลิกเกอร์',
-                    onTap: () {},
-                  ),
-                ],
-              ),
+            currentAccountPicture: CircleAvatar(
+              backgroundImage: AssetImage('assets/images/dog_profile.png'),
             ),
-
-            // การตั้งค่า และ ออกจากระบบ
-            Divider(color: Colors.grey),
-            _buildDrawerItem(
-              context,
-              icon: Icons.settings,
-              title: 'การตั้งค่า',
-              onTap: () {},
-            ),
-            _buildDrawerItem(
-              context,
-              icon: Icons.power_settings_new,
-              title: 'ออกจากระบบ',
-              onTap: () {},
-            ),
-          ],
-        ),
+            accountName: const Text('ชื่อสุนัข: Buddy'),
+            accountEmail: const Text('พันธุ์: Pomeranian'),
+          ),
+          ListTile(
+            leading: const Icon(Icons.home),
+            title: const Text('หน้าหลัก'),
+            onTap: () {
+              Navigator.pushReplacementNamed(context, AppRoutes.home);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.person),
+            title: const Text('โปรไฟล์'),
+            onTap: () {
+              Navigator.pushNamed(context, AppRoutes.profile);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.book),
+            title: const Text('คอร์สเรียนของฉัน'),
+            onTap: () {
+              Navigator.pushNamed(context, AppRoutes.myCourses);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.menu_book),
+            title: const Text('คอร์สทั้งหมด'),
+            onTap: () {
+              Navigator.pushNamed(context, AppRoutes.courses);
+            },
+          ),
+        ],
       ),
-    );
-  }
-
-  // ฟังก์ชันสำหรับสร้างเมนูใน Drawer
-  Widget _buildDrawerItem(BuildContext context,
-      {required IconData icon, required String title, required VoidCallback onTap}) {
-    return ListTile(
-      leading: Icon(icon, color: Colors.brown),
-      title: Text(
-        title,
-        style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-      ),
-      onTap: onTap,
     );
   }
 }
