@@ -1,0 +1,34 @@
+name: dog_training_app
+description: A Flutter app for dog training.
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.4.0 <4.0.0'
+
+
+dependencies:
+  flutter:
+    sdk: flutter
+  firebase_core: ^3.10.1
+  firebase_auth: ^5.4.1
+  cloud_firestore: ^5.6.2
+  video_player: ^2.2.12
+
+
+
+
+
+
+
+
+
+
+
+flutter:
+  assets:
+    - assets/images/
+    - assets/videos/
+    - assets/images/doggy_logo.png
+    - assets/images/dog_profile.png
+

@@ -1,0 +1,17 @@
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.1.1' // อัปเดตเป็นเวอร์ชันล่าสุด
+        classpath 'com.google.gms:google-services:4.3.15' // อัปเดต Firebase Plugin
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
+}
