@@ -61,18 +61,95 @@ class _HomePageState extends State<HomePage> {
       body: Padding(
         padding: const EdgeInsets.all(16.0),
         child: Column(
+          crossAxisAlignment: CrossAxisAlignment.center,
           children: [
+            const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
                 Navigator.pushNamed(context, AppRoutes.myCourses);
               },
-              child: const Text('คอร์สเรียนของฉัน'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white, // สีพื้นหลัง
+                foregroundColor: Colors.brown, // สีตัวอักษร
+                side: const BorderSide(color: Colors.brown, width: 2), // กรอบ
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+              child: const Text(
+                'คอร์สเรียนของฉัน',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
             ),
+            const SizedBox(height: 20),
             ElevatedButton(
               onPressed: () {
                 Navigator.pushNamed(context, AppRoutes.courses);
               },
-              child: const Text('คอร์สเรียนทั้งหมด'),
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.brown,
+                side: const BorderSide(color: Colors.brown, width: 2),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+              child: const Text(
+                'คอร์สเรียนทั้งหมด',
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(height: 30),
+            Expanded(
+              child: Column(
+                children: [
+                  Expanded(
+                    child: PageView(
+                      children: [
+                        Image.asset(
+                          'assets/images/down.png',
+                          fit: BoxFit.cover,
+                        ),
+                        Image.asset(
+                          'assets/images/dog_image_2.png',
+                          fit: BoxFit.cover,
+                        ),
+                        Image.asset(
+                          'assets/images/dog_image_3.png',
+                          fit: BoxFit.cover,
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: List.generate(3, (index) {
+                      return Container(
+                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                        width: 10,
+                        height: 10,
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          color: index == 0
+                              ? Colors.brown
+                              : Colors.brown.withOpacity(0.3),
+                        ),
+                      );
+                    }),
+                  ),
+                ],
+              ),
             ),
           ],
         ),
