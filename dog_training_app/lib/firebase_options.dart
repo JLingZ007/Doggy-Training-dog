@@ -41,48 +41,49 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyBS1G9xDZW2uRXoBEiIjXpEG5Z52gAfOmg',
-    appId: '1:527653732367:web:2423dd90eda5df9a20237a',
-    messagingSenderId: '527653732367',
-    projectId: 'datadoggy-43c89',
-    authDomain: 'datadoggy-43c89.firebaseapp.com',
-    storageBucket: 'datadoggy-43c89.firebasestorage.app',
-    measurementId: 'G-TRNVSJYYH8',
+    apiKey: "AIzaSyBahPCzPOwsxEEinx8n6gAOHAPABQfAS7s",
+    authDomain: "doggy-training-51e3d.firebaseapp.com",
+    projectId: "doggy-training-51e3d",
+    storageBucket: "doggy-training-51e3d.firebasestorage.app",
+    messagingSenderId: "451937564533",
+    appId: "1:451937564533:web:ea4f784b31d479a737c53c",
+    measurementId: "G-7LPLJXHWNF"
   );
 
   static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyCID_eXhLWhMaDRb0VIdLgSjWkzL6xozGE',
-    appId: '1:527653732367:android:34b84b5a8f72400020237a',
-    messagingSenderId: '527653732367',
-    projectId: 'datadoggy-43c89',
-    storageBucket: 'datadoggy-43c89.firebasestorage.app',
+    apiKey: 'AIzaSyDnEWkE9JJkKXUIdlNnsPjmyvBBpHXxpNQ',
+    appId: '1:451937564533:android:6561cc7e52a3373337c53c',
+    messagingSenderId: '451937564533',
+    projectId: 'doggy-training-51e3d',
+    storageBucket: 'doggy-training-51e3d.firebasestorage.app',
   );
 
   static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyB9CDoK1FzBGpbRGpTlp1-kL2OMMH1QbNQ',
-    appId: '1:527653732367:ios:c19ed9bd01b06ab120237a',
-    messagingSenderId: '527653732367',
-    projectId: 'datadoggy-43c89',
-    storageBucket: 'datadoggy-43c89.firebasestorage.app',
+    apiKey: 'AIzaSyA6hGr0T1oxGndtlxQmdmJvvZa3vKvou3o',
+    appId: '1:451937564533:ios:b4a7c8ac262993f037c53c',
+    messagingSenderId: '451937564533',
+    projectId: 'doggy-training-51e3d',
+    storageBucket: 'doggy-training-51e3d.firebasestorage.app',
     iosBundleId: 'com.example.dogTrainingApp',
   );
 
   static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyB9CDoK1FzBGpbRGpTlp1-kL2OMMH1QbNQ',
-    appId: '1:527653732367:ios:c19ed9bd01b06ab120237a',
-    messagingSenderId: '527653732367',
-    projectId: 'datadoggy-43c89',
-    storageBucket: 'datadoggy-43c89.firebasestorage.app',
+    apiKey: 'AIzaSyA6hGr0T1oxGndtlxQmdmJvvZa3vKvou3o',
+    appId: '1:451937564533:ios:b4a7c8ac262993f037c53c',
+    messagingSenderId: '451937564533',
+    projectId: 'doggy-training-51e3d',
+    storageBucket: 'doggy-training-51e3d.firebasestorage.app',
     iosBundleId: 'com.example.dogTrainingApp',
   );
 
   static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyBS1G9xDZW2uRXoBEiIjXpEG5Z52gAfOmg',
-    appId: '1:527653732367:web:1c5ede0861fdec2620237a',
-    messagingSenderId: '527653732367',
-    projectId: 'datadoggy-43c89',
-    authDomain: 'datadoggy-43c89.firebaseapp.com',
-    storageBucket: 'datadoggy-43c89.firebasestorage.app',
-    measurementId: 'G-SC4QRLF9V6',
+    apiKey: 'AIzaSyBahPCzPOwsxEEinx8n6gAOHAPABQfAS7s',
+    appId: '1:451937564533:web:70ec4d573834898937c53c',
+    messagingSenderId: '451937564533',
+    projectId: 'doggy-training-51e3d',
+    authDomain: 'doggy-training-51e3d.firebaseapp.com',
+    storageBucket: 'doggy-training-51e3d.firebasestorage.app',
+    measurementId: 'G-D3WV53L5WE',
   );
+
 }
