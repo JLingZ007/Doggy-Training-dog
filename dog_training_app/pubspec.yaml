@@ -19,4 +19,6 @@ flutter:
   assets:
     - assets/images/
     - assets/videos/
+    - assets/images/doggy_logo.png
+    - assets/images/dog_profile.png
 

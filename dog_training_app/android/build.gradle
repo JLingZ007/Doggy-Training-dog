@@ -1,69 +1,21 @@
-plugins {
-    id "com.android.application"
-    id "kotlin-android"
-    id "dev.flutter.flutter-gradle-plugin"
-    id 'com.google.gms.google-services'
-}
-
-def localProperties = new Properties()
-def localPropertiesFile = rootProject.file("local.properties")
-if (localPropertiesFile.exists()) {
-    localPropertiesFile.withReader("UTF-8") { reader ->
-        localProperties.load(reader)
+buildscript {
+    repositories {
+        google() // สำหรับโหลด Plugin ของ Google เช่น Firebase
+        mavenCentral() // สำหรับโหลด Dependency อื่นๆ
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:8.0.2' // Gradle Plugin เวอร์ชันที่รองรับ Flutter
+        classpath 'com.google.gms:google-services:4.3.15' // Plugin สำหรับ Firebase
     }
 }
 
-def flutterVersionCode = localProperties.getProperty("flutter.versionCode")
-if (flutterVersionCode == null) {
-    flutterVersionCode = "1"
-}
-
-def flutterVersionName = localProperties.getProperty("flutter.versionName")
-if (flutterVersionName == null) {
-    flutterVersionName = "1.0"
-}
-
-android {
-    namespace = "com.example.dog_training_app"
-    compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_1_8
-        targetCompatibility = JavaVersion.VERSION_1_8
-    }
-
-    defaultConfig {
-        applicationId = "com.example.dog_training_app"
-        minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
-        versionCode = flutterVersionCode.toInteger()
-        versionName = flutterVersionName
-    }
-
-    buildTypes {
-        release {
-            signingConfig = signingConfigs.debug
-        }
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
     }
 }
 
-flutter {
-    source = "../.."
+task clean(type: Delete) {
+    delete rootProject.buildDir
 }
-
-dependencies {
-    implementation platform('com.google.firebase:firebase-bom:33.8.0')
-    implementation 'com.google.firebase:firebase-analytics'
-    implementation 'com.google.firebase:firebase-firestore'
-}
-
-repositories {
-    google()
-    mavenCentral() // ใช้ mavenCentral แทน jcenter()
-}
-
-defaultConfig {
-    applicationId "com.example.dog_training_app"
-}
-
