@@ -4,22 +4,12 @@ import 'routes/app_routes.dart';
 import 'firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 
-  const FirebaseOptions web = FirebaseOptions(
-    apiKey: "AIzaSyBahPCzPOwsxEEinx8n6gAOHAPABQfAS7s",
-    authDomain: "doggy-training-51e3d.firebaseapp.com",
-    projectId: "doggy-training-51e3d",
-    storageBucket: "doggy-training-51e3d.firebasestorage.app",
-    messagingSenderId: "451937564533",
-    appId: "1:451937564533:web:ea4f784b31d479a737c53c",
-    measurementId: "G-7LPLJXHWNF"
-  );
-
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // เริ่มต้น Firebase ด้วย FirebaseOptions
+  // เริ่มต้น Firebase
   await Firebase.initializeApp(
-    options: web,
+    options: DefaultFirebaseOptions.currentPlatform,
   );
 
   runApp(MyApp());
@@ -67,8 +57,7 @@ class MainPage extends StatelessWidget {
             // ปุ่ม "เริ่มต้นใช้งาน"
             ElevatedButton(
               onPressed: () {
-                // นำทางไปยังหน้า HomePage
-                Navigator.pushNamed(context, '/home');
+                Navigator.pushNamed(context, AppRoutes.home); // ใช้ AppRoutes.home
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
