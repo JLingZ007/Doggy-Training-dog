@@ -117,15 +117,15 @@ class _HomePageState extends State<HomePage> {
                     child: PageView(
                       children: [
                         Image.asset(
-                          'assets/images/down.png',
+                          'assets/images/drip_dog4.jpg',
                           fit: BoxFit.cover,
                         ),
                         Image.asset(
-                          'assets/images/dog_image_2.png',
+                          'assets/images/drip_dog2.jpg',
                           fit: BoxFit.cover,
                         ),
                         Image.asset(
-                          'assets/images/dog_image_3.png',
+                          'assets/images/drip_dog3.jpg',
                           fit: BoxFit.cover,
                         ),
                       ],

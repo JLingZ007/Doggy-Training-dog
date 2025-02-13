@@ -1,22 +1,29 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
-class TrainingDetailsPage extends StatelessWidget {
+class TrainingDetailsPage extends StatefulWidget {
   final String documentId; // รับ Document ID จากหน้าก่อนหน้า
 
   TrainingDetailsPage({required this.documentId});
 
+  @override
+  _TrainingDetailsPageState createState() => _TrainingDetailsPageState();
+}
+
+class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  late YoutubePlayerController _controller;
 
   // ฟังก์ชันดึงข้อมูลรายละเอียดการฝึก
   Future<Map<String, dynamic>> fetchTrainingDetails() async {
     try {
-      print('Fetching document: $documentId');
+      print('Fetching document: ${widget.documentId}');
       final snapshot = await _firestore
-          .collection('training_categories') // คอลเลกชันหลัก
-          .doc('basic_training') // ระบุหมวดหมู่ (Document ID)
-          .collection('programs') // Subcollection ของหมวดหมู่
-          .doc(documentId) // Document ID ของบทเรียน
+          .collection('training_categories')
+          .doc('basic_training')
+          .collection('programs')
+          .doc(widget.documentId)
           .get();
 
       if (snapshot.exists) {
@@ -30,6 +37,12 @@ class TrainingDetailsPage extends StatelessWidget {
       print('Error: $e');
       throw Exception('Failed to fetch details: $e');
     }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();  // ต้องแน่ใจว่าได้ลบ YoutubePlayer controller เมื่อไม่ใช้
+    super.dispose();
   }
 
   @override
@@ -62,28 +75,22 @@ class TrainingDetailsPage extends StatelessWidget {
 
           final details = snapshot.data!;
 
+          // สร้าง YoutubePlayerController จาก URL ที่เก็บใน Firestore
+          _controller = YoutubePlayerController(
+            initialVideoId: YoutubePlayer.convertUrlToId(details['video']) ?? '',
+            flags: const YoutubePlayerFlags(autoPlay: false, mute: false),
+          );
+
           return Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // แสดงรูปภาพ
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(16),
-                  child: Image.network(
-                    details['image'] ?? '',
-                    height: 200,
-                    width: double.infinity,
-                    fit: BoxFit.cover,
-                    errorBuilder: (context, error, stackTrace) {
-                      return Image.asset(
-                        'assets/images/default_image.png', // รูปภาพสำรอง
-                        height: 200,
-                        width: double.infinity,
-                        fit: BoxFit.cover,
-                      );
-                    },
-                  ),
+                // แสดงวิดีโอจาก YouTube
+                YoutubePlayer(
+                  controller: _controller,
+                  showVideoProgressIndicator: true,
+                  progressIndicatorColor: Colors.amber,
                 ),
                 const SizedBox(height: 16),
 
@@ -122,7 +129,7 @@ class TrainingDetailsPage extends StatelessWidget {
 
                 // ขั้นตอนการฝึก
                 Text(
-                  'ขั้นตอนการฝึก:',
+                  'ขั้นตอนการฝึก: ',
                   style: const TextStyle(
                     fontSize: 20,
                     fontWeight: FontWeight.bold,
