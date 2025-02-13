@@ -2,12 +2,13 @@ import 'package:dog_training_app/views/program.dart';
 import 'package:flutter/material.dart';
 import '../views/home.dart';
 import '../main.dart'; // นำเข้า MainPage
-// import '../views/login.dart';
-// import '../views/profile.dart';
 import '../views/courses.dart';
 import '../views/training_details.dart';
-// import '../views/my_courses.dart';
+import '../views/myCourses.dart';
 import 'app_routes.dart';
+
+// import '../views/login.dart';
+// import '../views/profile.dart';
 
 class AppNavigator {
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
@@ -18,6 +19,8 @@ class AppNavigator {
         return MaterialPageRoute(builder: (_) => MainPage()); // หน้า MainPage
       case AppRoutes.courses:
         return MaterialPageRoute(builder: (_) => CoursesPage());
+      case AppRoutes.myCourses:
+        return MaterialPageRoute(builder: (_) => MyCoursesPage());
       case AppRoutes.trainingPrograms:
         // เพิ่ม Debug
         final categoryId = settings.arguments as String;

@@ -34,7 +34,7 @@ class MainPage extends StatelessWidget {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text(
-          'First Page',
+          '',
           style: TextStyle(color: Colors.grey),
         ),
         centerTitle: true,

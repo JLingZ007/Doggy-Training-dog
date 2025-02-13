@@ -2,14 +2,21 @@ import 'package:flutter/material.dart';
 import '../routes/app_routes.dart';
 
 class BottomNavBar extends StatelessWidget {
-  final int currentIndex; // สถานะของหน้าปัจจุบัน
-  final Function(int) onTap; // Callback สำหรับเปลี่ยนหน้า
+  final int currentIndex;
+  final Function(int) onTap;
 
   const BottomNavBar({
     Key? key,
     required this.currentIndex,
     required this.onTap,
   }) : super(key: key);
+
+  void _navigateTo(BuildContext context, String routeName, int index) {
+    if (ModalRoute.of(context)?.settings.name != routeName) {
+      Navigator.pushNamed(context, routeName);
+    }
+    onTap(index);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -35,13 +42,13 @@ class BottomNavBar extends StatelessWidget {
       onTap: (index) {
         switch (index) {
           case 0:
-            Navigator.pushReplacementNamed(context, AppRoutes.home);
+            _navigateTo(context, AppRoutes.home, index);
             break;
           case 1:
-            Navigator.pushReplacementNamed(context, AppRoutes.myCourses);
+            _navigateTo(context, AppRoutes.myCourses, index);
             break;
           case 2:
-            Navigator.pushReplacementNamed(context, AppRoutes.courses);
+            _navigateTo(context, AppRoutes.courses, index);
             break;
         }
       },
