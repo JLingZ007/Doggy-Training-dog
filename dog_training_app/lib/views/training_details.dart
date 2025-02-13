@@ -4,8 +4,9 @@ import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 class TrainingDetailsPage extends StatefulWidget {
   final String documentId; // รับ Document ID จากหน้าก่อนหน้า
+  final String categoryId; // เพิ่ม categoryId สำหรับการดึงข้อมูล
 
-  TrainingDetailsPage({required this.documentId});
+  TrainingDetailsPage({required this.documentId, required this.categoryId});
 
   @override
   _TrainingDetailsPageState createState() => _TrainingDetailsPageState();
@@ -18,30 +19,27 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
   // ฟังก์ชันดึงข้อมูลรายละเอียดการฝึก
   Future<Map<String, dynamic>> fetchTrainingDetails() async {
     try {
-      print('Fetching document: ${widget.documentId}');
       final snapshot = await _firestore
           .collection('training_categories')
-          .doc('basic_training')
+          .doc(widget.categoryId) // ใช้ categoryId
           .collection('programs')
-          .doc(widget.documentId)
+          .doc(widget.documentId) // ใช้ documentId
           .get();
 
       if (snapshot.exists) {
-        print('Document data: ${snapshot.data()}');
         return snapshot.data() as Map<String, dynamic>;
       } else {
-        print('Document not found.');
         throw Exception('Document not found.');
       }
     } catch (e) {
-      print('Error: $e');
       throw Exception('Failed to fetch details: $e');
     }
   }
 
   @override
   void dispose() {
-    _controller.dispose();  // ต้องแน่ใจว่าได้ลบ YoutubePlayer controller เมื่อไม่ใช้
+    _controller
+        .dispose(); // ต้องแน่ใจว่าได้ลบ YoutubePlayer controller เมื่อไม่ใช้
     super.dispose();
   }
 
@@ -77,7 +75,8 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
 
           // สร้าง YoutubePlayerController จาก URL ที่เก็บใน Firestore
           _controller = YoutubePlayerController(
-            initialVideoId: YoutubePlayer.convertUrlToId(details['video']) ?? '',
+            initialVideoId:
+                YoutubePlayer.convertUrlToId(details['video']) ?? '',
             flags: const YoutubePlayerFlags(autoPlay: false, mute: false),
           );
 
@@ -127,7 +126,6 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
                 ),
                 const SizedBox(height: 16),
 
-                // ขั้นตอนการฝึก
                 Text(
                   'ขั้นตอนการฝึก: ',
                   style: const TextStyle(
@@ -140,11 +138,12 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
                   child: ListView.builder(
                     itemCount: details['steps']?.length ?? 0,
                     itemBuilder: (context, index) {
-                      final step = details['steps'][index];
+                      final step =
+                          details['steps'][index]; // รับข้อมูลใน array steps
                       return Padding(
                         padding: const EdgeInsets.symmetric(vertical: 4.0),
                         child: Text(
-                          'ขั้นตอนที่ ${index + 1}: $step',
+                          'ขั้นตอนที่ ${index + 1}: ${step}',
                           style: const TextStyle(fontSize: 16),
                         ),
                       );
