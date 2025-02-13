@@ -15,12 +15,16 @@ dependencies:
   firebase_auth: ^5.4.0 # Authentication ล่าสุด
   firebase_storage: ^12.4.0 # สำหรับอัปโหลดไฟล์/รูปภาพ
   firebase_messaging: ^15.2.0 # สำหรับ Push Notification
+  webview_flutter: ^4.4.4
+  webview_flutter_web: ^0.2.2
+  youtube_player_flutter: ^9.1.1
 
 
 
 
 
 flutter:
+  uses-material-design: true
   assets:
     - assets/images/
     - assets/videos/

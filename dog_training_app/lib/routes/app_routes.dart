@@ -6,4 +6,6 @@ class AppRoutes {
   static const String courses = '/courses';
   static const String myCourses = '/my-courses';
   static const String trainingDetails = '/training-details';
+  static const String trainingPrograms = '/trainingPrograms';
+
 }

@@ -1,3 +1,4 @@
+import 'package:dog_training_app/views/program.dart';
 import 'package:flutter/material.dart';
 import '../views/home.dart';
 import '../main.dart'; // นำเข้า MainPage
@@ -15,20 +16,28 @@ class AppNavigator {
         return MaterialPageRoute(builder: (_) => HomePage());
       case AppRoutes.mainPage:
         return MaterialPageRoute(builder: (_) => MainPage()); // หน้า MainPage
-      // case AppRoutes.login:
-      //   return MaterialPageRoute(builder: (_) => LoginPage());
-      // case AppRoutes.profile:
-      //   return MaterialPageRoute(builder: (_) => ProfilePage());
       case AppRoutes.courses:
         return MaterialPageRoute(builder: (_) => CoursesPage());
-      // case AppRoutes.myCourses:
-      //   return MaterialPageRoute(builder: (_) => MyCoursesPage());
-      case AppRoutes.trainingDetails:
-        final args = settings.arguments as String; // รับ documentId
+      case AppRoutes.trainingPrograms:
+        // เพิ่ม Debug
+        final categoryId = settings.arguments as String;
+        print('Navigating to TrainingProgramsPage with ID: $categoryId');
         return MaterialPageRoute(
-          builder: (_) => TrainingDetailsPage(documentId: args),
+          builder: (_) => TrainingProgramsPage(categoryId: categoryId),
+        );
+      case AppRoutes.trainingDetails:
+        final args = settings.arguments
+            as Map<String, dynamic>; // ควรรับเป็น Map<String, dynamic>
+        print(
+            'Navigating to TrainingDetailsPage with ID: ${args['documentId']}');
+        return MaterialPageRoute(
+          builder: (_) => TrainingDetailsPage(
+            documentId: args['documentId'], // ส่ง documentId
+            categoryId: args['categoryId'], // ส่ง categoryId
+          ),
         );
       default:
+        print('Page not found: ${settings.name}');
         return MaterialPageRoute(
           builder: (_) => Scaffold(
             body: Center(child: Text('Page not found: ${settings.name}')),

@@ -1,31 +1,64 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
-class TrainingDetailsPage extends StatelessWidget {
-  final String documentId; // รับ ID ของ Document
+class TrainingDetailsPage extends StatefulWidget {
+  final String documentId; // รับ Document ID จากหน้าก่อนหน้า
+  final String categoryId; // เพิ่ม categoryId สำหรับการดึงข้อมูล
 
-  const TrainingDetailsPage({Key? key, required this.documentId})
-      : super(key: key);
+  TrainingDetailsPage({required this.documentId, required this.categoryId});
 
+  @override
+  _TrainingDetailsPageState createState() => _TrainingDetailsPageState();
+}
+
+class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  late YoutubePlayerController _controller;
+
+  // ฟังก์ชันดึงข้อมูลรายละเอียดการฝึก
   Future<Map<String, dynamic>> fetchTrainingDetails() async {
-    final FirebaseFirestore firestore = FirebaseFirestore.instance;
-    final docSnapshot =
-        await firestore.collection('training_programs').doc(documentId).get();
+    try {
+      final snapshot = await _firestore
+          .collection('training_categories')
+          .doc(widget.categoryId) // ใช้ categoryId
+          .collection('programs')
+          .doc(widget.documentId) // ใช้ documentId
+          .get();
 
-    if (docSnapshot.exists) {
-      return docSnapshot.data()!;
-    } else {
-      throw Exception('Document not found');
+      if (snapshot.exists) {
+        return snapshot.data() as Map<String, dynamic>;
+      } else {
+        throw Exception('Document not found.');
+      }
+    } catch (e) {
+      throw Exception('Failed to fetch details: $e');
     }
+  }
+
+  @override
+  void dispose() {
+    _controller
+        .dispose(); // ต้องแน่ใจว่าได้ลบ YoutubePlayer controller เมื่อไม่ใช้
+    super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('รายละเอียดการฝึก'),
+        title: const Text(
+          'รายละเอียดการฝึก',
+          style: TextStyle(color: Colors.black),
+        ),
         backgroundColor: Colors.brown[200],
         elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () {
+            Navigator.pop(context);
+          },
+        ),
       ),
       body: FutureBuilder<Map<String, dynamic>>(
         future: fetchTrainingDetails(),
@@ -35,45 +68,88 @@ class TrainingDetailsPage extends StatelessWidget {
           } else if (snapshot.hasError) {
             return Center(child: Text('Error: ${snapshot.error}'));
           } else if (!snapshot.hasData) {
-            return const Center(child: Text('No details found.'));
+            return const Center(child: Text('No details available.'));
           }
 
-          final data = snapshot.data!;
+          final details = snapshot.data!;
+
+          // สร้าง YoutubePlayerController จาก URL ที่เก็บใน Firestore
+          _controller = YoutubePlayerController(
+            initialVideoId:
+                YoutubePlayer.convertUrlToId(details['video']) ?? '',
+            flags: const YoutubePlayerFlags(autoPlay: false, mute: false),
+          );
+
           return Padding(
             padding: const EdgeInsets.all(16.0),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
+                // แสดงวิดีโอจาก YouTube
+                YoutubePlayer(
+                  controller: _controller,
+                  showVideoProgressIndicator: true,
+                  progressIndicatorColor: Colors.amber,
+                ),
+                const SizedBox(height: 16),
+
+                // ชื่อการฝึก
                 Text(
-                  data['name'] ?? 'No Name',
+                  details['name'] ?? 'ไม่มีชื่อการฝึก',
                   style: const TextStyle(
                     fontSize: 24,
                     fontWeight: FontWeight.bold,
-                    color: Colors.brown,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 8),
+
+                // คำอธิบาย
                 Text(
-                  data['description'] ?? 'No Description',
+                  details['description'] ?? 'ไม่มีคำอธิบาย',
                   style: const TextStyle(fontSize: 16),
                 ),
-                const SizedBox(height: 20),
-                if (data['steps'] != null) ...[
-                  const Text(
-                    'Steps:',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  ...List<Widget>.from((data['steps'] as List).map((step) {
-                    return Text(
-                      '- $step',
+                const SizedBox(height: 16),
+
+                // ระดับความยากและระยะเวลา
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'ความยาก: ${details['difficulty'] ?? 'ไม่ระบุ'}',
                       style: const TextStyle(fontSize: 16),
-                    );
-                  })),
-                ],
+                    ),
+                    Text(
+                      'ระยะเวลา: ${details['duration'] ?? 'ไม่ระบุ'} นาที',
+                      style: const TextStyle(fontSize: 16),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 16),
+
+                Text(
+                  'ขั้นตอนการฝึก: ',
+                  style: const TextStyle(
+                    fontSize: 20,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 8),
+                Expanded(
+                  child: ListView.builder(
+                    itemCount: details['steps']?.length ?? 0,
+                    itemBuilder: (context, index) {
+                      final step =
+                          details['steps'][index]; // รับข้อมูลใน array steps
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(vertical: 4.0),
+                        child: Text(
+                          'ขั้นตอนที่ ${index + 1}: ${step}',
+                          style: const TextStyle(fontSize: 16),
+                        ),
+                      );
+                    },
+                  ),
+                ),
               ],
             ),
           );
