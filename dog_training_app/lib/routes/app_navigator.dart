@@ -10,6 +10,7 @@ import 'app_routes.dart';
 import '../views/login_page.dart';
 import '../views/myCourses.dart';
 
+
 class AppNavigator {
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
     switch (settings.name) {
@@ -31,11 +32,15 @@ class AppNavigator {
           builder: (_) => TrainingProgramsPage(categoryId: categoryId),
         );
       case AppRoutes.trainingDetails:
-        // เพิ่ม Debug
-        final args = settings.arguments as String;
-        print('Navigating to TrainingDetailsPage with ID: $args');
+        final args = settings.arguments
+            as Map<String, dynamic>; // ควรรับเป็น Map<String, dynamic>
+        print(
+            'Navigating to TrainingDetailsPage with ID: ${args['documentId']}');
         return MaterialPageRoute(
-          builder: (_) => TrainingDetailsPage(documentId: args),
+          builder: (_) => TrainingDetailsPage(
+            documentId: args['documentId'], // ส่ง documentId
+            categoryId: args['categoryId'], // ส่ง categoryId
+          ),
         );
       default:
         print('Page not found: ${settings.name}');

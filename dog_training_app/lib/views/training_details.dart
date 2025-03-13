@@ -4,9 +4,10 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 class TrainingDetailsPage extends StatefulWidget {
-  final String documentId; // รับ Document ID จากหน้าก่อนหน้า
+  final String documentId; // ID ของบทเรียน
+  final String categoryId; // ID ของหมวดหมู่
 
-  TrainingDetailsPage({required this.documentId});
+  TrainingDetailsPage({required this.documentId, required this.categoryId});
 
   @override
   _TrainingDetailsPageState createState() => _TrainingDetailsPageState();
@@ -18,27 +19,47 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
   late YoutubePlayerController _controller;
   bool _isCompleted = false;
 
+  // ดึงข้อมูลรายละเอียดของบทเรียนจาก Firestore
   Future<Map<String, dynamic>> fetchTrainingDetails() async {
     try {
       final snapshot = await _firestore
           .collection('training_categories')
-          .doc('basic_training')
+          .doc(widget.categoryId)
           .collection('programs')
           .doc(widget.documentId)
           .get();
 
-      if (snapshot.exists) {
-        return snapshot.data() as Map<String, dynamic>;
-      } else {
+      if (!snapshot.exists) {
         throw Exception('Document not found.');
       }
+
+      return snapshot.data() as Map<String, dynamic>;
     } catch (e) {
       throw Exception('Failed to fetch details: $e');
     }
   }
 
-  // ฟังก์ชันบันทึกคอร์สเรียนของผู้ใช้
-  Future<void> _completeCourse(Map<String, dynamic> details) async {
+  // ตรวจสอบว่าผู้ใช้เรียนบทเรียนนี้จบหรือยัง
+  Future<void> checkCompletionStatus() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    final doc = await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('my_courses')
+        .doc(widget.documentId)
+        .get();
+
+    if (doc.exists) {
+      setState(() {
+        _isCompleted = true;
+      });
+    }
+  }
+
+  // บันทึกว่าผู้ใช้เรียนจบบทเรียนนี้
+  Future<void> completeCourse(Map<String, dynamic> details) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
@@ -51,7 +72,7 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
     await userCourseRef.set({
       'name': details['name'],
       'image': details['image'],
-      'status': 'completed', // สถานะที่แสดงใน "คอร์สเรียนของฉัน"
+      'category': widget.categoryId,
       'completedAt': FieldValue.serverTimestamp(),
     });
 
@@ -65,6 +86,12 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
   }
 
   @override
+  void initState() {
+    super.initState();
+    checkCompletionStatus();
+  }
+
+  @override
   void dispose() {
     _controller.dispose();
     super.dispose();
@@ -74,10 +101,7 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text(
-          'รายละเอียดการฝึก',
-          style: TextStyle(color: Colors.black),
-        ),
+        title: const Text('รายละเอียดการฝึก', style: TextStyle(color: Colors.black)),
         backgroundColor: Colors.brown[200],
         elevation: 0,
         leading: IconButton(
@@ -166,7 +190,7 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
 
                 // ปุ่มสิ้นสุดบทเรียน
                 ElevatedButton(
-                  onPressed: _isCompleted ? null : () => _completeCourse(details),
+                  onPressed: _isCompleted ? null : () => completeCourse(details),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _isCompleted ? Colors.grey : Colors.green,
                     foregroundColor: Colors.white,
@@ -176,7 +200,7 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
                     ),
                   ),
                   child: Text(
-                    _isCompleted ? 'คอร์สนี้เสร็จสมบูรณ์แล้ว' : 'สิ้นสุดบทเรียน',
+                    _isCompleted ? 'บทเรียนนี้เรียนจบแล้ว' : 'สิ้นสุดบทเรียน',
                     style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),

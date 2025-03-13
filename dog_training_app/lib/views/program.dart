@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import '../widgets/slidebar.dart';
 import '../routes/app_routes.dart';
 
-
 class TrainingProgramsPage extends StatelessWidget {
   final String categoryId; // รับ ID ของหมวดหมู่
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -113,7 +112,10 @@ class TrainingProgramsPage extends StatelessWidget {
                           Navigator.pushNamed(
                             context,
                             AppRoutes.trainingDetails,
-                            arguments: program['id'],
+                            arguments: {
+                              'documentId': program['id'], // ส่ง Document ID
+                              'categoryId': categoryId, // ส่ง Category ID
+                            },
                           );
                         },
                         style: ElevatedButton.styleFrom(
