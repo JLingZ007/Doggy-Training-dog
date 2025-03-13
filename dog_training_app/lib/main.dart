@@ -3,6 +3,8 @@ import 'routes/app_navigator.dart';
 import 'routes/app_routes.dart';
 import 'firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'views/login_page.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -34,7 +36,7 @@ class MainPage extends StatelessWidget {
       backgroundColor: Colors.white,
       appBar: AppBar(
         title: const Text(
-          'First Page',
+          'Doggy Training',
           style: TextStyle(color: Colors.grey),
         ),
         centerTitle: true,
@@ -70,6 +72,30 @@ class MainPage extends StatelessWidget {
               ),
               child: const Text(
                 'เริ่มต้นใช้งาน !',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+            const SizedBox(height: 10), // ระยะห่างระหว่างปุ่ม
+
+            // ปุ่ม "เข้าสู่ระบบ" (เหมือนปุ่ม "เริ่มต้นใช้งาน")
+            ElevatedButton(
+              onPressed: () {
+                Navigator.pushNamed(context, AppRoutes.login); // ใช้ AppRoutes.login
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.black,
+                side: const BorderSide(color: Colors.black, width: 1),
+                padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+              child: const Text(
+                'เข้าสู่ระบบ',
                 style: TextStyle(
                   fontSize: 18,
                   fontWeight: FontWeight.bold,
