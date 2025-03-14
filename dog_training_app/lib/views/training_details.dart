@@ -101,7 +101,8 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('รายละเอียดการฝึก', style: TextStyle(color: Colors.black)),
+        title: const Text('รายละเอียดการฝึก',
+            style: TextStyle(color: Colors.black)),
         backgroundColor: Colors.brown[200],
         elevation: 0,
         leading: IconButton(
@@ -122,7 +123,8 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
 
           final details = snapshot.data!;
           _controller = YoutubePlayerController(
-            initialVideoId: YoutubePlayer.convertUrlToId(details['video']) ?? '',
+            initialVideoId:
+                YoutubePlayer.convertUrlToId(details['video']) ?? '',
             flags: const YoutubePlayerFlags(autoPlay: false, mute: false),
           );
 
@@ -140,7 +142,8 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
 
                 Text(
                   details['name'] ?? 'ไม่มีชื่อการฝึก',
-                  style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 24, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
 
@@ -167,7 +170,8 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
 
                 Text(
                   'ขั้นตอนการฝึก:',
-                  style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.bold),
                 ),
                 const SizedBox(height: 8),
 
@@ -190,7 +194,8 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
 
                 // ปุ่มสิ้นสุดบทเรียน
                 ElevatedButton(
-                  onPressed: _isCompleted ? null : () => completeCourse(details),
+                  onPressed:
+                      _isCompleted ? null : () => completeCourse(details),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _isCompleted ? Colors.grey : Colors.green,
                     foregroundColor: Colors.white,
@@ -201,7 +206,8 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
                   ),
                   child: Text(
                     _isCompleted ? 'บทเรียนนี้เรียนจบแล้ว' : 'สิ้นสุดบทเรียน',
-                    style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
                   ),
                 ),
               ],

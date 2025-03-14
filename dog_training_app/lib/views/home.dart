@@ -14,7 +14,7 @@ class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  List<String> _courseImages = [];
+  List<Map<String, dynamic>> _completedCourses = [];
 
   @override
   void initState() {
@@ -22,12 +22,12 @@ class _HomePageState extends State<HomePage> {
     _loadCompletedCourses();
   }
 
-  // ฟังก์ชันโหลดคอร์สที่เรียนจบ
+  // โหลดคอร์สที่เรียนจบจาก Firestore
   void _loadCompletedCourses() async {
     final user = _auth.currentUser;
     if (user == null) {
       setState(() {
-        _courseImages = []; // ไม่ล็อกอิน ใช้รูปเริ่มต้น
+        _completedCourses = [];
       });
       return;
     }
@@ -40,13 +40,18 @@ class _HomePageState extends State<HomePage> {
 
     if (snapshot.docs.isNotEmpty) {
       setState(() {
-        _courseImages = snapshot.docs
-            .map((doc) => doc['image'] as String)
-            .toList(); // ดึงรูปจาก Firestore
+        _completedCourses = snapshot.docs.map((doc) {
+          return {
+            'image': doc['image'],
+            'name': doc['name'],
+            'documentId': doc.id,
+            'categoryId': doc['categoryId'], // ต้องเก็บ categoryId ด้วย
+          };
+        }).toList();
       });
     } else {
       setState(() {
-        _courseImages = []; // ถ้าไม่มีคอร์สที่สำเร็จ
+        _completedCourses = [];
       });
     }
   }
@@ -149,32 +154,60 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 30),
 
-            // แสดงภาพถ้ามีคอร์สที่เรียนจบ
+            // แสดงภาพและสามารถกดดูรายละเอียดคอร์สได้
             Expanded(
               child: Column(
                 children: [
                   Expanded(
-                    child: PageView(
-                      children: _courseImages.isNotEmpty
-                          ? _courseImages
-                              .map((image) =>
-                                  Image.network(image, fit: BoxFit.cover))
-                              .toList()
-                          : [
-                              Image.asset('assets/images/drip_dog4.jpg',
-                                  fit: BoxFit.cover),
-                              Image.asset('assets/images/drip_dog2.jpg',
-                                  fit: BoxFit.cover),
-                              Image.asset('assets/images/drip_dog3.jpg',
-                                  fit: BoxFit.cover),
-                            ],
+                    child: PageView.builder(
+                      itemCount: _completedCourses.isNotEmpty
+                          ? _completedCourses.length
+                          : 3,
+                      itemBuilder: (context, index) {
+                        if (_completedCourses.isNotEmpty) {
+                          final course = _completedCourses[index];
+                          return GestureDetector(
+                            onTap: () {
+                              Navigator.pushNamed(
+                                context,
+                                AppRoutes.trainingDetails,
+                                arguments: {
+                                  'documentId': course['documentId'],
+                                  'categoryId': course['categoryId'],
+                                },
+                              );
+                            },
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: Image.network(
+                                course['image'],
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                          );
+                        } else {
+                          return ClipRRect(
+                            borderRadius: BorderRadius.circular(16),
+                            child: Image.asset(
+                              [
+                                'assets/images/drip_dog4.jpg',
+                                'assets/images/drip_dog2.jpg',
+                                'assets/images/drip_dog3.jpg'
+                              ][index],
+                              fit: BoxFit.cover,
+                            ),
+                          );
+                        }
+                      },
                     ),
                   ),
                   const SizedBox(height: 10),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(
-                      _courseImages.isNotEmpty ? _courseImages.length : 3,
+                      _completedCourses.isNotEmpty
+                          ? _completedCourses.length
+                          : 3,
                       (index) => Container(
                         margin: const EdgeInsets.symmetric(horizontal: 4),
                         width: 10,
