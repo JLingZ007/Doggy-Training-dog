@@ -15,8 +15,14 @@ class MyCoursesPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('คอร์สเรียนของฉัน'),
+        title: const Text('บทเรียนเรียนของฉัน',
+            style: TextStyle(color: Colors.black)),
         backgroundColor: Colors.brown[200],
+        elevation: 0,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          onPressed: () => Navigator.pop(context),
+        ),
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: _firestore
@@ -25,27 +31,50 @@ class MyCoursesPage extends StatelessWidget {
             .collection('my_courses')
             .snapshots(),
         builder: (context, snapshot) {
-          if (!snapshot.hasData) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
+          }
+
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(
+              child: Text(
+                'ยังไม่มีบทเรียนที่ฝึกสำเร็จ',
+                style: TextStyle(fontSize: 18, color: Colors.grey),
+              ),
+            );
           }
 
           final courses = snapshot.data!.docs;
 
-          if (courses.isEmpty) {
-            return const Center(child: Text('ยังไม่มีคอร์สที่เรียนจบ'));
-          }
-
           return ListView.builder(
+            padding: const EdgeInsets.all(10),
             itemCount: courses.length,
             itemBuilder: (context, index) {
               final course = courses[index].data() as Map<String, dynamic>;
 
               return Card(
-                margin: const EdgeInsets.all(10),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+                elevation: 4,
+                shadowColor: Colors.black26,
+                margin: const EdgeInsets.only(bottom: 12),
                 child: ListTile(
-                  leading: Image.network(course['image'], width: 60, height: 60, fit: BoxFit.cover),
-                  title: Text(course['name']),
-                  subtitle: const Text('สถานะ: ✅ เรียนจบแล้ว'),
+                  contentPadding: const EdgeInsets.all(12),
+                  leading: ClipRRect(
+                    borderRadius: BorderRadius.circular(10),
+                    child: Image.network(
+                      course['image'],
+                      width: 60,
+                      height: 60,
+                      fit: BoxFit.cover,
+                    ),
+                  ),
+                  title: Text(
+                    course['name'],
+                    style: const TextStyle(
+                        fontSize: 18, fontWeight: FontWeight.bold),
+                  ),
+                  trailing: const Icon(Icons.check_circle, color: Colors.green),
                 ),
               );
             },
