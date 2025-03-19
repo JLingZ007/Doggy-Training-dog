@@ -1,11 +1,11 @@
 import 'package:dog_training_app/views/program.dart';
 import 'package:flutter/material.dart';
 import '../views/home.dart';
-import '../main.dart'; // นำเข้า MainPage
-// import '../views/profile.dart';
+import '../main.dart';
+import '../views/dog_profiles.dart';
+import '../views/edit_dog_profile.dart'; //
 import '../views/courses.dart';
 import '../views/training_details.dart';
-
 // import '../views/my_courses.dart';
 import 'app_routes.dart';
 import '../views/login_page.dart';
@@ -18,7 +18,16 @@ class AppNavigator {
         return MaterialPageRoute(builder: (_) => HomePage());
       case AppRoutes.login:
         return MaterialPageRoute(builder: (_) => LoginPage());
-      case AppRoutes.myCourses:
+      case AppRoutes.dogProfiles:
+        return MaterialPageRoute(builder: (_) => DogProfilesPage());
+      case AppRoutes.editDogProfile:
+        final args = settings.arguments as Map<String, dynamic>?;
+        return MaterialPageRoute(
+          builder: (_) => EditDogProfilePage(
+            dogData: args?['dogData'],
+            docId: args?['docId'],
+          ),
+        );
         return MaterialPageRoute(builder: (_) => MyCoursesPage());
       case AppRoutes.mainPage:
         return MaterialPageRoute(builder: (_) => MainPage()); // หน้า MainPage

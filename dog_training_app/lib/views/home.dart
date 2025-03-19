@@ -1,3 +1,5 @@
+import 'dart:async';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -14,46 +16,63 @@ class _HomePageState extends State<HomePage> {
   int _currentIndex = 0;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  List<Map<String, dynamic>> _completedCourses = [];
+  List<Map<String, dynamic>> _randomCourses = [];
+  late PageController _pageController;
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    _loadCompletedCourses();
+    _pageController = PageController();
+    _loadRandomCourses();
+    _startAutoScroll();
   }
 
-  // โหลดคอร์สที่เรียนจบจาก Firestore
-  void _loadCompletedCourses() async {
-    final user = _auth.currentUser;
-    if (user == null) {
-      setState(() {
-        _completedCourses = [];
-      });
-      return;
-    }
+  @override
+  void dispose() {
+    _pageController.dispose();
+    _timer?.cancel();
+    super.dispose();
+  }
 
-    final snapshot = await _firestore
-        .collection('users')
-        .doc(user.uid)
-        .collection('my_courses')
-        .get();
+  // โหลดบทเรียนแบบสุ่ม 3 บทจาก Firestore
+  void _loadRandomCourses() async {
+    final snapshot = await _firestore.collectionGroup('programs').get();
 
     if (snapshot.docs.isNotEmpty) {
+      final allCourses = snapshot.docs.map((doc) {
+        return {
+          'image': doc['image'],
+          'name': doc['name'],
+          'documentId': doc.id,
+          'categoryId': doc.reference.parent.parent!.id,
+        };
+      }).toList();
+
+      allCourses.shuffle(Random());
+
       setState(() {
-        _completedCourses = snapshot.docs.map((doc) {
-          return {
-            'image': doc['image'],
-            'name': doc['name'],
-            'documentId': doc.id,
-            'categoryId': doc['categoryId'], // ต้องเก็บ categoryId ด้วย
-          };
-        }).toList();
-      });
-    } else {
-      setState(() {
-        _completedCourses = [];
+        _randomCourses = allCourses.take(3).toList();
       });
     }
+  }
+
+  // ฟังก์ชันเลื่อน PageView อัตโนมัติ
+  void _startAutoScroll() {
+    _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
+      if (_pageController.hasClients) {
+        int nextPage = _pageController.page!.toInt() + 1;
+        if (nextPage >=
+            (_randomCourses.isNotEmpty ? _randomCourses.length : 3)) {
+          nextPage = 0;
+        }
+        _pageController.animateToPage(
+          nextPage,
+          duration: const Duration(milliseconds: 500),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
   }
 
   // ฟังก์ชันเปลี่ยนหน้า
@@ -96,12 +115,34 @@ class _HomePageState extends State<HomePage> {
         actions: [
           Padding(
             padding: const EdgeInsets.all(8.0),
-            child: CircleAvatar(
-              backgroundImage: _auth.currentUser != null &&
-                      _auth.currentUser!.photoURL != null
-                  ? NetworkImage(_auth.currentUser!.photoURL!)
-                  : const AssetImage('assets/images/dog_profile.png')
-                      as ImageProvider,
+            child: FutureBuilder<QuerySnapshot>(
+              future: _auth.currentUser != null
+                  ? _firestore
+                      .collection('users')
+                      .doc(_auth.currentUser!.uid)
+                      .collection('dogs')
+                      .get()
+                  : null,
+              builder: (context, snapshot) {
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return CircleAvatar(
+                    backgroundImage:
+                        AssetImage('assets/images/dog_profile.png'),
+                  );
+                }
+
+                final dogData =
+                    snapshot.data!.docs.first.data() as Map<String, dynamic>;
+                final profilePic =
+                    (dogData['image'] != null && dogData['image'].isNotEmpty)
+                        ? NetworkImage(dogData['image'])
+                        : AssetImage('assets/images/dog_profile.png')
+                            as ImageProvider;
+
+                return CircleAvatar(
+                  backgroundImage: profilePic,
+                );
+              },
             ),
           ),
         ],
@@ -154,18 +195,18 @@ class _HomePageState extends State<HomePage> {
             ),
             const SizedBox(height: 30),
 
-            // แสดงภาพและสามารถกดดูรายละเอียดคอร์สได้
+            // แสดงบทเรียนแบบสุ่ม 3 บท และเลื่อนอัตโนมัติ
             Expanded(
               child: Column(
                 children: [
                   Expanded(
                     child: PageView.builder(
-                      itemCount: _completedCourses.isNotEmpty
-                          ? _completedCourses.length
-                          : 3,
+                      controller: _pageController,
+                      itemCount:
+                          _randomCourses.isNotEmpty ? _randomCourses.length : 3,
                       itemBuilder: (context, index) {
-                        if (_completedCourses.isNotEmpty) {
-                          final course = _completedCourses[index];
+                        if (_randomCourses.isNotEmpty) {
+                          final course = _randomCourses[index];
                           return GestureDetector(
                             onTap: () {
                               Navigator.pushNamed(
@@ -205,9 +246,7 @@ class _HomePageState extends State<HomePage> {
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(
-                      _completedCourses.isNotEmpty
-                          ? _completedCourses.length
-                          : 3,
+                      _randomCourses.isNotEmpty ? _randomCourses.length : 3,
                       (index) => Container(
                         margin: const EdgeInsets.symmetric(horizontal: 4),
                         width: 10,
