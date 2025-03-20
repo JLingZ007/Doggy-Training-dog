@@ -28,6 +28,7 @@ class AppNavigator {
             docId: args?['docId'],
           ),
         );
+      case AppRoutes.myCourses:
         return MaterialPageRoute(builder: (_) => MyCoursesPage());
       case AppRoutes.mainPage:
         return MaterialPageRoute(builder: (_) => MainPage()); // หน้า MainPage

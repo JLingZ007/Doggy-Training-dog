@@ -94,8 +94,88 @@ class SlideBar extends StatelessWidget {
               Navigator.pushNamed(context, AppRoutes.courses);
             },
           ),
+
+          const Divider(),
+
+          // ปุ่ม "เข้าสู่ระบบ" ถ้าผู้ใช้ยังไม่ได้ล็อกอิน
+          if (user == null)
+            ListTile(
+              leading: const Icon(Icons.login),
+              title: const Text('เข้าสู่ระบบ'),
+              onTap: () {
+                Navigator.pushNamed(context, AppRoutes.login);
+              },
+            ),
+
+          // ปุ่ม "ออกจากระบบ" ถ้าผู้ใช้ล็อกอินอยู่
+          if (user != null)
+            ListTile(
+              leading: const Icon(Icons.power_settings_new),
+              title: const Text('ออกจากระบบ'),
+              onTap: () {
+                _showLogoutDialog(context);
+              },
+            ),
         ],
       ),
+    );
+  }
+
+  // แสดง Popup ยืนยันการออกจากระบบ
+  void _showLogoutDialog(BuildContext context) {
+    showDialog(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          backgroundColor: Colors.white,
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Image.asset('assets/images/dog_logout.png', height: 50),
+              const SizedBox(height: 10),
+              const Text(
+                'คุณต้องการออกจากระบบหรือไม่',
+                style: TextStyle(fontSize: 16),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 20),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.brown[300],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: () async {
+                      await _auth.signOut();
+                      Navigator.pushReplacementNamed(context, AppRoutes.login);
+                    },
+                    child: const Text('ใช่'),
+                  ),
+                  ElevatedButton(
+                    style: ElevatedButton.styleFrom(
+                      backgroundColor: Colors.grey[300],
+                      shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10),
+                      ),
+                    ),
+                    onPressed: () {
+                      Navigator.pop(context);
+                    },
+                    child: const Text('ไม่ใช่'),
+                  ),
+                ],
+              ),
+            ],
+          ),
+        );
+      },
     );
   }
 }
