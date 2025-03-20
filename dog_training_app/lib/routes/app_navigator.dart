@@ -10,6 +10,8 @@ import '../views/training_details.dart';
 import 'app_routes.dart';
 import '../views/login_page.dart';
 import '../views/myCourses.dart';
+import '../views/clicker_page.dart';
+import '../views/whistle_page.dart';
 
 class AppNavigator {
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
@@ -52,6 +54,10 @@ class AppNavigator {
             categoryId: args['categoryId'], // ส่ง categoryId
           ),
         );
+      case AppRoutes.clicker:
+        return MaterialPageRoute(builder: (_) => ClickerPage());
+      case AppRoutes.whistle:
+        return MaterialPageRoute(builder: (_) => WhistlePage());
       default:
         print('Page not found: ${settings.name}');
         return MaterialPageRoute(

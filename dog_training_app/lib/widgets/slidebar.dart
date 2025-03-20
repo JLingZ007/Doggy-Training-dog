@@ -94,9 +94,22 @@ class SlideBar extends StatelessWidget {
               Navigator.pushNamed(context, AppRoutes.courses);
             },
           ),
+          ListTile(
+            leading: const Icon(Icons.touch_app),
+            title: const Text('คลิกเกอร์'),
+            onTap: () {
+              Navigator.pushNamed(context, AppRoutes.clicker);
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.volume_up),
+            title: const Text('นกหวีด'),
+            onTap: () {
+              Navigator.pushNamed(context, AppRoutes.whistle);
+            },
+          ),
 
           const Divider(),
-
           // ปุ่ม "เข้าสู่ระบบ" ถ้าผู้ใช้ยังไม่ได้ล็อกอิน
           if (user == null)
             ListTile(

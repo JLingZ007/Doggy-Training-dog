@@ -8,4 +8,6 @@ class AppRoutes {
   static const String trainingDetails = '/training-details';
   static const String trainingPrograms = '/trainingPrograms';
   static const String myCourses = '/myCourses';
+  static const String clicker = '/clicker';
+  static const String whistle = '/whistle';
 }
