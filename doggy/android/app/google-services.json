@@ -1,0 +1,126 @@
+{
+  "project_info": {
+    "project_number": "451937564533",
+    "project_id": "doggy-training-51e3d",
+    "storage_bucket": "doggy-training-51e3d.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:451937564533:android:f1577cbe6c561d3037c53c",
+        "android_client_info": {
+          "package_name": "com.example.dog_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "451937564533-m0ofsjc1nsuu5eepbgbkkabe5difuj6k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnEWkE9JJkKXUIdlNnsPjmyvBBpHXxpNQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "451937564533-m0ofsjc1nsuu5eepbgbkkabe5difuj6k.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:451937564533:android:d8b5b817654eb57437c53c",
+        "android_client_info": {
+          "package_name": "com.example.dog_training_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "451937564533-m0ofsjc1nsuu5eepbgbkkabe5difuj6k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnEWkE9JJkKXUIdlNnsPjmyvBBpHXxpNQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "451937564533-m0ofsjc1nsuu5eepbgbkkabe5difuj6k.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:451937564533:android:1512ad6e708cfcdb37c53c",
+        "android_client_info": {
+          "package_name": "com.example.doggy"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "451937564533-m0ofsjc1nsuu5eepbgbkkabe5difuj6k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnEWkE9JJkKXUIdlNnsPjmyvBBpHXxpNQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "451937564533-m0ofsjc1nsuu5eepbgbkkabe5difuj6k.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:451937564533:android:0022abe90a75ea2237c53c",
+        "android_client_info": {
+          "package_name": "com.example.doggy_training"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "451937564533-m0ofsjc1nsuu5eepbgbkkabe5difuj6k.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDnEWkE9JJkKXUIdlNnsPjmyvBBpHXxpNQ"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "451937564533-m0ofsjc1nsuu5eepbgbkkabe5difuj6k.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

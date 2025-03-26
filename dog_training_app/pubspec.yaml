@@ -29,7 +29,6 @@ flutter:
   uses-material-design: true
   assets:
     - assets/images/
-    - assets/videos/
     - assets/images/doggy_logo.png
     - assets/images/dog_profile.png
     - assets/sounds/clicker_sound.mp3
