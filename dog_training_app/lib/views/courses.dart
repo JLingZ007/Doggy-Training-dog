@@ -10,16 +10,20 @@ class CoursesPage extends StatelessWidget {
   Future<List<Map<String, dynamic>>> fetchCategories() async {
     try {
       final snapshot = await _firestore.collection('training_categories').get();
-      return snapshot.docs
-          .map((doc) => {
-                'id': doc.id, // ดึง id ของ document เพื่อส่งเป็น argument
-                ...doc.data(),
-              })
-          .toList();
+      final docs = snapshot.docs.map((doc) => {
+        'id': doc.id,
+        ...doc.data(),
+      }).toList();
+
+      docs.sort((a, b) => (a['order'] ?? 999).compareTo(b['order'] ?? 999));
+
+
+      return docs;
     } catch (e) {
       throw Exception('Failed to fetch categories: $e');
     }
   }
+
 
   @override
   Widget build(BuildContext context) {
