@@ -33,7 +33,7 @@ class _DogProfilesPageState extends State<DogProfilesPage> {
       appBar: AppBar(
         title: const Text('ข้อมูลสุนัขของคุณ',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.brown[200],
+        backgroundColor: const Color(0xFFD2B48C),
         elevation: 0,
       ),
       body: Padding(

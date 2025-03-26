@@ -17,7 +17,7 @@ class MyCoursesPage extends StatelessWidget {
       appBar: AppBar(
         title: const Text('บทเรียนเรียนของฉัน',
             style: TextStyle(color: Colors.black)),
-        backgroundColor: Colors.brown[200],
+        backgroundColor: const Color(0xFFD2B48C),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),

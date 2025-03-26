@@ -12,7 +12,7 @@ class ClickerPage extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.brown[200],
+        backgroundColor: const Color(0xFFD2B48C),
         title: const Text('คลิกเกอร์', style: TextStyle(color: Colors.black)),
         elevation: 0,
         leading: IconButton(

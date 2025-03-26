@@ -79,7 +79,7 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
       appBar: AppBar(
         title: const Text('แก้ไขข้อมูลสุนัข',
             style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.brown[200],
+        backgroundColor: const Color(0xFFD2B48C),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),

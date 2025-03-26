@@ -10,24 +10,30 @@ class CoursesPage extends StatelessWidget {
   Future<List<Map<String, dynamic>>> fetchCategories() async {
     try {
       final snapshot = await _firestore.collection('training_categories').get();
-      return snapshot.docs
-          .map((doc) => {
-                'id': doc.id, // ดึง id ของ document เพื่อส่งเป็น argument
-                ...doc.data(),
-              })
-          .toList();
+      final docs = snapshot.docs.map((doc) => {
+        'id': doc.id,
+        ...doc.data(),
+      }).toList();
+
+      docs.sort((a, b) => (a['order'] ?? 999).compareTo(b['order'] ?? 999));
+
+
+      return docs;
     } catch (e) {
       throw Exception('Failed to fetch categories: $e');
     }
   }
 
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('หมวดหมู่การฝึก',
-            style: TextStyle(color: Colors.black)),
-        backgroundColor: Colors.brown[200],
+        title: const Text(
+          'หมวดหมู่การฝึก',
+          style: TextStyle(color: Colors.black),
+        ),
+        backgroundColor: const Color(0xFFD2B48C),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
@@ -114,7 +120,7 @@ class CoursesPage extends StatelessWidget {
                                   );                              
                                 },
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.brown[200],
+                                  backgroundColor: Color(0xFFD2B48C),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),

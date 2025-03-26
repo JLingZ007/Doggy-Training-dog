@@ -98,7 +98,7 @@ class _HomePageState extends State<HomePage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.brown[200],
+        backgroundColor: const Color(0xFFD2B48C),
         elevation: 0,
         title: const Text(
           'หน้าหลัก',

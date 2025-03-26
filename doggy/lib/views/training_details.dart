@@ -4,8 +4,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:youtube_player_flutter/youtube_player_flutter.dart';
 
 class TrainingDetailsPage extends StatefulWidget {
-  final String documentId; // ID ของบทเรียน
-  final String categoryId; // ID ของหมวดหมู่
+  final String documentId;
+  final String categoryId;
 
   TrainingDetailsPage({required this.documentId, required this.categoryId});
 
@@ -16,11 +16,42 @@ class TrainingDetailsPage extends StatefulWidget {
 class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  late YoutubePlayerController _controller;
+  YoutubePlayerController? _controller;
   bool _isCompleted = false;
+  bool _isLoading = true;
+  Map<String, dynamic>? details;
+  User? currentUser;
 
-  // ดึงข้อมูลรายละเอียดของบทเรียนจาก Firestore
-  Future<Map<String, dynamic>> fetchTrainingDetails() async {
+  @override
+  void initState() {
+    super.initState();
+    currentUser = _auth.currentUser;
+    if (currentUser != null) {
+      checkCompletionStatus();
+    }
+    fetchTrainingDetails();
+  }
+
+  @override
+  void dispose() {
+    _controller?.dispose();
+    super.dispose();
+  }
+
+  // ฟังก์ชันแปลง URL YouTube ให้เป็น videoId
+  String extractVideoId(String url) {
+    if (url.contains("watch?v=")) {
+      return url.split("watch?v=").last.split("&").first;
+    } else if (url.contains("youtu.be/")) {
+      return url.split("youtu.be/").last.split("?").first;
+    } else if (url.contains("embed/")) {
+      return url.split("embed/").last.split("?").first;
+    }
+    return '';
+  }
+
+  // โหลดข้อมูลจาก Firestore และกำหนดตัวควบคุมวิดีโอ
+  Future<void> fetchTrainingDetails() async {
     try {
       final snapshot = await _firestore
           .collection('training_categories')
@@ -33,20 +64,34 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
         throw Exception('Document not found.');
       }
 
-      return snapshot.data() as Map<String, dynamic>;
+      final data = snapshot.data() as Map<String, dynamic>;
+      String videoId = extractVideoId(data['video'] ?? '');
+
+      setState(() {
+        details = data;
+        _isLoading = false;
+        if (videoId.isNotEmpty) {
+          _controller = YoutubePlayerController(
+            initialVideoId: videoId,
+            flags: const YoutubePlayerFlags(autoPlay: false, mute: false),
+          );
+        }
+      });
     } catch (e) {
-      throw Exception('Failed to fetch details: $e');
+      print('Error fetching details: $e');
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
-  // ตรวจสอบว่าผู้ใช้เรียนบทเรียนนี้จบหรือยัง
+  // ตรวจสอบสถานะเรียนจบ
   Future<void> checkCompletionStatus() async {
-    final user = _auth.currentUser;
-    if (user == null) return;
+    if (currentUser == null) return;
 
     final doc = await _firestore
         .collection('users')
-        .doc(user.uid)
+        .doc(currentUser!.uid)
         .collection('my_courses')
         .doc(widget.documentId)
         .get();
@@ -58,20 +103,18 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
     }
   }
 
-  // บันทึกว่าผู้ใช้เรียนจบบทเรียนนี้
-  Future<void> completeCourse(Map<String, dynamic> details) async {
-    final user = _auth.currentUser;
-    if (user == null) return;
+  //บันทึกว่าผู้ใช้เรียนจบ
+  Future<void> completeCourse() async {
+    if (currentUser == null || details == null) return;
 
-    final userCourseRef = _firestore
+    await _firestore
         .collection('users')
-        .doc(user.uid)
+        .doc(currentUser!.uid)
         .collection('my_courses')
-        .doc(widget.documentId);
-
-    await userCourseRef.set({
-      'name': details['name'],
-      'image': details['image'],
+        .doc(widget.documentId)
+        .set({
+      'name': details!['name'],
+      'image': details!['image'],
       'category': widget.categoryId,
       'completedAt': FieldValue.serverTimestamp(),
     });
@@ -86,135 +129,122 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
   }
 
   @override
-  void initState() {
-    super.initState();
-    checkCompletionStatus();
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFFDF9F4),
       appBar: AppBar(
-        title: const Text('รายละเอียดการฝึก',
-            style: TextStyle(color: Colors.black)),
-        backgroundColor: Colors.brown[200],
+        backgroundColor: const Color(0xFFD2B48C), // สีครีม/น้ำตาลอ่อน
         elevation: 0,
+        centerTitle: true,
+        title: Text(
+          details?['name'] ?? 'บทเรียนการฝึก',
+          style: const TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
         ),
       ),
-      body: FutureBuilder<Map<String, dynamic>>(
-        future: fetchTrainingDetails(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
-          } else if (snapshot.hasError) {
-            return Center(child: Text('Error: ${snapshot.error}'));
-          } else if (!snapshot.hasData) {
-            return const Center(child: Text('No details available.'));
-          }
+      body: _isLoading
+          ? const Center(child: CircularProgressIndicator())
+          : details == null
+              ? const Center(child: Text('ไม่พบข้อมูลบทเรียน'))
+              : Padding(
+                  padding: const EdgeInsets.all(16.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: _controller != null
+                            ? YoutubePlayerBuilder(
+                                player: YoutubePlayer(controller: _controller!),
+                                builder: (context, player) => player,
+                              )
+                            : Image.asset('assets/images/video_placeholder.png'),
+                      ),
+                      const SizedBox(height: 12),
 
-          final details = snapshot.data!;
-          _controller = YoutubePlayerController(
-            initialVideoId:
-                YoutubePlayer.convertUrlToId(details['video']) ?? '',
-            flags: const YoutubePlayerFlags(autoPlay: false, mute: false),
-          );
+                      Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Text(
+                            'ความยาก: ${details!['difficulty'] ?? 'ไม่ระบุ'}',
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                          Text(
+                            'เวลาที่ต้องฝึก: ${details!['duration'] ?? 'ไม่ระบุ'} นาที',
+                            style: const TextStyle(fontSize: 14),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 16),
 
-          return Padding(
-            padding: const EdgeInsets.all(16.0),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                YoutubePlayer(
-                  controller: _controller,
-                  showVideoProgressIndicator: true,
-                  progressIndicatorColor: Colors.amber,
-                ),
-                const SizedBox(height: 16),
-
-                Text(
-                  details['name'] ?? 'ไม่มีชื่อการฝึก',
-                  style: const TextStyle(
-                      fontSize: 24, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-
-                Text(
-                  details['description'] ?? 'ไม่มีคำอธิบาย',
-                  style: const TextStyle(fontSize: 16),
-                ),
-                const SizedBox(height: 16),
-
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    Text(
-                      'ความยาก: ${details['difficulty'] ?? 'ไม่ระบุ'}',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                    Text(
-                      'ระยะเวลา: ${details['duration'] ?? 'ไม่ระบุ'} นาที',
-                      style: const TextStyle(fontSize: 16),
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 16),
-
-                Text(
-                  'ขั้นตอนการฝึก:',
-                  style: const TextStyle(
-                      fontSize: 20, fontWeight: FontWeight.bold),
-                ),
-                const SizedBox(height: 8),
-
-                Expanded(
-                  child: ListView.builder(
-                    itemCount: details['steps']?.length ?? 0,
-                    itemBuilder: (context, index) {
-                      final step = details['steps'][index];
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(vertical: 4.0),
-                        child: Text(
-                          'ขั้นตอนที่ ${index + 1}: $step',
-                          style: const TextStyle(fontSize: 16),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF4EDE4),
+                          borderRadius: BorderRadius.circular(16),
                         ),
-                      );
-                    },
-                  ),
-                ),
-                const SizedBox(height: 16),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'ขั้นตอน:',
+                              style: TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 8),
+                            ...List.generate(
+                              details!['steps']?.length ?? 0,
+                              (index) => Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 4.0),
+                                child: Text(
+                                  'ขั้นตอนที่ ${index + 1}: ${details!['steps'][index]}',
+                                  style: const TextStyle(fontSize: 15),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 24),
 
-                // ปุ่มสิ้นสุดบทเรียน
-                ElevatedButton(
-                  onPressed:
-                      _isCompleted ? null : () => completeCourse(details),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: _isCompleted ? Colors.grey : Colors.green,
-                    foregroundColor: Colors.white,
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(30),
-                    ),
-                  ),
-                  child: Text(
-                    _isCompleted ? 'บทเรียนนี้เรียนจบแล้ว' : 'สิ้นสุดบทเรียน',
-                    style: const TextStyle(
-                        fontSize: 18, fontWeight: FontWeight.bold),
+                      if (currentUser != null)
+                        Center(
+                          child: ElevatedButton(
+                            onPressed: _isCompleted ? null : completeCourse,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _isCompleted
+                                  ? Colors.grey[400]
+                                  : const Color(0xFFA4D6A7),
+                              foregroundColor: Colors.black,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 40, vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            child: Text(
+                              _isCompleted
+                                  ? 'บทเรียนนี้เรียนจบแล้ว'
+                                  : 'สิ้นสุดบทเรียน',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                        )
+                    ],
                   ),
                 ),
-              ],
-            ),
-          );
-        },
-      ),
     );
   }
+
 }

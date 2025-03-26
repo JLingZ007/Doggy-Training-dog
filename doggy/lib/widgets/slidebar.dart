@@ -17,7 +17,7 @@ class SlideBar extends StatelessWidget {
           // ตรวจสอบว่าผู้ใช้ล็อกอินหรือไม่
           user == null
               ? UserAccountsDrawerHeader(
-                  decoration: BoxDecoration(color: Colors.brown[200]),
+                  decoration: BoxDecoration(color: Color(0xFFD2B48C)),
                   currentAccountPicture: CircleAvatar(
                     backgroundImage:
                         AssetImage('assets/images/dog_profile.png'),
@@ -35,7 +35,7 @@ class SlideBar extends StatelessWidget {
                     if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
                       // ถ้าไม่มีข้อมูลสุนัขให้แสดงค่าเริ่มต้น
                       return UserAccountsDrawerHeader(
-                        decoration: BoxDecoration(color: Colors.brown[200]),
+                        decoration: BoxDecoration(color: Color(0xFFD2B48C)),
                         currentAccountPicture: CircleAvatar(
                           backgroundImage:
                               AssetImage('assets/images/dog_profile.png'),
@@ -56,7 +56,7 @@ class SlideBar extends StatelessWidget {
                     final name = dogData['name'] ?? 'ไม่ระบุ';
 
                     return UserAccountsDrawerHeader(
-                      decoration: BoxDecoration(color: Colors.brown[200]),
+                      decoration: BoxDecoration(color: Color(0xFFD2B48C)),
                       currentAccountPicture: CircleAvatar(
                         backgroundImage: profilePic,
                       ),
@@ -143,7 +143,7 @@ class SlideBar extends StatelessWidget {
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(20),
           ),
-          backgroundColor: Colors.white,
+          backgroundColor: const Color(0xFFD2B48C),
           content: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
