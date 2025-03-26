@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'add_dog.dart';
 import 'edit_dog_profile.dart';
 
 class DogProfilesPage extends StatefulWidget {
@@ -96,7 +97,7 @@ class _DogProfilesPageState extends State<DogProfilesPage> {
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('อายุ: ${dog['age']} ปี',
+                              Text('อายุ: ${dog['age']}',
                                   style: const TextStyle(fontSize: 14)),
                               Text('สายพันธุ์: ${dog['breed']}',
                                   style: const TextStyle(fontSize: 14)),
@@ -139,7 +140,7 @@ class _DogProfilesPageState extends State<DogProfilesPage> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => EditDogProfilePage()),
+                  MaterialPageRoute(builder: (context) => AddDogPage()),
                 );
               },
               style: ElevatedButton.styleFrom(
