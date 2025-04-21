@@ -17,8 +17,7 @@ class _AddDogPageState extends State<AddDogPage> {
   final ageController = TextEditingController();
   String? selectedGender;
   String? selectedBreed;
-  String? base64Image;
-  File? selectedImageFile; // สำหรับพรีวิว
+  File? selectedImageFile;
 
   final List<String> genders = ['เพศผู้', 'เพศเมีย'];
   final List<String> breeds = [
@@ -36,7 +35,7 @@ class _AddDogPageState extends State<AddDogPage> {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
     if (pickedFile != null) {
       setState(() {
-        selectedImageFile = File(pickedFile.path); // ยังไม่แปลง Base64
+        selectedImageFile = File(pickedFile.path);
       });
     }
   }
@@ -66,7 +65,6 @@ class _AddDogPageState extends State<AddDogPage> {
         .collection('dogs')
         .add(dogData);
 
-    // ✅ แสดง Alert ก่อน pop
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
@@ -87,11 +85,10 @@ class _AddDogPageState extends State<AddDogPage> {
 
   @override
   Widget build(BuildContext context) {
-    // final imageWidget = base64Image != null && base64Image!.isNotEmpty
-    //     ? Image.memory(base64Decode(base64Image!),
-    //         height: 180, fit: BoxFit.cover)
-    //     : Image.asset('assets/images/dog_profile.png',
-    //         height: 180, fit: BoxFit.cover);
+    final imageWidget = selectedImageFile != null
+        ? Image.file(selectedImageFile!, height: 180, fit: BoxFit.cover)
+        : Image.asset('assets/images/dog_profile.jpg',
+            height: 180, fit: BoxFit.cover);
 
     return Scaffold(
       appBar: AppBar(
@@ -105,14 +102,10 @@ class _AddDogPageState extends State<AddDogPage> {
           key: _formKey,
           child: Column(
             children: [
-              // พรีวิวรูปภาพ
-              if (base64Image != null && base64Image!.isNotEmpty)
-                Image.memory(base64Decode(base64Image!),
-                    height: 180, fit: BoxFit.cover)
-              else
-                Image.asset('assets/images/dog_profile.png',
-                    height: 180, fit: BoxFit.cover),
-
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: imageWidget,
+              ),
               const SizedBox(height: 10),
 
               TextFormField(
@@ -124,11 +117,9 @@ class _AddDogPageState extends State<AddDogPage> {
               const SizedBox(height: 10),
 
               DropdownButtonFormField<String>(
-                value:
-                    ageController.text.isNotEmpty ? ageController.text : '1 ปี',
+                value: ageController.text.isNotEmpty ? ageController.text : '1 ปี',
                 items: List.generate(15, (i) => '${i + 1} ปี')
-                    .map(
-                        (age) => DropdownMenuItem(value: age, child: Text(age)))
+                    .map((age) => DropdownMenuItem(value: age, child: Text(age)))
                     .toList(),
                 onChanged: (value) =>
                     setState(() => ageController.text = value!),
@@ -156,7 +147,6 @@ class _AddDogPageState extends State<AddDogPage> {
               ),
               const SizedBox(height: 10),
 
-              // ปุ่มอัปโหลดรูปภาพ
               ElevatedButton.icon(
                 onPressed: _pickImage,
                 icon: const Icon(Icons.upload_file),
@@ -164,8 +154,7 @@ class _AddDogPageState extends State<AddDogPage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.brown[300],
                   foregroundColor: Colors.white,
-                  minimumSize:
-                      const Size(400, 50), // กำหนดความกว้างและความสูงขั้นต่ำ
+                  minimumSize: const Size(400, 50),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -173,16 +162,14 @@ class _AddDogPageState extends State<AddDogPage> {
                       const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 ),
               ),
-              const SizedBox(height: 25), // ระยะห่างระหว่างปุ่ม
+              const SizedBox(height: 25),
 
               ElevatedButton(
                 onPressed: _saveDog,
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.brown,
-                  minimumSize:
-                      const Size(400, 50), // กำหนดความกว้างและความสูงขั้นต่ำ
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                  minimumSize: const Size(400, 50),
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),

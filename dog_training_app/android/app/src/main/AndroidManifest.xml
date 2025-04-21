@@ -1,7 +1,7 @@
-<?xml version="1.0" encoding="utf-8"?> <!-- ✅ เพิ่ม encoding UTF-8 -->
+<?xml version="1.0" encoding="utf-8"?> 
 
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
-    package="com.example.dog_training_app"> <!-- ✅ ใส่ package ให้ตรงกับ build.gradle -->
+    package="com.example.dog_app"> 
 
     <application
         android:label="Doggy Training App"

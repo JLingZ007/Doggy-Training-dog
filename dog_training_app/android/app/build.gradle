@@ -1,47 +1,40 @@
-apply plugin: "com.android.application"
-apply plugin: "com.google.gms.google-services" // ใช้ Google Services Plugin สำหรับ Firebase
+plugins {
+    id "com.android.application"
+    id "kotlin-android"
+    // The Flutter Gradle Plugin must be applied after the Android and Kotlin Gradle plugins.
+    id "dev.flutter.flutter-gradle-plugin"
+    id "com.google.gms.google-services" // ✅ เพิ่ม plugin Firebase
+}
 
 android {
-    compileSdk 33 // ใช้ compileSdk ตามที่ Flutter แนะนำ
+    namespace = "com.example.dog_app"
+    compileSdk = flutter.compileSdkVersion
+    ndkVersion = flutter.ndkVersion
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+    }
+
+    kotlinOptions {
+        jvmTarget = JavaVersion.VERSION_1_8
+    }
 
     defaultConfig {
-        applicationId "com.example.doggy_training" // แก้ไขเป็น package name ของคุณ
-        minSdk 21 // รองรับ Android เวอร์ชันขั้นต่ำ
-        targetSdk 33
-        versionCode 1
-        versionName "1.0"
-        
-        multiDexEnabled true // หากโปรเจกต์ของคุณต้องการ MultiDex
+        applicationId = "com.example.dog_app" 
+        minSdk = 23
+        targetSdk = flutter.targetSdkVersion
+        versionCode = flutter.versionCode
+        versionName = flutter.versionName
     }
 
     buildTypes {
         release {
-            minifyEnabled false // ปิดการลดขนาดโค้ดสำหรับ Debug (หรือปรับแต่งสำหรับ Production)
-            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+            signingConfig = signingConfigs.debug
         }
-    }
-
-    compileOptions {
-        sourceCompatibility JavaVersion.VERSION_11
-        targetCompatibility JavaVersion.VERSION_11
-    }
-
-    kotlinOptions {
-        jvmTarget = "11"
-    }
-
-    // สำหรับ Flutter
-    buildFeatures {
-        viewBinding true
     }
 }
 
-dependencies {
-    implementation "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
-    implementation platform('com.google.firebase:firebase-bom:32.0.0') // Firebase BOM เพื่อจัดการเวอร์ชัน
-
-    // เพิ่ม Firebase Libraries 
-    implementation 'com.google.firebase:firebase-analytics'
-    implementation 'com.google.firebase:firebase-auth'
-    implementation 'com.google.firebase:firebase-firestore'
+flutter {
+    source = "../.."
 }

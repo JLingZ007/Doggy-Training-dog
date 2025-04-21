@@ -131,10 +131,19 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: const Color(0xFFFDF9F4),
       appBar: AppBar(
-        title: const Text('รายละเอียดการฝึก', style: TextStyle(color: Colors.black)),
-        backgroundColor: Colors.brown[200],
+        backgroundColor: const Color(0xFFD2B48C), // สีครีม/น้ำตาลอ่อน
         elevation: 0,
+        centerTitle: true,
+        title: Text(
+          details?['name'] ?? 'บทเรียนการฝึก',
+          style: const TextStyle(
+            color: Colors.black,
+            fontWeight: FontWeight.bold,
+            fontSize: 18,
+          ),
+        ),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
           onPressed: () => Navigator.pop(context),
@@ -149,90 +158,93 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (_controller != null)
-                        YoutubePlayerBuilder(
-                          player: YoutubePlayer(controller: _controller!),
-                          builder: (context, player) {
-                            return Column(
-                              children: [player],
-                            );
-                          },
-                        )
-                      else
-                        const Center(child: Text('ไม่สามารถโหลดวิดีโอได้')),
-
-                      const SizedBox(height: 16),
-
-                      Text(
-                        details!['name'] ?? 'ไม่มีชื่อการฝึก',
-                        style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                      ClipRRect(
+                        borderRadius: BorderRadius.circular(16),
+                        child: _controller != null
+                            ? YoutubePlayerBuilder(
+                                player: YoutubePlayer(controller: _controller!),
+                                builder: (context, player) => player,
+                              )
+                            : Image.asset('assets/images/video_placeholder.png'),
                       ),
-                      const SizedBox(height: 8),
-
-                      Text(
-                        details!['description'] ?? 'ไม่มีคำอธิบาย',
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 12),
 
                       Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
                           Text(
                             'ความยาก: ${details!['difficulty'] ?? 'ไม่ระบุ'}',
-                            style: const TextStyle(fontSize: 16),
+                            style: const TextStyle(fontSize: 14),
                           ),
                           Text(
-                            'ระยะเวลา: ${details!['duration'] ?? 'ไม่ระบุ'} นาที',
-                            style: const TextStyle(fontSize: 16),
+                            'เวลาที่ต้องฝึก: ${details!['duration'] ?? 'ไม่ระบุ'} นาที',
+                            style: const TextStyle(fontSize: 14),
                           ),
                         ],
                       ),
                       const SizedBox(height: 16),
 
-                      Text(
-                        'ขั้นตอนการฝึก:',
-                        style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-
-                      Expanded(
-                        child: ListView.builder(
-                          itemCount: details!['steps']?.length ?? 0,
-                          itemBuilder: (context, index) {
-                            final step = details!['steps'][index];
-                            return Padding(
-                              padding: const EdgeInsets.symmetric(vertical: 4.0),
-                              child: Text(
-                                'ขั้นตอนที่ ${index + 1}: $step',
-                                style: const TextStyle(fontSize: 16),
+                      Container(
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFF4EDE4),
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'ขั้นตอน:',
+                              style: TextStyle(
+                                  fontSize: 18, fontWeight: FontWeight.bold),
+                            ),
+                            const SizedBox(height: 8),
+                            ...List.generate(
+                              details!['steps']?.length ?? 0,
+                              (index) => Padding(
+                                padding:
+                                    const EdgeInsets.symmetric(vertical: 4.0),
+                                child: Text(
+                                  'ขั้นตอนที่ ${index + 1}: ${details!['steps'][index]}',
+                                  style: const TextStyle(fontSize: 15),
+                                ),
                               ),
-                            );
-                          },
+                            ),
+                          ],
                         ),
                       ),
-                      const SizedBox(height: 16),
+                      const SizedBox(height: 24),
 
-                      // แสดงปุ่ม "สิ้นสุดบทเรียน" เฉพาะผู้ที่ล็อกอินเท่านั้น
                       if (currentUser != null)
-                        ElevatedButton(
-                          onPressed: _isCompleted ? null : completeCourse,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: _isCompleted ? Colors.grey : Colors.green,
-                            foregroundColor: Colors.white,
-                            padding: const EdgeInsets.symmetric(vertical: 12),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(30),
+                        Center(
+                          child: ElevatedButton(
+                            onPressed: _isCompleted ? null : completeCourse,
+                            style: ElevatedButton.styleFrom(
+                              backgroundColor: _isCompleted
+                                  ? Colors.grey[400]
+                                  : const Color(0xFFA4D6A7),
+                              foregroundColor: Colors.black,
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 40, vertical: 14),
+                              shape: RoundedRectangleBorder(
+                                borderRadius: BorderRadius.circular(20),
+                              ),
+                            ),
+                            child: Text(
+                              _isCompleted
+                                  ? 'บทเรียนนี้เรียนจบแล้ว'
+                                  : 'สิ้นสุดบทเรียน',
+                              style: const TextStyle(
+                                fontWeight: FontWeight.bold,
+                                fontSize: 16,
+                              ),
                             ),
                           ),
-                          child: Text(
-                            _isCompleted ? 'บทเรียนนี้เรียนจบแล้ว' : 'สิ้นสุดบทเรียน',
-                            style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                          ),
-                        ),
+                        )
                     ],
                   ),
                 ),
     );
   }
+
 }

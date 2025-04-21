@@ -14,14 +14,6 @@
       },
       "oauth_client": [
         {
-          "client_id": "451937564533-f33b53lq3etoufnceomcericoa7uf0ak.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.example.dog_app",
-            "certificate_hash": "f31dbbdc2e46a2ba3bb1afd9624910e7b8e861d4"
-          }
-        },
-        {
           "client_id": "451937564533-m0ofsjc1nsuu5eepbgbkkabe5difuj6k.apps.googleusercontent.com",
           "client_type": 3
         }
@@ -79,14 +71,6 @@
         }
       },
       "oauth_client": [
-        {
-          "client_id": "451937564533-baejl77mkapq9jp4eat1i3ojkrbv2s4d.apps.googleusercontent.com",
-          "client_type": 1,
-          "android_info": {
-            "package_name": "com.example.doggy",
-            "certificate_hash": "f31dbbdc2e46a2ba3bb1afd9624910e7b8e861d4"
-          }
-        },
         {
           "client_id": "451937564533-m0ofsjc1nsuu5eepbgbkkabe5difuj6k.apps.googleusercontent.com",
           "client_type": 3

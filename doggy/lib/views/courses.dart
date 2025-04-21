@@ -33,7 +33,7 @@ class CoursesPage extends StatelessWidget {
           'หมวดหมู่การฝึก',
           style: TextStyle(color: Colors.black),
         ),
-        backgroundColor: Colors.brown[200],
+        backgroundColor: const Color(0xFFD2B48C),
         elevation: 0,
         leading: IconButton(
           icon: const Icon(Icons.arrow_back, color: Colors.black),
@@ -120,7 +120,7 @@ class CoursesPage extends StatelessWidget {
                                   );                              
                                 },
                                 style: ElevatedButton.styleFrom(
-                                  backgroundColor: Colors.brown[200],
+                                  backgroundColor: Color(0xFFD2B48C),
                                   shape: RoundedRectangleBorder(
                                     borderRadius: BorderRadius.circular(10),
                                   ),

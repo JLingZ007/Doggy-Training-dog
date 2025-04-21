@@ -26,7 +26,7 @@ class _ClickerPageState extends State<ClickerPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF3F6F8), // สีพื้นหลังเทาอ่อน
       appBar: AppBar(
-        backgroundColor: Colors.brown[200],
+        backgroundColor: const Color(0xFFD2B48C),
         title: const Text('คลิกเกอร์', style: TextStyle(color: Colors.black)),
         elevation: 0,
         leading: IconButton(

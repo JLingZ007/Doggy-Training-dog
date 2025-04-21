@@ -71,11 +71,12 @@ flutter:
   assets:
     - assets/images/
     - assets/images/doggy_logo.png
+    - assets/images/dog_profile.jpg
     - assets/images/whistle.png
     - assets/images/clicker.png
     - assets/images/dog_profile.png
     - assets/sounds/clicker_sound.mp3
-    - assets/sounds/whistle_sound.mp3
+    # - assets/sounds/whistle_sound.mp3
     - assets/sounds/Whistle.mp3
 
   # To add assets to your application, add an assets section, like this:

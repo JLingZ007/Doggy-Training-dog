@@ -33,7 +33,7 @@ class TrainingProgramsPage extends StatelessWidget {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Text('รายละเอียดหมวดหมู่',
+        title: const Text('[บทเรียนทั้งหมด',
             style: TextStyle(color: Colors.black)),
         backgroundColor: Colors.brown[200],
         elevation: 0,

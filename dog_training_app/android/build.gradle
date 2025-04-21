@@ -1,11 +1,11 @@
 buildscript {
     repositories {
-        google() // สำหรับโหลด Plugin ของ Google เช่น Firebase
-        mavenCentral() // สำหรับโหลด Dependency อื่นๆ
+        google()           
+        mavenCentral()     
     }
     dependencies {
-        classpath 'com.android.tools.build:gradle:8.0.2' // Gradle Plugin เวอร์ชันที่รองรับ Flutter
-        classpath 'com.google.gms:google-services:4.4.0' // Plugin สำหรับ Firebase
+        classpath 'com.android.tools.build:gradle:8.1.1'
+        classpath 'com.google.gms:google-services:4.4.0'
     }
 }
 
@@ -16,6 +16,14 @@ allprojects {
     }
 }
 
-task clean(type: Delete) {
+rootProject.buildDir = "../build"
+subprojects {
+    project.buildDir = "${rootProject.buildDir}/${project.name}"
+}
+subprojects {
+    project.evaluationDependsOn(":app")
+}
+
+tasks.register("clean", Delete) {
     delete rootProject.buildDir
 }
