@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'routes/app_navigator.dart';
 import 'routes/app_routes.dart';
 import 'firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'views/login_page.dart';
+import 'services/chat_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -14,17 +15,46 @@ void main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
 
+  // Sign in anonymously สำหรับการใช้งาน Firebase
+  try {
+    await FirebaseAuth.instance.signInAnonymously();
+    print('Signed in anonymously to Firebase');
+  } catch (e) {
+    print('Error signing in anonymously: $e');
+  }
+
   runApp(MyApp());
 }
 
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Doggy Training',
-      debugShowCheckedModeBanner: false,
-      initialRoute: AppRoutes.mainPage, // เส้นทางเริ่มต้น
-      onGenerateRoute: AppNavigator.onGenerateRoute, // ใช้ Navigator ที่สร้างไว้
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ChatProvider()),
+      ],
+      child: MaterialApp(
+        title: 'Doggy Training',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          primarySwatch: Colors.blue,
+          fontFamily: 'Roboto',
+          visualDensity: VisualDensity.adaptivePlatformDensity,
+          appBarTheme: AppBarTheme(
+            elevation: 0,
+            centerTitle: true,
+          ),
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(15),
+              ),
+            ),
+          ),
+        ),
+        initialRoute: AppRoutes.mainPage,
+        onGenerateRoute: AppNavigator.onGenerateRoute,
+      ),
     );
   }
 }
@@ -41,7 +71,7 @@ class MainPage extends StatelessWidget {
         ),
         centerTitle: true,
         backgroundColor: Colors.transparent,
-        elevation: 0, // ทำให้ AppBar โปร่งใส
+        elevation: 0,
       ),
       body: Center(
         child: Column(
@@ -49,7 +79,7 @@ class MainPage extends StatelessWidget {
           children: [
             // รูปภาพ
             Image.asset(
-              'assets/images/doggy_logo.png', // ใส่ path ของไฟล์รูปภาพใน assets
+              'assets/images/doggy_logo.png',
               width: 300,
               height: 300,
               fit: BoxFit.cover,
@@ -59,13 +89,13 @@ class MainPage extends StatelessWidget {
             // ปุ่ม "เริ่มต้นใช้งาน"
             ElevatedButton(
               onPressed: () {
-                Navigator.pushNamed(context, AppRoutes.home); // ใช้ AppRoutes.home
+                Navigator.pushNamed(context, AppRoutes.home);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.black,
                 side: const BorderSide(color: Colors.black, width: 1),
-                minimumSize: const Size(250, 50), // กำหนดความกว้างและความสูงขั้นต่ำ
+                minimumSize: const Size(250, 50),
                 padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(15),
@@ -79,18 +109,18 @@ class MainPage extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 15), // ระยะห่างระหว่างปุ่ม
+            const SizedBox(height: 15),
 
-            // ปุ่ม "เข้าสู่ระบบ" (เหมือนปุ่ม "เริ่มต้นใช้งาน")
+            // ปุ่ม "เข้าสู่ระบบ"
             ElevatedButton(
               onPressed: () {
-                Navigator.pushNamed(context, AppRoutes.login); // ใช้ AppRoutes.login
+                Navigator.pushNamed(context, AppRoutes.login);
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.black,
                 side: const BorderSide(color: Colors.black, width: 1),
-                minimumSize: const Size(250, 50), // กำหนดความกว้างและความสูงขั้นต่ำ
+                minimumSize: const Size(250, 50),
                 padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(15),

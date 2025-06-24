@@ -11,4 +11,6 @@ class AppRoutes {
   static const String myCourses = '/myCourses';
   static const String clicker = '/clicker';
   static const String whistle = '/whistle';
+  static const String chat = '/chat';
+  static const String chatHistory = '/chat_history';
 }
