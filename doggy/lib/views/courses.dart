@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../widgets/slidebar.dart';
 import '../routes/app_routes.dart';
+import '../widgets/bottom_navbar.dart';
 
 class CoursesPage extends StatelessWidget {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -10,20 +11,20 @@ class CoursesPage extends StatelessWidget {
   Future<List<Map<String, dynamic>>> fetchCategories() async {
     try {
       final snapshot = await _firestore.collection('training_categories').get();
-      final docs = snapshot.docs.map((doc) => {
-        'id': doc.id,
-        ...doc.data(),
-      }).toList();
+      final docs = snapshot.docs
+          .map((doc) => {
+                'id': doc.id,
+                ...doc.data(),
+              })
+          .toList();
 
       docs.sort((a, b) => (a['order'] ?? 999).compareTo(b['order'] ?? 999));
-
 
       return docs;
     } catch (e) {
       throw Exception('Failed to fetch categories: $e');
     }
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -115,9 +116,11 @@ class CoursesPage extends StatelessWidget {
                                 onPressed: () {
                                   Navigator.pushNamed(
                                     context,
-                                    AppRoutes.trainingPrograms, // ชื่อต้องตรงกับใน AppRoutes
-                                    arguments: category['id'], // ส่ง id ของหมวดหมู่
-                                  );                              
+                                    AppRoutes
+                                        .trainingPrograms, // ชื่อต้องตรงกับใน AppRoutes
+                                    arguments:
+                                        category['id'], // ส่ง id ของหมวดหมู่
+                                  );
                                 },
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Color(0xFFD2B48C),
@@ -138,6 +141,9 @@ class CoursesPage extends StatelessWidget {
             ),
           );
         },
+      ),
+      bottomNavigationBar: BottomNavBar(
+        currentIndex: 1, // หน้าหลัก
       ),
     );
   }

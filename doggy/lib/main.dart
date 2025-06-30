@@ -6,6 +6,14 @@ import 'firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'services/chat_provider.dart';
+import 'providers/community_provider.dart';
+
+// Import views
+import 'views/home.dart';
+import 'views/courses.dart';
+import 'views/myCourses.dart';
+import 'views/community_page.dart';
+import 'widgets/slidebar.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,20 +40,26 @@ class MyApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => ChatProvider()),
+        ChangeNotifierProvider(create: (_) => CommunityProvider()),
       ],
       child: MaterialApp(
         title: 'Doggy Training',
         debugShowCheckedModeBanner: false,
         theme: ThemeData(
-          primarySwatch: Colors.blue,
+          primarySwatch: Colors.brown,
+          primaryColor: const Color(0xFFD2B48C),
           fontFamily: 'Roboto',
           visualDensity: VisualDensity.adaptivePlatformDensity,
           appBarTheme: AppBarTheme(
             elevation: 0,
             centerTitle: true,
+            backgroundColor: const Color(0xFFD2B48C),
+            foregroundColor: Colors.black,
           ),
           elevatedButtonTheme: ElevatedButtonThemeData(
             style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFD2B48C),
+              foregroundColor: Colors.black,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(15),
               ),
@@ -59,6 +73,7 @@ class MyApp extends StatelessWidget {
   }
 }
 
+// หน้า Landing Page เดิม
 class MainPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
@@ -140,3 +155,4 @@ class MainPage extends StatelessWidget {
     );
   }
 }
+

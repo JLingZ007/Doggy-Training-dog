@@ -4,6 +4,7 @@ import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:intl/intl.dart';
 import '../services/chat_provider.dart';
 import '../models/chat_models.dart';
+import '../widgets/bottom_navbar.dart';
 
 class ChatPage extends StatefulWidget {
   @override
@@ -22,7 +23,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
       duration: Duration(milliseconds: 300),
       vsync: this,
     );
-    
+
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final chatProvider = context.read<ChatProvider>();
       if (chatProvider.currentSessionId == null) {
@@ -44,10 +45,10 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
     if (message.isEmpty) return;
 
     _messageController.clear();
-    
+
     final chatProvider = context.read<ChatProvider>();
     await chatProvider.sendMessage(message);
-    
+
     _scrollToBottom();
   }
 
@@ -97,10 +98,14 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                 Consumer<ChatProvider>(
                   builder: (context, chatProvider, child) {
                     return Text(
-                      chatProvider.error != null ? 'การเชื่อมต่อผิดพลาด' : 'พร้อมให้คำปรึกษา',
+                      chatProvider.error != null
+                          ? 'การเชื่อมต่อผิดพลาด'
+                          : 'พร้อมให้คำปรึกษา',
                       style: TextStyle(
                         fontSize: 12,
-                        color: chatProvider.error != null ? Colors.red[800] : Colors.black54,
+                        color: chatProvider.error != null
+                            ? Colors.red[800]
+                            : Colors.black54,
                       ),
                     );
                   },
@@ -137,9 +142,11 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                     value: 'new_session',
                     child: Row(
                       children: [
-                        Icon(Icons.add, size: 18, color: const Color(0xFF8B4513)),
+                        Icon(Icons.add,
+                            size: 18, color: const Color(0xFF8B4513)),
                         SizedBox(width: 8),
-                        Text('สร้างการสนทนาใหม่', style: TextStyle(color: const Color(0xFF8B4513))),
+                        Text('สร้างการสนทนาใหม่',
+                            style: TextStyle(color: const Color(0xFF8B4513))),
                       ],
                     ),
                   ),
@@ -149,7 +156,8 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                       children: [
                         Icon(Icons.refresh, size: 18, color: Colors.orange),
                         SizedBox(width: 8),
-                        Text('ล้างการสนทนา', style: TextStyle(color: Colors.orange)),
+                        Text('ล้างการสนทนา',
+                            style: TextStyle(color: Colors.orange)),
                       ],
                     ),
                   ),
@@ -158,9 +166,11 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                       value: 'refresh',
                       child: Row(
                         children: [
-                          Icon(Icons.sync, size: 18, color: const Color(0xFF8B4513)),
+                          Icon(Icons.sync,
+                              size: 18, color: const Color(0xFF8B4513)),
                           SizedBox(width: 8),
-                          Text('ลองเชื่อมต่อใหม่', style: TextStyle(color: const Color(0xFF8B4513))),
+                          Text('ลองเชื่อมต่อใหม่',
+                              style: TextStyle(color: const Color(0xFF8B4513))),
                         ],
                       ),
                     ),
@@ -188,7 +198,8 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                       Expanded(
                         child: Text(
                           chatProvider.error!,
-                          style: TextStyle(color: Colors.red[700], fontSize: 14),
+                          style:
+                              TextStyle(color: Colors.red[700], fontSize: 14),
                         ),
                       ),
                       IconButton(
@@ -204,7 +215,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
               return SizedBox.shrink();
             },
           ),
-          
+
           Expanded(
             child: Consumer<ChatProvider>(
               builder: (context, chatProvider, child) {
@@ -215,14 +226,14 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                 return ListView.builder(
                   controller: _scrollController,
                   padding: EdgeInsets.all(16),
-                  itemCount: chatProvider.messages.length + 
-                             (chatProvider.isLoading ? 1 : 0),
+                  itemCount: chatProvider.messages.length +
+                      (chatProvider.isLoading ? 1 : 0),
                   itemBuilder: (context, index) {
-                    if (index == chatProvider.messages.length && 
+                    if (index == chatProvider.messages.length &&
                         chatProvider.isLoading) {
                       return _buildTypingIndicator();
                     }
-                    
+
                     final message = chatProvider.messages[index];
                     return _buildMessageBubble(message);
                   },
@@ -230,7 +241,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
               },
             ),
           ),
-          
+
           // Suggested questions
           Consumer<ChatProvider>(
             builder: (context, chatProvider, child) {
@@ -240,9 +251,12 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
               return SizedBox.shrink();
             },
           ),
-          
+
           _buildMessageInput(),
         ],
+      ),
+      bottomNavigationBar: BottomNavBar(
+        currentIndex: 0, // หน้าหลัก
       ),
     );
   }
@@ -289,11 +303,12 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
 
   Widget _buildMessageBubble(ChatMessage message) {
     final isUser = message.isUser;
-    
+
     return Container(
       margin: EdgeInsets.only(bottom: 16),
       child: Row(
-        mainAxisAlignment: isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment:
+            isUser ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           if (!isUser) ...[
@@ -312,10 +327,10 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
             ),
             SizedBox(width: 8),
           ],
-          
           Flexible(
             child: Column(
-              crossAxisAlignment: isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              crossAxisAlignment:
+                  isUser ? CrossAxisAlignment.end : CrossAxisAlignment.start,
               children: [
                 Container(
                   constraints: BoxConstraints(
@@ -338,32 +353,32 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                       ),
                     ],
                   ),
-                  child: isUser 
-                    ? Text(
-                        message.content,
-                        style: TextStyle(
-                          color: Colors.black,
-                          fontSize: 16,
-                        ),
-                      )
-                    : MarkdownBody(
-                        data: message.content,
-                        styleSheet: MarkdownStyleSheet(
-                          p: TextStyle(
-                            color: Colors.black87,
+                  child: isUser
+                      ? Text(
+                          message.content,
+                          style: TextStyle(
+                            color: Colors.black,
                             fontSize: 16,
-                            height: 1.4,
                           ),
-                          strong: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            color: Colors.black87,
+                        )
+                      : MarkdownBody(
+                          data: message.content,
+                          styleSheet: MarkdownStyleSheet(
+                            p: TextStyle(
+                              color: Colors.black87,
+                              fontSize: 16,
+                              height: 1.4,
+                            ),
+                            strong: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black87,
+                            ),
                           ),
                         ),
-                      ),
                 ),
-                
+
                 SizedBox(height: 4),
-                
+
                 Text(
                   DateFormat('HH:mm').format(message.timestamp),
                   style: TextStyle(
@@ -371,7 +386,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                     color: Colors.grey[500],
                   ),
                 ),
-                
+
                 // Error indicator
                 if (message.status == MessageStatus.error)
                   Padding(
@@ -387,7 +402,6 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
               ],
             ),
           ),
-          
           if (isUser) ...[
             SizedBox(width: 8),
             Container(
@@ -449,7 +463,8 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                   height: 15,
                   child: CircularProgressIndicator(
                     strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(const Color(0xFF8B4513)),
+                    valueColor:
+                        AlwaysStoppedAnimation<Color>(const Color(0xFF8B4513)),
                   ),
                 ),
                 SizedBox(width: 8),
@@ -470,7 +485,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
 
   Widget _buildSuggestedQuestions() {
     final suggestions = context.read<ChatProvider>().getSuggestedQuestions();
-    
+
     return Container(
       height: 100,
       child: ListView.builder(
@@ -513,7 +528,8 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                 decoration: BoxDecoration(
                   color: const Color(0xFFF3F6F8),
                   borderRadius: BorderRadius.circular(25),
-                  border: Border.all(color: const Color(0xFFD2B48C).withOpacity(0.3)),
+                  border: Border.all(
+                      color: const Color(0xFFD2B48C).withOpacity(0.3)),
                 ),
                 child: TextField(
                   controller: _messageController,
@@ -521,7 +537,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                     hintText: 'พิมพ์คำถามของคุณ...',
                     border: InputBorder.none,
                     contentPadding: EdgeInsets.symmetric(
-                      horizontal: 20, 
+                      horizontal: 20,
                       vertical: 12,
                     ),
                     hintStyle: TextStyle(color: Colors.grey[500]),
@@ -543,7 +559,9 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                   child: IconButton(
                     onPressed: chatProvider.isLoading ? null : _sendMessage,
                     icon: Icon(
-                      chatProvider.isLoading ? Icons.hourglass_empty : Icons.send,
+                      chatProvider.isLoading
+                          ? Icons.hourglass_empty
+                          : Icons.send,
                       color: Colors.black,
                     ),
                   ),
@@ -566,7 +584,8 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
       context: context,
       builder: (BuildContext context) {
         return AlertDialog(
-          title: Text('ล้างการสนทนา', style: TextStyle(color: const Color(0xFF8B4513))),
+          title: Text('ล้างการสนทนา',
+              style: TextStyle(color: const Color(0xFF8B4513))),
           content: Text('คุณต้องการล้างประวัติการสนทนาปัจจุบันหรือไม่?'),
           actions: [
             TextButton(

@@ -1,3 +1,4 @@
+// widgets/slide_bar.dart
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
@@ -114,7 +115,7 @@ class SlideBar extends StatelessWidget {
           
           ListTile(
             leading: const Icon(Icons.book, color: Colors.green),
-            title: const Text('คอร์สเรียนของฉัน'),
+            title: const Text('บทเรียนเรียนของฉัน'),
             onTap: () {
               Navigator.pushNamed(context, AppRoutes.myCourses);
             },
@@ -122,9 +123,61 @@ class SlideBar extends StatelessWidget {
           
           ListTile(
             leading: const Icon(Icons.menu_book, color: Colors.blue),
-            title: const Text('คอร์สทั้งหมด'),
+            title: const Text('บทเรียนทั้งหมด'),
             onTap: () {
               Navigator.pushNamed(context, AppRoutes.courses);
+            },
+          ),
+
+          const Divider(thickness: 1),
+          
+          // หมวดหมู่ชุมชน
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+            child: Text(
+              'ชุมชน',
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: FontWeight.bold,
+                color: Colors.grey[600],
+              ),
+            ),
+          ),
+
+          // ชุมชนสายพันธุ์
+          ListTile(
+            leading: Container(
+              padding: EdgeInsets.all(4),
+              decoration: BoxDecoration(
+                color: Colors.purple[100],
+                borderRadius: BorderRadius.circular(8),
+              ),
+              child: Icon(Icons.groups, color: Colors.purple[600]),
+            ),
+            title: const Text('ชุมชน'),
+            subtitle: const Text('แชร์ประสบการณ์กับเพื่อนๆ'),
+            trailing: user != null 
+                ? Icon(Icons.chevron_right, color: Colors.grey)
+                : Container(
+                    padding: EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                    decoration: BoxDecoration(
+                      color: Colors.orange[100],
+                      borderRadius: BorderRadius.circular(10),
+                    ),
+                    child: Text(
+                      'Login',
+                      style: TextStyle(
+                        fontSize: 10,
+                        color: Colors.orange[800],
+                      ),
+                    ),
+                  ),
+            onTap: () {
+              if (user != null) {
+                Navigator.pushNamed(context, AppRoutes.community);
+              } else {
+                _showLoginRequiredDialog(context, 'ชุมชนสายพันธุ์');
+              }
             },
           ),
 

@@ -1,16 +1,30 @@
+// routes/app_routes.dart
 class AppRoutes {
-  static const String home = '/home';
+  // Landing และ Authentication routes
   static const String mainPage = '/main';
   static const String login = '/login';
-  static const String dogProfiles = '/dogProfiles';
-  static const String AddDogPage = '/add_dog';
-  static const String editDogProfile = '/editDogProfile';
+  
+  // Main app routes
+  static const String home = '/home';
+  static const String dogProfiles = '/dog-profiles';
+  static const String AddDogPage = '/add-dog';
+  static const String editDogProfile = '/edit-dog-profile';
+  
+  // Course routes
+  static const String myCourses = '/my-courses';
   static const String courses = '/courses';
+  static const String trainingPrograms = '/training-programs';
   static const String trainingDetails = '/training-details';
-  static const String trainingPrograms = '/trainingPrograms';
-  static const String myCourses = '/myCourses';
+  
+  // Tool routes
   static const String clicker = '/clicker';
   static const String whistle = '/whistle';
+  
+  // Chat routes
   static const String chat = '/chat';
-  static const String chatHistory = '/chat_history';
+  static const String chatHistory = '/chat-history';
+  
+  // Community routes 
+  static const String community = '/community';
+  static const String groupDetail = '/group-detail';
 }

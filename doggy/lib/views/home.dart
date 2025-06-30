@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/slidebar.dart';
-import '../widgets/bottom_navbar.dart';
+import '../widgets/bottom_navbar.dart'; // ใช้ไฟล์เดิม
 import '../routes/app_routes.dart';
 
 class HomePage extends StatefulWidget {
@@ -14,7 +14,7 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  int _currentIndex = 0;
+  int _currentIndex = 0; // ใช้เป็น index สำหรับ BottomNavBar
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   List<Map<String, dynamic>> _randomCourses = [];
@@ -76,25 +76,6 @@ class _HomePageState extends State<HomePage> {
     });
   }
 
-  // ฟังก์ชันเปลี่ยนหน้า
-  void _onNavBarTap(int index) {
-    setState(() {
-      _currentIndex = index;
-    });
-
-    switch (index) {
-      case 0:
-        Navigator.pushReplacementNamed(context, AppRoutes.home);
-        break;
-      case 1:
-        Navigator.pushReplacementNamed(context, AppRoutes.myCourses);
-        break;
-      case 2:
-        Navigator.pushReplacementNamed(context, AppRoutes.courses);
-        break;
-    }
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -150,8 +131,13 @@ class _HomePageState extends State<HomePage> {
                   }
                 }
 
-                return CircleAvatar(
-                  backgroundImage: profileImage,
+                return GestureDetector(
+                  onTap: () {
+                    Navigator.pushNamed(context, AppRoutes.dogProfiles);
+                  },
+                  child: CircleAvatar(
+                    backgroundImage: profileImage,
+                  ),
                 );
               },
             ),
@@ -172,8 +158,7 @@ class _HomePageState extends State<HomePage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.brown,
-                minimumSize:
-                    const Size(250, 50), // กำหนดความกว้างและความสูงขั้นต่ำ
+                minimumSize: const Size(250, 50),
                 side: const BorderSide(color: Colors.brown, width: 2),
                 padding:
                     const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
@@ -181,7 +166,6 @@ class _HomePageState extends State<HomePage> {
                   borderRadius: BorderRadius.circular(20),
                 ),
               ),
-              //minimumSize: const Size(250, 50),
               child: const Text(
                 'คอร์สเรียนของฉัน',
                 style: TextStyle(
@@ -198,8 +182,7 @@ class _HomePageState extends State<HomePage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.brown,
-                minimumSize:
-                    const Size(250, 50), // กำหนดความกว้างและความสูงขั้นต่ำ
+                minimumSize: const Size(250, 50),
                 side: const BorderSide(color: Colors.brown, width: 2),
                 padding:
                     const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
@@ -237,44 +220,103 @@ class _HomePageState extends State<HomePage> {
                                 },
                               );
                             },
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child: Image.network(
-                                course['image'],
-                                fit: BoxFit.cover,
+                            child: Container(
+                              margin: const EdgeInsets.symmetric(horizontal: 8),
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(16),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.1),
+                                    blurRadius: 8,
+                                    offset: const Offset(0, 4),
+                                  ),
+                                ],
+                              ),
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(16),
+                                child: Stack(
+                                  children: [
+                                    Image.network(
+                                      course['image'],
+                                      fit: BoxFit.cover,
+                                      width: double.infinity,
+                                      height: double.infinity,
+                                    ),
+                                    Positioned(
+                                      bottom: 0,
+                                      left: 0,
+                                      right: 0,
+                                      child: Container(
+                                        padding: const EdgeInsets.all(12),
+                                        decoration: BoxDecoration(
+                                          gradient: LinearGradient(
+                                            begin: Alignment.bottomCenter,
+                                            end: Alignment.topCenter,
+                                            colors: [
+                                              Colors.black.withOpacity(0.7),
+                                              Colors.transparent,
+                                            ],
+                                          ),
+                                        ),
+                                        child: Text(
+                                          course['name'] ?? 'บทเรียน',
+                                          style: const TextStyle(
+                                            color: Colors.white,
+                                            fontSize: 16,
+                                            fontWeight: FontWeight.bold,
+                                          ),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ),
+                                    ),
+                                  ],
+                                ),
                               ),
                             ),
                           );
                         } else {
-                          return ClipRRect(
-                            borderRadius: BorderRadius.circular(16),
-                            child: Image.asset(
-                              [
-                                'assets/images/drip_dog4.jpg',
-                                'assets/images/drip_dog2.jpg',
-                                'assets/images/drip_dog3.jpg'
-                              ][index],
-                              fit: BoxFit.cover,
+                          return Container(
+                            margin: const EdgeInsets.symmetric(horizontal: 8),
+                            decoration: BoxDecoration(
+                              borderRadius: BorderRadius.circular(16),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.1),
+                                  blurRadius: 8,
+                                  offset: const Offset(0, 4),
+                                ),
+                              ],
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(16),
+                              child: Image.asset(
+                                [
+                                  'assets/images/drip_dog4.jpg',
+                                  'assets/images/drip_dog2.jpg',
+                                  'assets/images/drip_dog3.jpg'
+                                ][index],
+                                fit: BoxFit.cover,
+                              ),
                             ),
                           );
                         }
                       },
                     ),
                   ),
-                  const SizedBox(height: 10),
+                  const SizedBox(height: 16),
+                  // Dots indicator
                   Row(
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: List.generate(
                       _randomCourses.isNotEmpty ? _randomCourses.length : 3,
-                      (index) => Container(
+                      (index) => AnimatedContainer(
+                        duration: const Duration(milliseconds: 300),
                         margin: const EdgeInsets.symmetric(horizontal: 4),
                         width: 10,
                         height: 10,
                         decoration: BoxDecoration(
                           shape: BoxShape.circle,
-                          color: index == 0
-                              ? Colors.brown
-                              : Colors.brown.withOpacity(0.3),
+                          color: Colors.brown.withOpacity(0.5),
                         ),
                       ),
                     ),
@@ -286,8 +328,7 @@ class _HomePageState extends State<HomePage> {
         ),
       ),
       bottomNavigationBar: BottomNavBar(
-        currentIndex: _currentIndex,
-        onTap: _onNavBarTap,
+        currentIndex: 0, // หน้าหลัก
       ),
     );
   }
