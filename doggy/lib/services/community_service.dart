@@ -1,111 +1,59 @@
-// services/community_service.dart - อัพเดทสำหรับ Base64 Images
+// community_service.dart - แก้ไข parameter names ให้ตรงกับ CloudinaryService
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'dart:convert';
+import 'package:image_picker/image_picker.dart';
 import 'dart:io';
-import 'dart:typed_data';
 import '../models/community_models.dart';
+import 'cloudinary_service.dart';
 
 class CommunityService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseStorage _storage = FirebaseStorage.instance;
 
   String? get currentUserId => _auth.currentUser?.uid;
   String? get currentUserEmail => _auth.currentUser?.email;
-  String? get currentUserName => _auth.currentUser?.displayName ?? _auth.currentUser?.email?.split('@').first ?? 'Unknown User';
+  String? get currentUserName => _auth.currentUser?.displayName ?? 
+      _auth.currentUser?.email?.split('@').first ?? 'Unknown User';
   
   FirebaseAuth get auth => _auth;
 
-  // ==================== IMAGE UTILITIES ====================
-
-  /// แปลงไฟล์รูปภาพเป็น Base64
-  Future<String?> convertImageToBase64(File imageFile) async {
-    try {
-      final bytes = await imageFile.readAsBytes();
-      final base64String = base64Encode(bytes);
-      
-      // เพิ่ม data URL prefix สำหรับ image
-      final mimeType = _getMimeType(imageFile.path);
-      return 'data:$mimeType;base64,$base64String';
-    } catch (e) {
-      print('Error converting image to base64: $e');
-      return null;
-    }
-  }
-
-  /// แปลงไฟล์วิดีโอเป็น Base64 (สำหรับไฟล์เล็ก)
-  Future<String?> convertVideoToBase64(File videoFile) async {
-    try {
-      final fileSize = await videoFile.length();
-      
-      // จำกัดขนาดวิดีโอ (10MB สำหรับ Base64)
-      if (fileSize > 10 * 1024 * 1024) {
-        print('Video file too large for Base64: ${fileSize / (1024 * 1024)} MB');
-        return null;
-      }
-
-      final bytes = await videoFile.readAsBytes();
-      final base64String = base64Encode(bytes);
-      
-      // เพิ่ม data URL prefix สำหรับ video
-      final mimeType = _getMimeType(videoFile.path);
-      return 'data:$mimeType;base64,$base64String';
-    } catch (e) {
-      print('Error converting video to base64: $e');
-      return null;
-    }
-  }
-
-  /// ดึง MIME type จาก file extension
-  String _getMimeType(String filePath) {
-    final extension = filePath.split('.').last.toLowerCase();
-    switch (extension) {
-      case 'jpg':
-      case 'jpeg':
-        return 'image/jpeg';
-      case 'png':
-        return 'image/png';
-      case 'gif':
-        return 'image/gif';
-      case 'webp':
-        return 'image/webp';
-      case 'mp4':
-        return 'video/mp4';
-      case 'webm':
-        return 'video/webm';
-      case 'avi':
-        return 'video/avi';
-      default:
-        return 'application/octet-stream';
-    }
-  }
-
-  /// บีบอัดรูปภาพก่อนแปลงเป็น Base64
-  Future<String?> compressAndConvertToBase64(File imageFile, {int quality = 70}) async {
-    try {
-      // สำหรับ Flutter Web หรือ Mobile ที่ต้องการบีบอัด
-      // ต้องใช้ package เพิ่มเติม เช่น image_compression
-      
-      // สำหรับตอนนี้ ใช้วิธีพื้นฐาน
-      return await convertImageToBase64(imageFile);
-    } catch (e) {
-      print('Error compressing and converting image: $e');
-      return null;
-    }
-  }
-
-  // ==================== GROUP METHODS (เดิม) ====================
+  // ==================== GROUP METHODS ====================
 
   Future<String?> createGroup(CommunityGroup group) async {
     try {
       if (currentUserId == null) {
-        print('Error: User not authenticated');
         throw Exception('User not authenticated');
       }
 
       print('Creating group: ${group.name}');
+      
+      // อัปโหลดรูป cover ไป Cloudinary (ถ้ามี)
+      String? coverImageUrl;
+      String? coverImagePublicId;
+      
+      if (group.coverImageFile != null) {
+        print('Uploading group cover image to Cloudinary...');
+        
+        final uploadResult = await CloudinaryService.uploadImage(
+          imageFile: group.coverImageFile!,
+          folder: 'community_groups/covers',
+          customTags: {
+            'category': 'group_cover',
+            'user': currentUserId!,
+          },
+          autoOptimize: true,
+          maxWidth: 1200,
+          maxHeight: 400,
+        );
+
+        if (uploadResult['success'] == true) {
+          coverImageUrl = uploadResult['url'];
+          coverImagePublicId = uploadResult['public_id'];
+          print('Group cover uploaded successfully: $coverImageUrl');
+        } else {
+          throw Exception('Failed to upload group cover: ${uploadResult['error']}');
+        }
+      }
       
       final groupData = {
         'name': group.name,
@@ -115,8 +63,8 @@ class CommunityService {
         'memberCount': 1,
         'postCount': 0,
         'isPublic': group.isPublic,
-        'coverImage': group.coverImage,
-        'coverImageBase64': group.coverImageBase64,
+        'coverImageUrl': coverImageUrl,
+        'coverImagePublicId': coverImagePublicId,
         'createdBy': currentUserId!,
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
@@ -135,6 +83,349 @@ class CommunityService {
     }
   }
 
+  // ==================== POST METHODS WITH FIXED CLOUDINARY TAGS ====================
+
+  Future<String?> createPost({
+    required String groupId,
+    required String content,
+    List<XFile>? imageFiles,
+    XFile? videoFile,
+    PostType type = PostType.text,
+  }) async {
+    try {
+      if (currentUserId == null) throw Exception('User not authenticated');
+
+      print('Creating post in group: $groupId');
+
+      // อัปโหลดรูปภาพไป Cloudinary (ถ้ามี)
+      List<PostImage> images = [];
+      if (imageFiles != null && imageFiles.isNotEmpty) {
+        print('Uploading ${imageFiles.length} images to Cloudinary...');
+        
+        final uploadResults = await CloudinaryService.uploadMultipleImages(
+          imageFiles: imageFiles,
+          folder: 'community_posts',
+          customTags: {
+            'category': 'post_image',
+            'user': currentUserId!,
+            'group': groupId,
+          },
+          autoOptimize: true,
+          maxWidth: 1200,
+          maxHeight: 1200,
+          maxConcurrent: 3,
+        );
+
+        for (final result in uploadResults) {
+          if (result['success'] == true) {
+            images.add(PostImage(
+              url: result['url'],
+              publicId: result['public_id'],
+              thumbnailUrl: CloudinaryService.getThumbnailUrl(
+                publicId: result['public_id'],
+                size: 300,
+              ),
+              mediumUrl: CloudinaryService.getOptimizedUrl(
+                publicId: result['public_id'],
+                width: 800,
+                height: 600,
+              ),
+              width: result['width'],
+              height: result['height'],
+              format: result['format'],
+              bytes: result['bytes'],
+            ));
+          } else {
+            throw Exception('Failed to upload image: ${result['error']}');
+          }
+        }
+
+        print('Successfully uploaded ${images.length} images');
+      }
+
+      // อัปโหลดวิดีโอไป Cloudinary (ถ้ามี)
+      PostVideo? video;
+      if (videoFile != null) {
+        print('Uploading video to Cloudinary...');
+        
+        final uploadResult = await CloudinaryService.uploadVideo(
+          videoFile: videoFile,
+          folder: 'community_videos',
+          customTags: {
+            'category': 'post_video',
+            'user': currentUserId!,
+            'group': groupId,
+          },
+          autoOptimize: true,
+        );
+
+        if (uploadResult['success'] == true) {
+          video = PostVideo(
+            url: uploadResult['url'],
+            publicId: uploadResult['public_id'],
+            thumbnailUrl: uploadResult['thumbnail_url'] ?? '',
+            width: uploadResult['width'] ?? 0,
+            height: uploadResult['height'] ?? 0,
+            format: uploadResult['format'] ?? '',
+            bytes: uploadResult['bytes'] ?? 0,
+            duration: uploadResult['duration'] ?? 0,
+          );
+          print('Successfully uploaded video');
+        } else {
+          throw Exception('Failed to upload video: ${uploadResult['error']}');
+        }
+      }
+
+      // สร้างข้อมูลโพสต์
+      final postData = {
+        'groupId': groupId,
+        'authorId': currentUserId!,
+        'authorName': currentUserName ?? '',
+        'authorAvatar': _auth.currentUser?.photoURL,
+        'content': content,
+        'type': type.toString().split('.').last,
+        'images': images.map((img) => img.toMap()).toList(),
+        'video': video?.toMap(),
+        'imageCount': images.length,
+        'hasVideo': video != null,
+        'likedBy': <String>[],
+        'likeCount': 0,
+        'commentCount': 0,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      final docRef = await _firestore.collection('community_posts').add(postData);
+      print('Post created with ID: ${docRef.id}');
+
+      // อัปเดตจำนวนโพสต์ในกลุ่ม
+      await updateGroupPostCount(groupId, 1);
+
+      return docRef.id;
+    } catch (e) {
+      print('Error creating post: $e');
+      return null;
+    }
+  }
+
+  Future<bool> updatePost({
+    required String postId,
+    String? newContent,
+    List<XFile>? newImageFiles,
+    List<String>? imagesToDelete,
+    XFile? newVideoFile,
+    bool removeVideo = false,
+  }) async {
+    try {
+      if (currentUserId == null) throw Exception('User not authenticated');
+
+      // ตรวจสอบสิทธิ์
+      final postDoc = await _firestore.collection('community_posts').doc(postId).get();
+      if (!postDoc.exists) {
+        throw Exception('Post not found');
+      }
+
+      final postData = postDoc.data()!;
+      if (postData['authorId'] != currentUserId) {
+        throw Exception('No permission to update this post');
+      }
+
+      Map<String, dynamic> updateData = {
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (newContent != null) {
+        updateData['content'] = newContent;
+      }
+
+      // จัดการรูปภาพ
+      List<PostImage> currentImages = (postData['images'] as List? ?? [])
+          .map((img) => PostImage.fromMap(img as Map<String, dynamic>))
+          .toList();
+
+      // ลบรูปที่ไม่ต้องการ
+      if (imagesToDelete != null && imagesToDelete.isNotEmpty) {
+        for (String publicIdToDelete in imagesToDelete) {
+          await CloudinaryService.deleteImage(publicIdToDelete);
+          currentImages.removeWhere((img) => img.publicId == publicIdToDelete);
+        }
+      }
+
+      // เพิ่มรูปใหม่
+      if (newImageFiles != null && newImageFiles.isNotEmpty) {
+        final uploadResults = await CloudinaryService.uploadMultipleImages(
+          imageFiles: newImageFiles,
+          folder: 'community_posts',
+          customTags: {
+            'category': 'post_image',
+            'user': currentUserId!,
+            'post': postId,
+          },
+          autoOptimize: true,
+          maxWidth: 1200,
+          maxHeight: 1200,
+        );
+
+        for (final result in uploadResults) {
+          if (result['success'] == true) {
+            currentImages.add(PostImage(
+              url: result['url'],
+              publicId: result['public_id'],
+              thumbnailUrl: CloudinaryService.getThumbnailUrl(
+                publicId: result['public_id'],
+                size: 300,
+              ),
+              mediumUrl: CloudinaryService.getOptimizedUrl(
+                publicId: result['public_id'],
+                width: 800,
+                height: 600,
+              ),
+              width: result['width'],
+              height: result['height'],
+              format: result['format'],
+              bytes: result['bytes'],
+            ));
+          }
+        }
+      }
+
+      updateData['images'] = currentImages.map((img) => img.toMap()).toList();
+      updateData['imageCount'] = currentImages.length;
+
+      // จัดการวิดีโอ
+      PostVideo? currentVideo;
+      if (postData['video'] != null) {
+        currentVideo = PostVideo.fromMap(postData['video'] as Map<String, dynamic>);
+      }
+
+      if (removeVideo && currentVideo != null) {
+        // ลบวิดีโอเก่า
+        await CloudinaryService.deleteVideo(currentVideo.publicId);
+        updateData['video'] = null;
+        updateData['hasVideo'] = false;
+      } else if (newVideoFile != null) {
+        // ลบวิดีโอเก่า (ถ้ามี)
+        if (currentVideo != null) {
+          await CloudinaryService.deleteVideo(currentVideo.publicId);
+        }
+
+        // อัปโหลดวิดีโอใหม่
+        final uploadResult = await CloudinaryService.uploadVideo(
+          videoFile: newVideoFile,
+          folder: 'community_videos',
+          customTags: {
+            'category': 'post_video',
+            'user': currentUserId!,
+            'post': postId,
+          },
+          autoOptimize: true,
+        );
+
+        if (uploadResult['success'] == true) {
+          final newVideo = PostVideo(
+            url: uploadResult['url'],
+            publicId: uploadResult['public_id'],
+            thumbnailUrl: uploadResult['thumbnail_url'] ?? '',
+            width: uploadResult['width'] ?? 0,
+            height: uploadResult['height'] ?? 0,
+            format: uploadResult['format'] ?? '',
+            bytes: uploadResult['bytes'] ?? 0,
+            duration: uploadResult['duration'] ?? 0,
+          );
+
+          updateData['video'] = newVideo.toMap();
+          updateData['hasVideo'] = true;
+        }
+      }
+
+      // บันทึกการเปลี่ยนแปลง
+      await _firestore.collection('community_posts').doc(postId).update(updateData);
+      print('Post $postId updated successfully');
+
+      return true;
+    } catch (e) {
+      print('Error updating post: $e');
+      return false;
+    }
+  }
+
+  Future<bool> updateGroup({
+    required String groupId,
+    String? name,
+    String? description,
+    List<String>? tags,
+    XFile? newCoverImage,
+    bool removeCoverImage = false,
+  }) async {
+    try {
+      if (currentUserId == null) throw Exception('User not authenticated');
+
+      // ตรวจสอบสิทธิ์
+      final memberDoc = await _firestore
+          .collection('community_groups')
+          .doc(groupId)
+          .collection('members')
+          .doc(currentUserId)
+          .get();
+      
+      if (!memberDoc.exists || memberDoc.data()?['role'] != 'admin') {
+        throw Exception('No permission to update this group');
+      }
+
+      Map<String, dynamic> updateData = {
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      if (name != null) updateData['name'] = name;
+      if (description != null) updateData['description'] = description;
+      if (tags != null) updateData['tags'] = tags;
+
+      // จัดการรูป cover
+      final groupDoc = await _firestore.collection('community_groups').doc(groupId).get();
+      final groupData = groupDoc.data()!;
+      final currentCoverPublicId = groupData['coverImagePublicId'];
+
+      if (removeCoverImage && currentCoverPublicId != null) {
+        // ลบรูปเก่า
+        await CloudinaryService.deleteImage(currentCoverPublicId);
+        updateData['coverImageUrl'] = null;
+        updateData['coverImagePublicId'] = null;
+      } else if (newCoverImage != null) {
+        // ลบรูปเก่า (ถ้ามี)
+        if (currentCoverPublicId != null) {
+          await CloudinaryService.deleteImage(currentCoverPublicId);
+        }
+
+        // อัปโหลดรูปใหม่
+        final uploadResult = await CloudinaryService.uploadImage(
+          imageFile: newCoverImage,
+          folder: 'community_groups/covers',
+          customTags: {
+            'category': 'group_cover',
+            'user': currentUserId!,
+            'group': groupId,
+          },
+          autoOptimize: true,
+          maxWidth: 1200,
+          maxHeight: 400,
+        );
+
+        if (uploadResult['success'] == true) {
+          updateData['coverImageUrl'] = uploadResult['url'];
+          updateData['coverImagePublicId'] = uploadResult['public_id'];
+        }
+      }
+
+      await _firestore.collection('community_groups').doc(groupId).update(updateData);
+      return true;
+    } catch (e) {
+      print('Error updating group: $e');
+      return false;
+    }
+  }
+
+  // ==================== OTHER METHODS ====================
+
   Stream<List<CommunityGroup>> getAllGroups() {
     print('Getting all public groups stream...');
     
@@ -150,19 +441,14 @@ class CommunityService {
           
           var groups = snapshot.docs.map((doc) {
             try {
-              final group = CommunityGroup.fromFirestore(doc);
-              print('Parsed group: ${group.name} (${group.id})');
-              return group;
+              return CommunityGroup.fromFirestore(doc);
             } catch (e) {
               print('Error parsing group ${doc.id}: $e');
-              print('Group data: ${doc.data()}');
               rethrow;
             }
           }).toList();
           
-          // เรียงลำดับใน Dart แทน Firestore
           groups.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-          
           return groups;
         });
   }
@@ -187,18 +473,14 @@ class CommunityService {
           
           var groups = snapshot.docs.map((doc) {
             try {
-              final group = CommunityGroup.fromFirestore(doc);
-              print('User group: ${group.name} (${group.id})');
-              return group;
+              return CommunityGroup.fromFirestore(doc);
             } catch (e) {
               print('Error parsing user group ${doc.id}: $e');
               rethrow;
             }
           }).toList();
           
-          // เรียงลำดับใน Dart แทน Firestore
           groups.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
-          
           return groups;
         });
   }
@@ -239,7 +521,6 @@ class CommunityService {
         final groupSnapshot = await transaction.get(groupRef);
 
         if (!groupSnapshot.exists) {
-          print('Group $groupId not found');
           throw Exception('Group not found');
         }
 
@@ -247,7 +528,6 @@ class CommunityService {
         final memberIds = List<String>.from(groupData['memberIds'] ?? []);
         
         if (memberIds.contains(currentUserId)) {
-          print('User $currentUserId already a member of group $groupId');
           return true;
         }
 
@@ -259,12 +539,10 @@ class CommunityService {
           'updatedAt': FieldValue.serverTimestamp(),
         });
 
-        print('Updated group $groupId with new member count: ${memberIds.length}');
         return true;
       }).then((result) async {
         if (result) {
           await _addGroupMember(groupId, currentUserId!, 'member');
-          print('Added member data for user $currentUserId in group $groupId');
         }
         return result;
       });
@@ -278,14 +556,11 @@ class CommunityService {
     try {
       if (currentUserId == null) throw Exception('User not authenticated');
 
-      print('User $currentUserId leaving group $groupId');
-
       return await _firestore.runTransaction((transaction) async {
         final groupRef = _firestore.collection('community_groups').doc(groupId);
         final groupSnapshot = await transaction.get(groupRef);
 
         if (!groupSnapshot.exists) {
-          print('Group $groupId not found');
           throw Exception('Group not found');
         }
 
@@ -293,7 +568,6 @@ class CommunityService {
         final memberIds = List<String>.from(groupData['memberIds'] ?? []);
         
         if (!memberIds.contains(currentUserId)) {
-          print('User $currentUserId not a member of group $groupId');
           return true;
         }
 
@@ -305,18 +579,411 @@ class CommunityService {
           'updatedAt': FieldValue.serverTimestamp(),
         });
 
-        print('Updated group $groupId, removed member, new count: ${memberIds.length}');
         return true;
       }).then((result) async {
         if (result) {
           await _removeGroupMember(groupId, currentUserId!);
-          print('Removed member data for user $currentUserId from group $groupId');
         }
         return result;
       });
     } catch (e) {
       print('Error leaving group: $e');
       return false;
+    }
+  }
+
+  Future<bool> deleteGroup(String groupId) async {
+    try {
+      if (currentUserId == null) throw Exception('User not authenticated');
+
+      // ตรวจสอบสิทธิ์
+      final memberDoc = await _firestore
+          .collection('community_groups')
+          .doc(groupId)
+          .collection('members')
+          .doc(currentUserId)
+          .get();
+      
+      if (!memberDoc.exists || memberDoc.data()?['role'] != 'admin') {
+        throw Exception('No permission to delete this group');
+      }
+
+      final groupDoc = await _firestore.collection('community_groups').doc(groupId).get();
+      if (!groupDoc.exists) {
+        throw Exception('Group not found');
+      }
+
+      final groupData = groupDoc.data()!;
+
+      // ลบรูป cover ใน Cloudinary
+      final coverImagePublicId = groupData['coverImagePublicId'];
+      if (coverImagePublicId != null) {
+        await CloudinaryService.deleteImage(coverImagePublicId);
+      }
+
+      // ลบโพสต์ทั้งหมดในกลุ่ม
+      final postsSnapshot = await _firestore
+          .collection('community_posts')
+          .where('groupId', isEqualTo: groupId)
+          .get();
+
+      for (final postDoc in postsSnapshot.docs) {
+        await deletePost(postDoc.id, groupId);
+      }
+
+      // ลบ members collection
+      final membersSnapshot = await _firestore
+          .collection('community_groups')
+          .doc(groupId)
+          .collection('members')
+          .get();
+
+      final batch = _firestore.batch();
+      for (final memberDoc in membersSnapshot.docs) {
+        batch.delete(memberDoc.reference);
+      }
+      await batch.commit();
+
+      // ลบกลุ่ม
+      await _firestore.collection('community_groups').doc(groupId).delete();
+
+      return true;
+    } catch (e) {
+      print('Error deleting group: $e');
+      return false;
+    }
+  }
+
+  Future<bool> deletePost(String postId, String groupId) async {
+    try {
+      if (currentUserId == null) throw Exception('User not authenticated');
+
+      final postDoc = await _firestore.collection('community_posts').doc(postId).get();
+      if (!postDoc.exists) {
+        throw Exception('Post not found');
+      }
+
+      final postData = postDoc.data()!;
+
+      // ตรวจสอบสิทธิ์ (เจ้าของโพสต์หรือ admin ของกลุ่ม)
+      bool canDelete = postData['authorId'] == currentUserId;
+      
+      if (!canDelete) {
+        final memberDoc = await _firestore
+            .collection('community_groups')
+            .doc(groupId)
+            .collection('members')
+            .doc(currentUserId)
+            .get();
+        
+        canDelete = memberDoc.exists && memberDoc.data()?['role'] == 'admin';
+      }
+
+      if (!canDelete) {
+        throw Exception('No permission to delete this post');
+      }
+
+      // ลบรูปภาพและวิดีโอใน Cloudinary
+      final images = (postData['images'] as List? ?? [])
+          .map((img) => PostImage.fromMap(img as Map<String, dynamic>))
+          .toList();
+
+      for (final image in images) {
+        await CloudinaryService.deleteImage(image.publicId);
+      }
+
+      if (postData['video'] != null) {
+        final video = PostVideo.fromMap(postData['video'] as Map<String, dynamic>);
+        await CloudinaryService.deleteVideo(video.publicId);
+      }
+
+      print('Deleted ${images.length} images and ${postData['video'] != null ? 1 : 0} video from Cloudinary');
+
+      // ลบคอมเมนต์ทั้งหมด
+      final commentsSnapshot = await _firestore
+          .collection('post_comments')
+          .where('postId', isEqualTo: postId)
+          .get();
+
+      final batch = _firestore.batch();
+      for (final commentDoc in commentsSnapshot.docs) {
+        batch.delete(commentDoc.reference);
+      }
+      await batch.commit();
+
+      // ลบโพสต์
+      await _firestore.collection('community_posts').doc(postId).delete();
+      print('Post $postId deleted successfully');
+
+      // อัปเดตจำนวนโพสต์ในกลุ่ม
+      await updateGroupPostCount(groupId, -1);
+
+      return true;
+    } catch (e) {
+      print('Error deleting post: $e');
+      return false;
+    }
+  }
+
+  Stream<List<CommunityPost>> getGroupPosts({
+    required String groupId,
+    int limit = 20,
+  }) {
+    print('Getting posts for group: $groupId');
+    
+    return _firestore
+        .collection('community_posts')
+        .where('groupId', isEqualTo: groupId)
+        .orderBy('createdAt', descending: true)
+        .limit(limit)
+        .snapshots()
+        .handleError((error) {
+          print('Error in getGroupPosts stream: $error');
+        })
+        .map((snapshot) {
+          print('Group $groupId has ${snapshot.docs.length} posts');
+          
+          return snapshot.docs.map((doc) {
+            try {
+              return CommunityPost.fromFirestore(doc);
+            } catch (e) {
+              print('Error parsing post ${doc.id}: $e');
+              rethrow;
+            }
+          }).toList();
+        });
+  }
+
+  Future<bool> togglePostLike(String postId) async {
+    try {
+      if (currentUserId == null) throw Exception('User not authenticated');
+
+      return await _firestore.runTransaction((transaction) async {
+        final postRef = _firestore.collection('community_posts').doc(postId);
+        final postSnapshot = await transaction.get(postRef);
+
+        if (!postSnapshot.exists) {
+          throw Exception('Post not found');
+        }
+
+        final postData = postSnapshot.data()!;
+        final likedBy = List<String>.from(postData['likedBy'] ?? []);
+        
+        if (likedBy.contains(currentUserId)) {
+          likedBy.remove(currentUserId);
+        } else {
+          likedBy.add(currentUserId!);
+        }
+
+        transaction.update(postRef, {
+          'likedBy': likedBy,
+          'likeCount': likedBy.length,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        return true;
+      });
+    } catch (e) {
+      print('Error toggling post like: $e');
+      return false;
+    }
+  }
+
+  // ==================== COMMENT METHODS ====================
+
+  Future<String?> addComment({
+    required String postId,
+    required String content,
+    String? parentCommentId,
+  }) async {
+    try {
+      if (currentUserId == null) throw Exception('User not authenticated');
+
+      final commentData = {
+        'postId': postId,
+        'authorId': currentUserId!,
+        'authorName': currentUserName ?? '',
+        'authorAvatar': _auth.currentUser?.photoURL,
+        'content': content,
+        'parentCommentId': parentCommentId,
+        'likedBy': <String>[],
+        'likeCount': 0,
+        'replyCount': 0,
+        'createdAt': FieldValue.serverTimestamp(),
+        'updatedAt': FieldValue.serverTimestamp(),
+      };
+
+      final docRef = await _firestore.collection('post_comments').add(commentData);
+      print('Comment created with ID: ${docRef.id}');
+
+      // อัปเดตจำนวนความคิดเห็นในโพสต์
+      await _updatePostCommentCount(postId, 1);
+
+      // ถ้าเป็น reply ให้อัปเดต replyCount ของ parent comment
+      if (parentCommentId != null) {
+        await _updateCommentReplyCount(parentCommentId, 1);
+      }
+
+      return docRef.id;
+    } catch (e) {
+      print('Error adding comment: $e');
+      return null;
+    }
+  }
+
+  Stream<List<PostComment>> getPostComments(String postId) {
+    return _firestore
+        .collection('post_comments')
+        .where('postId', isEqualTo: postId)
+        .where('parentCommentId', isNull: true)
+        .orderBy('createdAt', descending: false)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => PostComment.fromFirestore(doc))
+            .toList());
+  }
+
+  Future<bool> deleteComment(String commentId, String postId) async {
+    try {
+      if (currentUserId == null) throw Exception('User not authenticated');
+
+      final commentDoc = await _firestore.collection('post_comments').doc(commentId).get();
+      if (!commentDoc.exists) {
+        throw Exception('Comment not found');
+      }
+
+      final commentData = commentDoc.data()!;
+      
+      // ตรวจสอบสิทธิ์
+      if (commentData['authorId'] != currentUserId) {
+        throw Exception('No permission to delete this comment');
+      }
+
+      // ลบ replies ทั้งหมด
+      final repliesSnapshot = await _firestore
+          .collection('post_comments')
+          .where('parentCommentId', isEqualTo: commentId)
+          .get();
+
+      final batch = _firestore.batch();
+      for (final replyDoc in repliesSnapshot.docs) {
+        batch.delete(replyDoc.reference);
+      }
+
+      // ลบ comment หลัก
+      batch.delete(_firestore.collection('post_comments').doc(commentId));
+      
+      await batch.commit();
+
+      // อัปเดตจำนวนความคิดเห็น
+      final totalDeleted = repliesSnapshot.docs.length + 1;
+      await _updatePostCommentCount(postId, -totalDeleted);
+
+      // ถ้าเป็น reply ให้อัปเดต parent comment
+      if (commentData['parentCommentId'] != null) {
+        await _updateCommentReplyCount(commentData['parentCommentId'], -1);
+      }
+
+      print('Comment $commentId and ${repliesSnapshot.docs.length} replies deleted');
+      return true;
+    } catch (e) {
+      print('Error deleting comment: $e');
+      return false;
+    }
+  }
+
+  Future<bool> toggleCommentLike(String commentId) async {
+    try {
+      if (currentUserId == null) throw Exception('User not authenticated');
+
+      return await _firestore.runTransaction((transaction) async {
+        final commentRef = _firestore.collection('post_comments').doc(commentId);
+        final commentSnapshot = await transaction.get(commentRef);
+
+        if (!commentSnapshot.exists) {
+          throw Exception('Comment not found');
+        }
+
+        final commentData = commentSnapshot.data()!;
+        final likedBy = List<String>.from(commentData['likedBy'] ?? []);
+        
+        if (likedBy.contains(currentUserId)) {
+          likedBy.remove(currentUserId);
+        } else {
+          likedBy.add(currentUserId!);
+        }
+
+        transaction.update(commentRef, {
+          'likedBy': likedBy,
+          'likeCount': likedBy.length,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+
+        return true;
+      });
+    } catch (e) {
+      print('Error toggling comment like: $e');
+      return false;
+    }
+  }
+
+  Stream<List<PostComment>> getCommentReplies(String commentId) {
+    return _firestore
+        .collection('post_comments')
+        .where('parentCommentId', isEqualTo: commentId)
+        .orderBy('createdAt', descending: false)
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((doc) => PostComment.fromFirestore(doc))
+            .toList());
+  }
+
+  Stream<List<GroupMember>> getGroupMembers(String groupId) {
+    print('Getting members for group: $groupId');
+    
+    return _firestore
+        .collection('community_groups')
+        .doc(groupId)
+        .collection('members')
+        .snapshots()
+        .handleError((error) {
+          print('Error in getGroupMembers stream: $error');
+        })
+        .map((snapshot) {
+          print('Group $groupId has ${snapshot.docs.length} members');
+          
+          var members = snapshot.docs
+              .map((doc) => GroupMember.fromFirestore(doc))
+              .toList();
+              
+          // เรียงลำดับตาม joinedAt
+          members.sort((a, b) => b.joinedAt.compareTo(a.joinedAt));
+          
+          return members;
+        });
+  }
+
+  // ==================== HELPER METHODS ====================
+
+  Future<void> updateGroupPostCount(String groupId, int change) async {
+    try {
+      await _firestore.runTransaction((transaction) async {
+        final groupRef = _firestore.collection('community_groups').doc(groupId);
+        final groupSnapshot = await transaction.get(groupRef);
+
+        if (!groupSnapshot.exists) return;
+
+        final groupData = groupSnapshot.data()!;
+        final currentCount = groupData['postCount'] ?? 0;
+        final newCount = (currentCount + change).clamp(0, double.infinity).toInt();
+
+        transaction.update(groupRef, {
+          'postCount': newCount,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+      });
+    } catch (e) {
+      print('Error updating group post count: $e');
     }
   }
 
@@ -327,7 +994,6 @@ class CommunityService {
         'userEmail': currentUserEmail ?? '',
         'userName': currentUserName ?? '',
         'userAvatar': _auth.currentUser?.photoURL,
-        'userAvatarBase64': null, // สามารถเพิ่มภายหลัง
         'role': role,
         'joinedAt': FieldValue.serverTimestamp(),
       };
@@ -360,439 +1026,47 @@ class CommunityService {
     }
   }
 
-  Stream<List<GroupMember>> getGroupMembers(String groupId) {
-    print('Getting members for group: $groupId');
-    
-    return _firestore
-        .collection('community_groups')
-        .doc(groupId)
-        .collection('members')
-        .snapshots()
-        .handleError((error) {
-          print('Error in getGroupMembers stream: $error');
-        })
-        .map((snapshot) {
-          print('Group $groupId has ${snapshot.docs.length} members');
-          
-          var members = snapshot.docs
-              .map((doc) => GroupMember.fromFirestore(doc))
-              .toList();
-              
-          // เรียงลำดับตาม joinedAt
-          members.sort((a, b) => b.joinedAt.compareTo(a.joinedAt));
-          
-          return members;
-        });
-  }
-
-  // ==================== POST METHODS (อัพเดทสำหรับ Base64) ====================
-
-  Future<String?> createPost(CommunityPost post) async {
-    try {
-      if (currentUserId == null) throw Exception('User not authenticated');
-
-      print('Creating post in group: ${post.groupId}');
-
-      final postData = {
-        'groupId': post.groupId,
-        'authorId': currentUserId!,
-        'authorName': currentUserName ?? '',
-        'authorAvatar': _auth.currentUser?.photoURL,
-        'authorAvatarBase64': null, // สามารถเพิ่มภายหลัง
-        'content': post.content,
-        'imageUrls': post.imageUrls,
-        'imageBase64s': post.imageBase64s,
-        'videoUrl': post.videoUrl,
-        'videoBase64': post.videoBase64,
-        'type': post.type.toString().split('.').last,
-        'likedBy': <String>[],
-        'likeCount': 0,
-        'commentCount': 0,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-      };
-
-      final docRef = await _firestore.collection('community_posts').add(postData);
-      print('Post created with ID: ${docRef.id}');
-
-      // อัพเดทจำนวนโพสต์ในกลุ่ม - แก้ไขให้ไม่มี permission error
-      await _updateGroupPostCountSafely(post.groupId, 1);
-
-      return docRef.id;
-    } catch (e) {
-      print('Error creating post: $e');
-      return null;
-    }
-  }
-
-  /// อัพเดท postCount แบบปลอดภัย
-  Future<void> _updateGroupPostCountSafely(String groupId, int change) async {
-    try {
-      // ใช้ transaction เพื่อความปลอดภัย
-      await _firestore.runTransaction((transaction) async {
-        final groupRef = _firestore.collection('community_groups').doc(groupId);
-        final groupSnapshot = await transaction.get(groupRef);
-
-        if (!groupSnapshot.exists) {
-          print('Group $groupId not found for post count update');
-          return;
-        }
-
-        final groupData = groupSnapshot.data()!;
-        final currentPostCount = groupData['postCount'] ?? 0;
-        final newPostCount = (currentPostCount + change).clamp(0, double.infinity).toInt();
-
-        transaction.update(groupRef, {
-          'postCount': newPostCount,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-
-        print('Updated group $groupId post count to $newPostCount (changed by $change)');
-      });
-    } catch (e) {
-      print('Error updating group post count safely: $e');
-      // ไม่ throw error เพื่อไม่ให้การสร้างโพสต์ล้มเหลว
-    }
-  }
-
-  Stream<List<CommunityPost>> getGroupPosts(String groupId) {
-    print('Getting posts for group: $groupId');
-    
-    return _firestore
-        .collection('community_posts')
-        .where('groupId', isEqualTo: groupId)
-        .snapshots()
-        .handleError((error) {
-          print('Error in getGroupPosts stream: $error');
-        })
-        .map((snapshot) {
-          print('Group $groupId has ${snapshot.docs.length} posts');
-          
-          var posts = snapshot.docs.map((doc) {
-            try {
-              final post = CommunityPost.fromFirestore(doc);
-              print('Post: ${post.content.substring(0, post.content.length > 30 ? 30 : post.content.length)}...');
-              return post;
-            } catch (e) {
-              print('Error parsing post ${doc.id}: $e');
-              print('Post data: ${doc.data()}');
-              rethrow;
-            }
-          }).toList();
-          
-          // เรียงลำดับตาม createdAt
-          posts.sort((a, b) => b.createdAt.compareTo(a.createdAt));
-          
-          return posts;
-        });
-  }
-
-  Future<bool> deletePost(String postId, String groupId) async {
-    try {
-      if (currentUserId == null) throw Exception('User not authenticated');
-
-      print('Deleting post: $postId');
-
-      final postDoc = await _firestore.collection('community_posts').doc(postId).get();
-      if (!postDoc.exists) {
-        print('Post $postId not found');
-        return false;
-      }
-
-      final postData = postDoc.data()!;
-      final postAuthorId = postData['authorId'];
-
-      if (postAuthorId != currentUserId) {
-        final memberDoc = await _firestore
-            .collection('community_groups')
-            .doc(groupId)
-            .collection('members')
-            .doc(currentUserId)
-            .get();
-        
-        if (!memberDoc.exists || memberDoc.data()?['role'] != 'admin') {
-          print('User $currentUserId has no permission to delete post $postId');
-          throw Exception('No permission to delete this post');
-        }
-      }
-
-      await _firestore.collection('community_posts').doc(postId).delete();
-      print('Post $postId deleted successfully');
-
-      await _updateGroupPostCountSafely(groupId, -1);
-
-      return true;
-    } catch (e) {
-      print('Error deleting post: $e');
-      return false;
-    }
-  }
-
-  Future<bool> togglePostLike(String postId) async {
-    try {
-      if (currentUserId == null) throw Exception('User not authenticated');
-
-      print('Toggling like for post: $postId by user: $currentUserId');
-
-      return await _firestore.runTransaction((transaction) async {
-        final postRef = _firestore.collection('community_posts').doc(postId);
-        final postSnapshot = await transaction.get(postRef);
-
-        if (!postSnapshot.exists) {
-          print('Post $postId not found');
-          throw Exception('Post not found');
-        }
-
-        final postData = postSnapshot.data()!;
-        final likedBy = List<String>.from(postData['likedBy'] ?? []);
-        
-        bool isCurrentlyLiked = likedBy.contains(currentUserId);
-        
-        if (isCurrentlyLiked) {
-          likedBy.remove(currentUserId);
-          print('User $currentUserId unliked post $postId');
-        } else {
-          likedBy.add(currentUserId!);
-          print('User $currentUserId liked post $postId');
-        }
-
-        transaction.update(postRef, {
-          'likedBy': likedBy,
-          'likeCount': likedBy.length,
-          'updatedAt': FieldValue.serverTimestamp(),
-        });
-
-        print('Updated post $postId like count: ${likedBy.length}');
-        return true;
-      });
-    } catch (e) {
-      print('Error toggling post like: $e');
-      return false;
-    }
-  }
-
-  // ==================== COMMENT METHODS (อัพเดทสำหรับ Base64) ====================
-
-  Future<String?> addComment(PostComment comment) async {
-    try {
-      if (currentUserId == null) throw Exception('User not authenticated');
-
-      print('Adding comment to post: ${comment.postId}');
-
-      final commentData = {
-        'postId': comment.postId,
-        'authorId': currentUserId!,
-        'authorName': currentUserName ?? '',
-        'authorAvatar': _auth.currentUser?.photoURL,
-        'authorAvatarBase64': null, // สามารถเพิ่มภายหลัง
-        'content': comment.content,
-        'likedBy': <String>[],
-        'likeCount': 0,
-        'createdAt': FieldValue.serverTimestamp(),
-        'updatedAt': FieldValue.serverTimestamp(),
-        'parentCommentId': comment.parentCommentId,
-      };
-
-      final docRef = await _firestore.collection('post_comments').add(commentData);
-      print('Comment created with ID: ${docRef.id}');
-
-      await _updatePostCommentCountSafely(comment.postId, 1);
-
-      return docRef.id;
-    } catch (e) {
-      print('Error adding comment: $e');
-      return null;
-    }
-  }
-
-  /// อัพเดท commentCount แบบปลอดภัย
-  Future<void> _updatePostCommentCountSafely(String postId, int change) async {
+  Future<void> _updatePostCommentCount(String postId, int change) async {
     try {
       await _firestore.runTransaction((transaction) async {
         final postRef = _firestore.collection('community_posts').doc(postId);
         final postSnapshot = await transaction.get(postRef);
 
-        if (!postSnapshot.exists) {
-          print('Post $postId not found for comment count update');
-          return;
-        }
+        if (!postSnapshot.exists) return;
 
         final postData = postSnapshot.data()!;
-        final currentCommentCount = postData['commentCount'] ?? 0;
-        final newCommentCount = (currentCommentCount + change).clamp(0, double.infinity).toInt();
+        final currentCount = postData['commentCount'] ?? 0;
+        final newCount = (currentCount + change).clamp(0, double.infinity).toInt();
 
         transaction.update(postRef, {
-          'commentCount': newCommentCount,
+          'commentCount': newCount,
           'updatedAt': FieldValue.serverTimestamp(),
         });
-
-        print('Updated post $postId comment count to $newCommentCount (changed by $change)');
       });
     } catch (e) {
-      print('Error updating post comment count safely: $e');
+      print('Error updating post comment count: $e');
     }
   }
 
-  Stream<List<PostComment>> getPostComments(String postId) {
-    print('Getting comments for post: $postId');
-    
-    return _firestore
-        .collection('post_comments')
-        .where('postId', isEqualTo: postId)
-        .where('parentCommentId', isNull: true)
-        .snapshots()
-        .handleError((error) {
-          print('Error in getPostComments stream: $error');
-        })
-        .map((snapshot) {
-          print('Post $postId has ${snapshot.docs.length} comments');
-          
-          var comments = snapshot.docs.map((doc) {
-            try {
-              return PostComment.fromFirestore(doc);
-            } catch (e) {
-              print('Error parsing comment ${doc.id}: $e');
-              rethrow;
-            }
-          }).toList();
-          
-          // เรียงลำดับตาม createdAt
-          comments.sort((a, b) => a.createdAt.compareTo(b.createdAt));
-          
-          return comments;
-        });
-  }
-
-  Future<bool> deleteComment(String commentId, String postId) async {
+  Future<void> _updateCommentReplyCount(String commentId, int change) async {
     try {
-      if (currentUserId == null) throw Exception('User not authenticated');
-
-      print('Deleting comment: $commentId');
-
-      final commentDoc = await _firestore.collection('post_comments').doc(commentId).get();
-      if (!commentDoc.exists) {
-        print('Comment $commentId not found');
-        return false;
-      }
-
-      final commentData = commentDoc.data()!;
-      final commentAuthorId = commentData['authorId'];
-
-      if (commentAuthorId != currentUserId) {
-        print('User $currentUserId has no permission to delete comment $commentId');
-        throw Exception('No permission to delete this comment');
-      }
-
-      await _firestore.collection('post_comments').doc(commentId).delete();
-      print('Comment $commentId deleted successfully');
-
-      await _updatePostCommentCountSafely(postId, -1);
-
-      return true;
-    } catch (e) {
-      print('Error deleting comment: $e');
-      return false;
-    }
-  }
-
-  Future<bool> toggleCommentLike(String commentId) async {
-    try {
-      if (currentUserId == null) throw Exception('User not authenticated');
-
-      print('Toggling like for comment: $commentId by user: $currentUserId');
-
-      return await _firestore.runTransaction((transaction) async {
+      await _firestore.runTransaction((transaction) async {
         final commentRef = _firestore.collection('post_comments').doc(commentId);
         final commentSnapshot = await transaction.get(commentRef);
 
-        if (!commentSnapshot.exists) {
-          print('Comment $commentId not found');
-          throw Exception('Comment not found');
-        }
+        if (!commentSnapshot.exists) return;
 
         final commentData = commentSnapshot.data()!;
-        final likedBy = List<String>.from(commentData['likedBy'] ?? []);
-        
-        bool isCurrentlyLiked = likedBy.contains(currentUserId);
-        
-        if (isCurrentlyLiked) {
-          likedBy.remove(currentUserId);
-          print('User $currentUserId unliked comment $commentId');
-        } else {
-          likedBy.add(currentUserId!);
-          print('User $currentUserId liked comment $commentId');
-        }
+        final currentCount = commentData['replyCount'] ?? 0;
+        final newCount = (currentCount + change).clamp(0, double.infinity).toInt();
 
         transaction.update(commentRef, {
-          'likedBy': likedBy,
-          'likeCount': likedBy.length,
+          'replyCount': newCount,
           'updatedAt': FieldValue.serverTimestamp(),
         });
-
-        print('Updated comment $commentId like count: ${likedBy.length}');
-        return true;
       });
     } catch (e) {
-      print('Error toggling comment like: $e');
-      return false;
-    }
-  }
-
-  // ==================== FILE UPLOAD METHODS (เก็บไว้เผื่อใช้) ====================
-
-  Future<String?> uploadImage(File imageFile, String folder) async {
-    try {
-      if (currentUserId == null) throw Exception('User not authenticated');
-
-      print('Uploading image to $folder');
-
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${imageFile.path.split('/').last}';
-      final ref = _storage.ref().child('$folder/$currentUserId/$fileName');
-      
-      final uploadTask = ref.putFile(imageFile);
-      final snapshot = await uploadTask;
-      
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-      print('Image uploaded successfully: $downloadUrl');
-      
-      return downloadUrl;
-    } catch (e) {
-      print('Error uploading image: $e');
-      return null;
-    }
-  }
-
-  Future<String?> uploadVideo(File videoFile, String folder) async {
-    try {
-      if (currentUserId == null) throw Exception('User not authenticated');
-
-      print('Uploading video to $folder');
-
-      final fileName = '${DateTime.now().millisecondsSinceEpoch}_${videoFile.path.split('/').last}';
-      final ref = _storage.ref().child('$folder/$currentUserId/$fileName');
-      
-      final uploadTask = ref.putFile(videoFile);
-      final snapshot = await uploadTask;
-      
-      final downloadUrl = await snapshot.ref.getDownloadURL();
-      print('Video uploaded successfully: $downloadUrl');
-      
-      return downloadUrl;
-    } catch (e) {
-      print('Error uploading video: $e');
-      return null;
-    }
-  }
-
-  Future<bool> deleteFile(String url) async {
-    try {
-      final ref = _storage.refFromURL(url);
-      await ref.delete();
-      print('File deleted successfully: $url');
-      return true;
-    } catch (e) {
-      print('Error deleting file: $e');
-      return false;
+      print('Error updating comment reply count: $e');
     }
   }
 

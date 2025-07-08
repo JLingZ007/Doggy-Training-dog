@@ -1,10 +1,11 @@
-// widgets/community_widgets/post_widget.dart - อัพเดทสำหรับ Base64 Images
+// widgets/community_widgets/post_widget.dart - Fixed version
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import 'dart:convert';
-import 'dart:typed_data';
+import 'package:cached_network_image/cached_network_image.dart';
+import 'package:video_player/video_player.dart';
 import '../../providers/community_provider.dart';
 import '../../models/community_models.dart';
+import '../../services/cloudinary_service.dart';
 import 'comments_sheet.dart';
 
 class PostWidget extends StatelessWidget {
@@ -108,16 +109,16 @@ class PostWidget extends StatelessWidget {
               ),
             ),
           
-          // Images (รองรับทั้ง URL และ Base64)
+          // Images from Cloudinary
           if (post.hasImages) ...[
             SizedBox(height: 12),
-            _buildImageSection(),
+            _buildImageSection(context),
           ],
           
-          // Video (รองรับทั้ง URL และ Base64)
-          if (post.videoUrl != null || post.videoBase64 != null) ...[
+          // Video from Cloudinary
+          if (post.hasVideo) ...[
             SizedBox(height: 12),
-            _buildVideoSection(),
+            _buildVideoSection(context),
           ],
           
           // Actions
@@ -208,127 +209,135 @@ class PostWidget extends StatelessWidget {
   // ==================== AUTHOR AVATAR ====================
 
   Widget _buildAuthorAvatar() {
-    // ลำดับความสำคัญ: Base64 > URL > Default
-    if (post.authorAvatarBase64 != null) {
-      return _buildBase64Avatar(post.authorAvatarBase64!);
-    } else if (post.authorAvatar != null) {
-      return _buildNetworkAvatar(post.authorAvatar!);
+    if (post.authorAvatar != null) {
+      return CircleAvatar(
+        radius: 22,
+        backgroundColor: const Color(0xFFD2B48C),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: CachedNetworkImage(
+            imageUrl: post.authorAvatar!,
+            width: 44,
+            height: 44,
+            fit: BoxFit.cover,
+            placeholder: (context, url) => Container(
+              color: const Color(0xFFD2B48C),
+              child: Icon(Icons.person, color: Colors.white, size: 26),
+            ),
+            errorWidget: (context, url, error) => Container(
+              color: const Color(0xFFD2B48C),
+              child: Icon(Icons.person, color: Colors.white, size: 26),
+            ),
+          ),
+        ),
+      );
     } else {
-      return _buildDefaultAvatar();
+      return CircleAvatar(
+        radius: 22,
+        backgroundColor: const Color(0xFFD2B48C),
+        child: Icon(Icons.person, color: Colors.white, size: 26),
+      );
     }
-  }
-
-  Widget _buildBase64Avatar(String base64String) {
-    try {
-      final bytes = _decodeBase64(base64String);
-      if (bytes != null) {
-        return CircleAvatar(
-          radius: 22,
-          backgroundImage: MemoryImage(Uint8List.fromList(bytes)),
-          backgroundColor: const Color(0xFFD2B48C),
-        );
-      }
-    } catch (e) {
-      print('Error displaying base64 avatar: $e');
-    }
-    return _buildDefaultAvatar();
-  }
-
-  Widget _buildNetworkAvatar(String url) {
-    return CircleAvatar(
-      radius: 22,
-      backgroundImage: NetworkImage(url),
-      backgroundColor: const Color(0xFFD2B48C),
-      onBackgroundImageError: (exception, stackTrace) {
-        print('Error loading network avatar: $exception');
-      },
-      child: null,
-    );
-  }
-
-  Widget _buildDefaultAvatar() {
-    return CircleAvatar(
-      radius: 22,
-      backgroundColor: const Color(0xFFD2B48C),
-      child: Icon(Icons.person, color: Colors.white, size: 26),
-    );
   }
 
   // ==================== IMAGE SECTION ====================
 
-  Widget _buildImageSection() {
-    final allImages = post.allImages; // ใช้ helper method จาก model
-    
-    if (allImages.isEmpty) return SizedBox.shrink();
+  Widget _buildImageSection(BuildContext context) {
+    if (post.images.isEmpty) return SizedBox.shrink();
 
     return Container(
       height: 250,
-      child: allImages.length == 1
-          ? _buildSingleImage(allImages[0])
-          : _buildImageCarousel(allImages),
+      child: post.images.length == 1
+          ? _buildSingleImage(context, post.images[0])
+          : _buildImageCarousel(context, post.images),
     );
   }
 
-  Widget _buildSingleImage(String imageSource) {
-    if (_isBase64String(imageSource)) {
-      return _buildBase64Image(imageSource);
-    } else {
-      return _buildNetworkImage(imageSource);
-    }
+  Widget _buildSingleImage(BuildContext context, PostImage image) {
+    return Container(
+      margin: EdgeInsets.symmetric(horizontal: 16),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(8),
+        child: GestureDetector(
+          onTap: () => _showImageViewer(context, [image], 0),
+          child: Hero(
+            tag: 'image_${image.publicId}',
+            child: CachedNetworkImage(
+              imageUrl: image.mediumUrl,
+              fit: BoxFit.cover,
+              width: double.infinity,
+              height: 250,
+              placeholder: (context, url) => Container(
+                color: Colors.grey[300],
+                child: Center(
+                  child: CircularProgressIndicator(
+                    color: const Color(0xFFD2B48C),
+                  ),
+                ),
+              ),
+              errorWidget: (context, url, error) => _buildImageError(),
+            ),
+          ),
+        ),
+      ),
+    );
   }
 
-  Widget _buildImageCarousel(List<String> images) {
+  Widget _buildImageCarousel(BuildContext context, List<PostImage> images) {
     return PageView.builder(
       itemCount: images.length,
       itemBuilder: (context, index) {
+        final image = images[index];
         return Container(
           margin: EdgeInsets.symmetric(horizontal: 4),
           child: ClipRRect(
             borderRadius: BorderRadius.circular(8),
-            child: _buildSingleImage(images[index]),
-          ),
-        );
-      },
-    );
-  }
-
-  Widget _buildBase64Image(String base64String) {
-    try {
-      final bytes = _decodeBase64(base64String);
-      if (bytes != null) {
-        return Image.memory(
-          Uint8List.fromList(bytes),
-          fit: BoxFit.cover,
-          width: double.infinity,
-          errorBuilder: (context, error, stackTrace) {
-            print('Error displaying base64 image: $error');
-            return _buildImageError();
-          },
-        );
-      }
-    } catch (e) {
-      print('Error decoding base64 image: $e');
-    }
-    return _buildImageError();
-  }
-
-  Widget _buildNetworkImage(String url) {
-    return Image.network(
-      url,
-      fit: BoxFit.cover,
-      width: double.infinity,
-      errorBuilder: (context, error, stackTrace) {
-        print('Error loading network image: $error');
-        return _buildImageError();
-      },
-      loadingBuilder: (context, child, loadingProgress) {
-        if (loadingProgress == null) return child;
-        return Center(
-          child: CircularProgressIndicator(
-            value: loadingProgress.expectedTotalBytes != null
-                ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                : null,
-            color: const Color(0xFFD2B48C),
+            child: GestureDetector(
+              onTap: () => _showImageViewer(context, images, index),
+              child: Hero(
+                tag: 'image_${image.publicId}',
+                child: Stack(
+                  children: [
+                    CachedNetworkImage(
+                      imageUrl: image.mediumUrl,
+                      fit: BoxFit.cover,
+                      width: double.infinity,
+                      height: 250,
+                      placeholder: (context, url) => Container(
+                        color: Colors.grey[300],
+                        child: Center(
+                          child: CircularProgressIndicator(
+                            color: const Color(0xFFD2B48C),
+                          ),
+                        ),
+                      ),
+                      errorWidget: (context, url, error) => _buildImageError(),
+                    ),
+                    // Image counter overlay
+                    if (images.length > 1)
+                      Positioned(
+                        top: 8,
+                        right: 8,
+                        child: Container(
+                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                          decoration: BoxDecoration(
+                            color: Colors.black.withOpacity(0.6),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            '${index + 1}/${images.length}',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 12,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ),
+                      ),
+                  ],
+                ),
+              ),
+            ),
           ),
         );
       },
@@ -356,7 +365,11 @@ class PostWidget extends StatelessWidget {
 
   // ==================== VIDEO SECTION ====================
 
-  Widget _buildVideoSection() {
+  Widget _buildVideoSection(BuildContext context) {
+    if (post.video == null) return SizedBox.shrink();
+
+    final video = post.video!;
+    
     return Container(
       height: 200,
       margin: EdgeInsets.symmetric(horizontal: 16),
@@ -365,81 +378,118 @@ class PostWidget extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
       ),
       child: InkWell(
-        onTap: () => _playVideo(),
+        onTap: () => _playVideo(context, video),
         borderRadius: BorderRadius.circular(8),
-        child: Stack(
-          alignment: Alignment.center,
-          children: [
-            // Video thumbnail หรือ placeholder
-            if (post.videoBase64 != null)
-              _buildBase64VideoThumbnail()
-            else
-              _buildNetworkVideoThumbnail(),
-            
-            // Play button overlay
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.black.withOpacity(0.3),
-                borderRadius: BorderRadius.circular(8),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: Stack(
+            alignment: Alignment.center,
+            children: [
+              // Video thumbnail
+              if (video.thumbnailUrl.isNotEmpty)
+                CachedNetworkImage(
+                  imageUrl: video.thumbnailUrl,
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: 200,
+                  placeholder: (context, url) => _buildVideoPlaceholder(),
+                  errorWidget: (context, url, error) => _buildVideoPlaceholder(),
+                )
+              else
+                _buildVideoPlaceholder(),
+              
+              // Dark overlay
+              Container(
+                decoration: BoxDecoration(
+                  color: Colors.black.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(8),
+                ),
               ),
-            ),
-            Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: EdgeInsets.all(16),
+              
+              // Play button and info
+              Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Container(
+                    padding: EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.7),
+                      shape: BoxShape.circle,
+                    ),
+                    child: Icon(
+                      Icons.play_arrow,
+                      size: 40,
+                      color: Colors.white,
+                    ),
+                  ),
+                  SizedBox(height: 12),
+                  Container(
+                    padding: EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                    decoration: BoxDecoration(
+                      color: Colors.black.withOpacity(0.7),
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(Icons.play_circle_outline, color: Colors.white, size: 16),
+                        SizedBox(width: 4),
+                        Text(
+                          video.formattedDuration,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          '•',
+                          style: TextStyle(color: Colors.white, fontSize: 12),
+                        ),
+                        SizedBox(width: 8),
+                        Text(
+                          video.formattedSize,
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontSize: 12,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+              
+              // Quality indicator
+              Positioned(
+                top: 8,
+                left: 8,
+                child: Container(
+                  padding: EdgeInsets.symmetric(horizontal: 6, vertical: 3),
                   decoration: BoxDecoration(
                     color: Colors.black.withOpacity(0.7),
-                    shape: BoxShape.circle,
+                    borderRadius: BorderRadius.circular(8),
                   ),
-                  child: Icon(
-                    Icons.play_arrow,
-                    size: 40,
-                    color: Colors.white,
-                  ),
-                ),
-                SizedBox(height: 12),
-                Text(
-                  'แตะเพื่อเล่นวิดีโอ',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w500,
+                  child: Text(
+                    '${video.width}x${video.height}',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ),
-              ],
-            ),
-          ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildBase64VideoThumbnail() {
-    // สำหรับ Base64 video ใช้ placeholder เนื่องจากไม่สามารถสร้าง thumbnail ได้ง่าย
-    return Container(
-      width: double.infinity,
-      height: 200,
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          colors: [Colors.grey[800]!, Colors.grey[900]!],
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-        ),
-        borderRadius: BorderRadius.circular(8),
-      ),
-      child: Center(
-        child: Icon(
-          Icons.videocam,
-          size: 60,
-          color: Colors.white.withOpacity(0.7),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildNetworkVideoThumbnail() {
-    // สำหรับ Network video ใช้ placeholder
+  Widget _buildVideoPlaceholder() {
     return Container(
       width: double.infinity,
       height: 200,
@@ -478,24 +528,28 @@ class PostWidget extends StatelessWidget {
     }
   }
 
-  bool _isBase64String(String str) {
-    return str.startsWith('data:') && str.contains('base64,');
-  }
-
-  List<int>? _decodeBase64(String base64String) {
-    try {
-      if (base64String.contains('base64,')) {
-        final base64Data = base64String.split('base64,')[1];
-        return base64.decode(base64Data);
-      }
-      return base64.decode(base64String);
-    } catch (e) {
-      print('Error decoding base64: $e');
-      return null;
-    }
-  }
-
   // ==================== ACTION METHODS ====================
+
+  void _showImageViewer(BuildContext context, List<PostImage> images, int initialIndex) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => ImageViewerPage(
+          images: images,
+          initialIndex: initialIndex,
+        ),
+      ),
+    );
+  }
+
+  void _playVideo(BuildContext context, PostVideo video) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (context) => VideoPlayerPage(video: video),
+      ),
+    );
+  }
 
   void _showCommentsSheet(BuildContext context, CommunityPost post) {
     showModalBottomSheet(
@@ -521,32 +575,6 @@ class PostWidget extends StatelessWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
     );
-  }
-
-  void _playVideo() {
-    // TODO: Implement video player
-    // สำหรับ Base64 video ต้องแปลงกลับเป็น bytes แล้วเล่น
-    // สำหรับ Network video ใช้ URL โดยตรง
-    print('Playing video: ${post.videoUrl ?? 'Base64 Video'}');
-    
-    // ตัวอย่างการใช้งาน video player package
-    /*
-    if (post.videoBase64 != null) {
-      // Convert Base64 to file or bytes and play
-      final bytes = _decodeBase64(post.videoBase64!);
-      if (bytes != null) {
-        // Play from memory
-      }
-    } else if (post.videoUrl != null) {
-      // Play from URL
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => VideoPlayerPage(url: post.videoUrl!),
-        ),
-      );
-    }
-    */
   }
 
   void _reportPost(BuildContext context) {
@@ -678,6 +706,227 @@ class PostWidget extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+// ==================== IMAGE VIEWER PAGE ====================
+
+class ImageViewerPage extends StatefulWidget {
+  final List<PostImage> images;
+  final int initialIndex;
+
+  const ImageViewerPage({
+    Key? key,
+    required this.images,
+    required this.initialIndex,
+  }) : super(key: key);
+
+  @override
+  _ImageViewerPageState createState() => _ImageViewerPageState();
+}
+
+class _ImageViewerPageState extends State<ImageViewerPage> {
+  late PageController _pageController;
+  late int _currentIndex;
+
+  @override
+  void initState() {
+    super.initState();
+    _currentIndex = widget.initialIndex;
+    _pageController = PageController(initialPage: widget.initialIndex);
+  }
+
+  @override
+  void dispose() {
+    _pageController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: IconThemeData(color: Colors.white),
+        title: Text(
+          '${_currentIndex + 1} / ${widget.images.length}',
+          style: TextStyle(color: Colors.white),
+        ),
+        actions: [
+          IconButton(
+            icon: Icon(Icons.download, color: Colors.white),
+            onPressed: () => _downloadImage(widget.images[_currentIndex]),
+          ),
+        ],
+      ),
+      body: PageView.builder(
+        controller: _pageController,
+        itemCount: widget.images.length,
+        onPageChanged: (index) {
+          setState(() {
+            _currentIndex = index;
+          });
+        },
+        itemBuilder: (context, index) {
+          final image = widget.images[index];
+          return Center(
+            child: Hero(
+              tag: 'image_${image.publicId}',
+              child: InteractiveViewer(
+                child: CachedNetworkImage(
+                  imageUrl: image.url, // Full resolution
+                  fit: BoxFit.contain,
+                  placeholder: (context, url) => Center(
+                    child: CircularProgressIndicator(
+                      color: const Color(0xFFD2B48C),
+                    ),
+                  ),
+                  errorWidget: (context, url, error) => Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.error, color: Colors.white, size: 64),
+                        SizedBox(height: 16),
+                        Text(
+                          'ไม่สามารถโหลดรูปภาพได้',
+                          style: TextStyle(color: Colors.white),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  void _downloadImage(PostImage image) {
+    // TODO: Implement image download
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('ฟีเจอร์ดาวน์โหลดกำลังพัฒนา'),
+        backgroundColor: Colors.blue[600],
+      ),
+    );
+  }
+}
+
+// ==================== VIDEO PLAYER PAGE ====================
+
+class VideoPlayerPage extends StatefulWidget {
+  final PostVideo video;
+
+  const VideoPlayerPage({Key? key, required this.video}) : super(key: key);
+
+  @override
+  _VideoPlayerPageState createState() => _VideoPlayerPageState();
+}
+
+class _VideoPlayerPageState extends State<VideoPlayerPage> {
+  late VideoPlayerController _controller;
+  bool _isInitialized = false;
+  bool _hasError = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _initializeVideo();
+  }
+
+  void _initializeVideo() async {
+    try {
+      _controller = VideoPlayerController.network(widget.video.url);
+      await _controller.initialize();
+      
+      setState(() {
+        _isInitialized = true;
+      });
+      
+      _controller.play();
+    } catch (e) {
+      print('Error initializing video: $e');
+      setState(() {
+        _hasError = true;
+      });
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        iconTheme: IconThemeData(color: Colors.white),
+        title: Text(
+          'วิดีโอ',
+          style: TextStyle(color: Colors.white),
+        ),
+      ),
+      body: Center(
+        child: _hasError
+            ? Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.error, color: Colors.white, size: 64),
+                  SizedBox(height: 16),
+                  Text(
+                    'ไม่สามารถเล่นวิดีโอได้',
+                    style: TextStyle(color: Colors.white, fontSize: 18),
+                  ),
+                  SizedBox(height: 8),
+                  Text(
+                    'กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต',
+                    style: TextStyle(color: Colors.grey[400]),
+                  ),
+                ],
+              )
+            : !_isInitialized
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      CircularProgressIndicator(
+                        color: const Color(0xFFD2B48C),
+                      ),
+                      SizedBox(height: 16),
+                      Text(
+                        'กำลังโหลดวิดีโอ...',
+                        style: TextStyle(color: Colors.white),
+                      ),
+                    ],
+                  )
+                : AspectRatio(
+                    aspectRatio: _controller.value.aspectRatio,
+                    child: VideoPlayer(_controller),
+                  ),
+      ),
+      floatingActionButton: _isInitialized && !_hasError
+          ? FloatingActionButton(
+              onPressed: () {
+                setState(() {
+                  _controller.value.isPlaying
+                      ? _controller.pause()
+                      : _controller.play();
+                });
+              },
+              backgroundColor: const Color(0xFFD2B48C),
+              child: Icon(
+                _controller.value.isPlaying ? Icons.pause : Icons.play_arrow,
+                color: Colors.black,
+              ),
+            )
+          : null,
     );
   }
 }

@@ -1,9 +1,14 @@
-// models/community_models.dart - อัพเดทจาก model เดิม
+// models/community_models.dart - Fixed version
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:flutter/material.dart'; // ⭐ เพิ่ม import นี้
+
+// ==================== ENUMS ====================
 
 enum PostType { text, image, video, mixed }
 
-// ==================== COMMUNITY GROUP ====================
+// ==================== GROUP MODELS ====================
+
 class CommunityGroup {
   final String id;
   final String name;
@@ -13,47 +18,35 @@ class CommunityGroup {
   final int memberCount;
   final int postCount;
   final bool isPublic;
-  final String? coverImage;
-  final String? coverImageBase64; 
+  final String? coverImageUrl;      // Cloudinary URL
+  final String? coverImagePublicId; // Cloudinary public_id
   final String createdBy;
   final DateTime createdAt;
   final DateTime updatedAt;
+  
+  // สำหรับการสร้างกลุ่มใหม่
+  final XFile? coverImageFile;
 
   CommunityGroup({
     required this.id,
     required this.name,
     required this.description,
-    this.tags = const [],
-    this.memberIds = const [],
-    this.memberCount = 0,
-    this.postCount = 0,
-    this.isPublic = true,
-    this.coverImage,
-    this.coverImageBase64, 
+    required this.tags,
+    required this.memberIds,
+    required this.memberCount,
+    required this.postCount,
+    required this.isPublic,
+    this.coverImageUrl,
+    this.coverImagePublicId,
     required this.createdBy,
     required this.createdAt,
     required this.updatedAt,
+    this.coverImageFile,
   });
-
-  Map<String, dynamic> toFirestore() {
-    return {
-      'name': name,
-      'description': description,
-      'tags': tags,
-      'memberIds': memberIds,
-      'memberCount': memberCount,
-      'postCount': postCount,
-      'isPublic': isPublic,
-      'coverImage': coverImage, 
-      'coverImageBase64': coverImageBase64,
-      'createdBy': createdBy,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': Timestamp.fromDate(updatedAt),
-    };
-  }
 
   factory CommunityGroup.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    
     return CommunityGroup(
       id: doc.id,
       name: data['name'] ?? '',
@@ -63,13 +56,33 @@ class CommunityGroup {
       memberCount: data['memberCount'] ?? 0,
       postCount: data['postCount'] ?? 0,
       isPublic: data['isPublic'] ?? true,
-      coverImage: data['coverImage'],
-      coverImageBase64: data['coverImageBase64'], 
+      coverImageUrl: data['coverImageUrl'],
+      coverImagePublicId: data['coverImagePublicId'],
       createdBy: data['createdBy'] ?? '',
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'name': name,
+      'description': description,
+      'tags': tags,
+      'memberIds': memberIds,
+      'memberCount': memberCount,
+      'postCount': postCount,
+      'isPublic': isPublic,
+      'coverImageUrl': coverImageUrl,
+      'coverImagePublicId': coverImagePublicId,
+      'createdBy': createdBy,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
+    };
+  }
+
+  // ⭐ เพิ่ม toFirestore method
+  Map<String, dynamic> toFirestore() => toMap();
 
   CommunityGroup copyWith({
     String? id,
@@ -80,11 +93,12 @@ class CommunityGroup {
     int? memberCount,
     int? postCount,
     bool? isPublic,
-    String? coverImage,
-    String? coverImageBase64, 
+    String? coverImageUrl,
+    String? coverImagePublicId,
     String? createdBy,
     DateTime? createdAt,
     DateTime? updatedAt,
+    XFile? coverImageFile,
   }) {
     return CommunityGroup(
       id: id ?? this.id,
@@ -95,83 +109,187 @@ class CommunityGroup {
       memberCount: memberCount ?? this.memberCount,
       postCount: postCount ?? this.postCount,
       isPublic: isPublic ?? this.isPublic,
-      coverImage: coverImage ?? this.coverImage,
-      coverImageBase64: coverImageBase64 ?? this.coverImageBase64,
+      coverImageUrl: coverImageUrl ?? this.coverImageUrl,
+      coverImagePublicId: coverImagePublicId ?? this.coverImagePublicId,
       createdBy: createdBy ?? this.createdBy,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
+      coverImageFile: coverImageFile ?? this.coverImageFile,
     );
   }
 
-  // ✅ Helper method ใหม่: ดึงรูป cover (Base64 หรือ URL)
-  String? get displayCoverImage => coverImageBase64 ?? coverImage;
+  // Helper getters
+  String get coverImage => coverImageUrl ?? '';
+  bool get hasCoverImage => coverImageUrl != null && coverImageUrl!.isNotEmpty;
 }
 
-// ==================== GROUP MEMBER ====================
 class GroupMember {
+  final String id;
   final String userId;
-  final String userName;
   final String userEmail;
+  final String userName;
   final String? userAvatar;
-  final String? userAvatarBase64;
-  final String role; // 'admin', 'member'
+  final String role; // admin, member
   final DateTime joinedAt;
 
   GroupMember({
+    required this.id,
     required this.userId,
-    required this.userName,
     required this.userEmail,
+    required this.userName,
     this.userAvatar,
-    this.userAvatarBase64, 
     required this.role,
     required this.joinedAt,
   });
 
-  Map<String, dynamic> toFirestore() {
-    return {
-      'userId': userId,
-      'userName': userName,
-      'userEmail': userEmail,
-      'userAvatar': userAvatar,
-      'userAvatarBase64': userAvatarBase64, 
-      'role': role,
-      'joinedAt': Timestamp.fromDate(joinedAt),
-    };
-  }
-
   factory GroupMember.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    
     return GroupMember(
+      id: doc.id,
       userId: data['userId'] ?? '',
-      userName: data['userName'] ?? '',
       userEmail: data['userEmail'] ?? '',
+      userName: data['userName'] ?? '',
       userAvatar: data['userAvatar'],
-      userAvatarBase64: data['userAvatarBase64'],
       role: data['role'] ?? 'member',
       joinedAt: (data['joinedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 
-  // ✅ Helper method ใหม่: ดึงอวตาร์ (Base64 หรือ URL)
-  String? get displayAvatar => userAvatarBase64 ?? userAvatar;
+  bool get isAdmin => role == 'admin';
 }
 
-// ==================== COMMUNITY POST ====================
+// ==================== POST MODELS ====================
+
+class PostImage {
+  final String url;           // Full size URL from Cloudinary
+  final String publicId;      // Cloudinary public_id สำหรับการลบ
+  final String thumbnailUrl;  // Thumbnail URL (optimized)
+  final String mediumUrl;     // Medium size URL (optimized)
+  final int width;
+  final int height;
+  final String format;
+  final int bytes;
+
+  PostImage({
+    required this.url,
+    required this.publicId,
+    required this.thumbnailUrl,
+    required this.mediumUrl,
+    required this.width,
+    required this.height,
+    required this.format,
+    required this.bytes,
+  });
+
+  factory PostImage.fromMap(Map<String, dynamic> map) {
+    return PostImage(
+      url: map['url'] ?? '',
+      publicId: map['publicId'] ?? '',
+      thumbnailUrl: map['thumbnailUrl'] ?? '',
+      mediumUrl: map['mediumUrl'] ?? '',
+      width: map['width'] ?? 0,
+      height: map['height'] ?? 0,
+      format: map['format'] ?? '',
+      bytes: map['bytes'] ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'url': url,
+      'publicId': publicId,
+      'thumbnailUrl': thumbnailUrl,
+      'mediumUrl': mediumUrl,
+      'width': width,
+      'height': height,
+      'format': format,
+      'bytes': bytes,
+    };
+  }
+
+  double get aspectRatio => width > 0 && height > 0 ? width / height : 1.0;
+  
+  String get formattedSize {
+    if (bytes < 1024) return '${bytes}B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)}KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}MB';
+  }
+}
+
+class PostVideo {
+  final String url;           // Video URL from Cloudinary
+  final String publicId;      // Cloudinary public_id สำหรับการลบ
+  final String thumbnailUrl;  // Video thumbnail URL
+  final int width;
+  final int height;
+  final String format;
+  final int bytes;
+  final int duration;         // ในหน่วยวินาที
+
+  PostVideo({
+    required this.url,
+    required this.publicId,
+    required this.thumbnailUrl,
+    required this.width,
+    required this.height,
+    required this.format,
+    required this.bytes,
+    required this.duration,
+  });
+
+  factory PostVideo.fromMap(Map<String, dynamic> map) {
+    return PostVideo(
+      url: map['url'] ?? '',
+      publicId: map['publicId'] ?? '',
+      thumbnailUrl: map['thumbnailUrl'] ?? '',
+      width: map['width'] ?? 0,
+      height: map['height'] ?? 0,
+      format: map['format'] ?? '',
+      bytes: map['bytes'] ?? 0,
+      duration: map['duration'] ?? 0,
+    );
+  }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'url': url,
+      'publicId': publicId,
+      'thumbnailUrl': thumbnailUrl,
+      'width': width,
+      'height': height,
+      'format': format,
+      'bytes': bytes,
+      'duration': duration,
+    };
+  }
+
+  double get aspectRatio => width > 0 && height > 0 ? width / height : 1.0;
+  
+  String get formattedSize {
+    if (bytes < 1024) return '${bytes}B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)}KB';
+    return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}MB';
+  }
+
+  String get formattedDuration {
+    final minutes = duration ~/ 60;
+    final seconds = duration % 60;
+    return '${minutes.toString().padLeft(2, '0')}:${seconds.toString().padLeft(2, '0')}';
+  }
+}
+
 class CommunityPost {
   final String id;
   final String groupId;
   final String authorId;
   final String authorName;
   final String? authorAvatar;
-  final String? authorAvatarBase64;
   final String content;
-  final List<String> imageUrls;
-  final List<String> imageBase64s; 
-  final String? videoUrl;
-  final String? videoBase64; 
   final PostType type;
+  final List<PostImage> images;    // Cloudinary images
+  final PostVideo? video;          // Cloudinary video
   final List<String> likedBy;
-  final int likeCount;
   final int commentCount;
   final DateTime createdAt;
   final DateTime updatedAt;
@@ -182,76 +300,73 @@ class CommunityPost {
     required this.authorId,
     required this.authorName,
     this.authorAvatar,
-    this.authorAvatarBase64,
     required this.content,
-    this.imageUrls = const [],
-    this.imageBase64s = const [], 
-    this.videoUrl,
-    this.videoBase64, 
-    this.type = PostType.text,
-    this.likedBy = const [],
-    this.likeCount = 0,
-    this.commentCount = 0,
+    required this.type,
+    required this.images,
+    this.video,
+    required this.likedBy,
+    required this.commentCount,
     required this.createdAt,
     required this.updatedAt,
   });
 
-  Map<String, dynamic> toFirestore() {
-    return {
-      'groupId': groupId,
-      'authorId': authorId,
-      'authorName': authorName,
-      'authorAvatar': authorAvatar,
-      'authorAvatarBase64': authorAvatarBase64,
-      'content': content,
-      'imageUrls': imageUrls,
-      'imageBase64s': imageBase64s, 
-      'videoUrl': videoUrl,
-      'videoBase64': videoBase64, 
-      'type': type.toString().split('.').last,
-      'likedBy': likedBy,
-      'likeCount': likeCount,
-      'commentCount': commentCount,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': Timestamp.fromDate(updatedAt),
-    };
-  }
-
   factory CommunityPost.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    
     return CommunityPost(
       id: doc.id,
       groupId: data['groupId'] ?? '',
       authorId: data['authorId'] ?? '',
       authorName: data['authorName'] ?? '',
       authorAvatar: data['authorAvatar'],
-      authorAvatarBase64: data['authorAvatarBase64'],
       content: data['content'] ?? '',
-      imageUrls: List<String>.from(data['imageUrls'] ?? []),
-      imageBase64s: List<String>.from(data['imageBase64s'] ?? []), 
-      videoUrl: data['videoUrl'],
-      videoBase64: data['videoBase64'], 
-      type: _parsePostType(data['type']),
+      type: PostType.values.firstWhere(
+        (e) => e.toString().split('.').last == data['type'],
+        orElse: () => PostType.text,
+      ),
+      images: (data['images'] as List? ?? [])
+          .map((img) => PostImage.fromMap(img as Map<String, dynamic>))
+          .toList(),
+      video: data['video'] != null 
+          ? PostVideo.fromMap(data['video'] as Map<String, dynamic>)
+          : null,
       likedBy: List<String>.from(data['likedBy'] ?? []),
-      likeCount: data['likeCount'] ?? 0,
       commentCount: data['commentCount'] ?? 0,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 
-  static PostType _parsePostType(String? typeString) {
-    switch (typeString) {
-      case 'image':
-        return PostType.image;
-      case 'video':
-        return PostType.video;
-      case 'mixed':
-        return PostType.mixed;
-      default:
-        return PostType.text;
-    }
+  Map<String, dynamic> toMap() {
+    return {
+      'groupId': groupId,
+      'authorId': authorId,
+      'authorName': authorName,
+      'authorAvatar': authorAvatar,
+      'content': content,
+      'type': type.toString().split('.').last,
+      'images': images.map((img) => img.toMap()).toList(),
+      'video': video?.toMap(),
+      'imageCount': images.length,
+      'hasVideo': video != null,
+      'likedBy': likedBy,
+      'likeCount': likedBy.length,
+      'commentCount': commentCount,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
+    };
   }
+
+  // ⭐ เพิ่ม toFirestore method
+  Map<String, dynamic> toFirestore() => toMap();
+
+  // Helper getters
+  int get likeCount => likedBy.length;
+  bool get hasImages => images.isNotEmpty;
+  bool get hasVideo => video != null;
+  bool get hasMedia => hasImages || hasVideo;
+  
+  bool isLikedBy(String userId) => likedBy.contains(userId);
 
   CommunityPost copyWith({
     String? id,
@@ -259,15 +374,11 @@ class CommunityPost {
     String? authorId,
     String? authorName,
     String? authorAvatar,
-    String? authorAvatarBase64,
     String? content,
-    List<String>? imageUrls,
-    List<String>? imageBase64s,
-    String? videoUrl,
-    String? videoBase64,
     PostType? type,
+    List<PostImage>? images,
+    PostVideo? video,
     List<String>? likedBy,
-    int? likeCount,
     int? commentCount,
     DateTime? createdAt,
     DateTime? updatedAt,
@@ -278,63 +389,32 @@ class CommunityPost {
       authorId: authorId ?? this.authorId,
       authorName: authorName ?? this.authorName,
       authorAvatar: authorAvatar ?? this.authorAvatar,
-      authorAvatarBase64: authorAvatarBase64 ?? this.authorAvatarBase64,
       content: content ?? this.content,
-      imageUrls: imageUrls ?? this.imageUrls,
-      imageBase64s: imageBase64s ?? this.imageBase64s,
-      videoUrl: videoUrl ?? this.videoUrl,
-      videoBase64: videoBase64 ?? this.videoBase64, 
       type: type ?? this.type,
+      images: images ?? this.images,
+      video: video ?? this.video,
       likedBy: likedBy ?? this.likedBy,
-      likeCount: likeCount ?? this.likeCount,
       commentCount: commentCount ?? this.commentCount,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
     );
   }
-
-  // ✅ Helper methods ใหม่
-  
-  /// ดึงรูปภาพทั้งหมด (รวม URL และ Base64)
-  List<String> get allImages {
-    List<String> allImages = [];
-    allImages.addAll(imageUrls);
-    allImages.addAll(imageBase64s);
-    return allImages;
-  }
-
-  /// ตรวจสอบว่ามีรูปภาพหรือไม่
-  bool get hasImages => imageUrls.isNotEmpty || imageBase64s.isNotEmpty;
-
-  /// ตรวจสอบว่ามีวิดีโอหรือไม่
-  bool get hasVideo => videoUrl != null || videoBase64 != null;
-
-  /// ดึงอวตาร์ผู้เขียน (Base64 หรือ URL)
-  String? get displayAuthorAvatar => authorAvatarBase64 ?? authorAvatar;
-
-  /// ดึงวิดีโอ (Base64 หรือ URL) 
-  String? get displayVideo => videoBase64 ?? videoUrl;
-
-  /// ตรวจสอบว่าเป็น Base64 หรือไม่
-  bool isBase64String(String str) {
-    return str.startsWith('data:') && str.contains('base64,');
-  }
 }
 
-// ==================== POST COMMENT ====================
+// ==================== COMMENT MODELS ====================
+
 class PostComment {
   final String id;
   final String postId;
   final String authorId;
   final String authorName;
   final String? authorAvatar;
-  final String? authorAvatarBase64;
   final String content;
+  final String? parentCommentId;  // สำหรับ reply
   final List<String> likedBy;
-  final int likeCount;
+  final int replyCount;
   final DateTime createdAt;
   final DateTime updatedAt;
-  final String? parentCommentId; // สำหรับ reply
 
   PostComment({
     required this.id,
@@ -342,48 +422,54 @@ class PostComment {
     required this.authorId,
     required this.authorName,
     this.authorAvatar,
-    this.authorAvatarBase64,
     required this.content,
-    this.likedBy = const [],
-    this.likeCount = 0,
+    this.parentCommentId,
+    required this.likedBy,
+    required this.replyCount,
     required this.createdAt,
     required this.updatedAt,
-    this.parentCommentId,
   });
-
-  Map<String, dynamic> toFirestore() {
-    return {
-      'postId': postId,
-      'authorId': authorId,
-      'authorName': authorName,
-      'authorAvatar': authorAvatar,
-      'authorAvatarBase64': authorAvatarBase64,
-      'content': content,
-      'likedBy': likedBy,
-      'likeCount': likeCount,
-      'createdAt': Timestamp.fromDate(createdAt),
-      'updatedAt': Timestamp.fromDate(updatedAt),
-      'parentCommentId': parentCommentId,
-    };
-  }
 
   factory PostComment.fromFirestore(DocumentSnapshot doc) {
     final data = doc.data() as Map<String, dynamic>;
+    
     return PostComment(
       id: doc.id,
       postId: data['postId'] ?? '',
       authorId: data['authorId'] ?? '',
       authorName: data['authorName'] ?? '',
       authorAvatar: data['authorAvatar'],
-      authorAvatarBase64: data['authorAvatarBase64'],
       content: data['content'] ?? '',
+      parentCommentId: data['parentCommentId'],
       likedBy: List<String>.from(data['likedBy'] ?? []),
-      likeCount: data['likeCount'] ?? 0,
+      replyCount: data['replyCount'] ?? 0,
       createdAt: (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       updatedAt: (data['updatedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
-      parentCommentId: data['parentCommentId'],
     );
   }
+
+  Map<String, dynamic> toMap() {
+    return {
+      'postId': postId,
+      'authorId': authorId,
+      'authorName': authorName,
+      'authorAvatar': authorAvatar,
+      'content': content,
+      'parentCommentId': parentCommentId,
+      'likedBy': likedBy,
+      'likeCount': likedBy.length,
+      'replyCount': replyCount,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'updatedAt': Timestamp.fromDate(updatedAt),
+    };
+  }
+
+  // Helper getters
+  int get likeCount => likedBy.length;
+  bool get isReply => parentCommentId != null;
+  bool get hasReplies => replyCount > 0;
+  
+  bool isLikedBy(String userId) => likedBy.contains(userId);
 
   PostComment copyWith({
     String? id,
@@ -391,13 +477,12 @@ class PostComment {
     String? authorId,
     String? authorName,
     String? authorAvatar,
-    String? authorAvatarBase64,
     String? content,
+    String? parentCommentId,
     List<String>? likedBy,
-    int? likeCount,
+    int? replyCount,
     DateTime? createdAt,
     DateTime? updatedAt,
-    String? parentCommentId,
   }) {
     return PostComment(
       id: id ?? this.id,
@@ -405,16 +490,122 @@ class PostComment {
       authorId: authorId ?? this.authorId,
       authorName: authorName ?? this.authorName,
       authorAvatar: authorAvatar ?? this.authorAvatar,
-      authorAvatarBase64: authorAvatarBase64 ?? this.authorAvatarBase64,
       content: content ?? this.content,
+      parentCommentId: parentCommentId ?? this.parentCommentId,
       likedBy: likedBy ?? this.likedBy,
-      likeCount: likeCount ?? this.likeCount,
+      replyCount: replyCount ?? this.replyCount,
       createdAt: createdAt ?? this.createdAt,
       updatedAt: updatedAt ?? this.updatedAt,
-      parentCommentId: parentCommentId ?? this.parentCommentId,
     );
   }
+}
 
-  //  Helper method ใหม่: ดึงอวตาร์ (Base64 หรือ URL)
-  String? get displayAvatar => authorAvatarBase64 ?? authorAvatar;
+// ==================== DTO CLASSES สำหรับการสร้างข้อมูลใหม่ ====================
+
+class CreateGroupDto {
+  final String name;
+  final String description;
+  final List<String> tags;
+  final bool isPublic;
+  final XFile? coverImageFile;
+
+  CreateGroupDto({
+    required this.name,
+    required this.description,
+    required this.tags,
+    required this.isPublic,
+    this.coverImageFile,
+  });
+}
+
+class CreatePostDto {
+  final String groupId;
+  final String content;
+  final List<XFile>? imageFiles;
+  final XFile? videoFile;
+  final PostType type;
+
+  CreatePostDto({
+    required this.groupId,
+    required this.content,
+    this.imageFiles,
+    this.videoFile,
+    this.type = PostType.text,
+  });
+
+  bool get hasImages => imageFiles != null && imageFiles!.isNotEmpty;
+  bool get hasVideo => videoFile != null;
+  bool get hasMedia => hasImages || hasVideo;
+
+  PostType get inferredType {
+    if (hasVideo && hasImages) return PostType.mixed;
+    if (hasVideo) return PostType.video;
+    if (hasImages) return PostType.image;
+    return PostType.text;
+  }
+}
+
+class CreateCommentDto {
+  final String postId;
+  final String content;
+  final String? parentCommentId;
+
+  CreateCommentDto({
+    required this.postId,
+    required this.content,
+    this.parentCommentId,
+  });
+
+  bool get isReply => parentCommentId != null;
+}
+
+// ==================== UTILITY EXTENSIONS ====================
+
+extension PostTypeExtension on PostType {
+  String get displayName {
+    switch (this) {
+      case PostType.text:
+        return 'ข้อความ';
+      case PostType.image:
+        return 'รูปภาพ';
+      case PostType.video:
+        return 'วิดีโอ';
+      case PostType.mixed:
+        return 'รูปภาพและวิดีโอ';
+    }
+  }
+
+  IconData get icon {
+    switch (this) {
+      case PostType.text:
+        return Icons.text_fields;
+      case PostType.image:
+        return Icons.image;
+      case PostType.video:
+        return Icons.videocam;
+      case PostType.mixed:
+        return Icons.perm_media;
+    }
+  }
+}
+
+extension DateTimeExtension on DateTime {
+  String get timeAgo {
+    final now = DateTime.now();
+    final difference = now.difference(this);
+
+    if (difference.inMinutes < 60) {
+      return '${difference.inMinutes} นาทีที่แล้ว';
+    } else if (difference.inHours < 24) {
+      return '${difference.inHours} ชั่วโมงที่แล้ว';
+    } else if (difference.inDays < 7) {
+      return '${difference.inDays} วันที่แล้ว';
+    } else {
+      return '${day}/${month}/${year}';
+    }
+  }
+
+  String get formattedDate {
+    return '${day}/${month}/${year} ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+  }
 }

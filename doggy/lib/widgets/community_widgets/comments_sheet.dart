@@ -1,3 +1,4 @@
+// widgets/community_widgets/comments_sheet.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/community_provider.dart';
@@ -13,7 +14,8 @@ class CommentsSheet extends StatefulWidget {
 }
 
 class _CommentsSheetState extends State<CommentsSheet> {
-  final _commentController = TextEditingController();
+  final TextEditingController _commentController = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
 
   @override
   void initState() {
@@ -26,311 +28,400 @@ class _CommentsSheetState extends State<CommentsSheet> {
   @override
   void dispose() {
     _commentController.dispose();
+    _focusNode.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
+      height: MediaQuery.of(context).size.height * 0.8,
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      child: DraggableScrollableSheet(
-        initialChildSize: 0.8,
-        maxChildSize: 0.9,
-        minChildSize: 0.5,
-        expand: false,
-        builder: (context, scrollController) {
-          return Column(
-            children: [
-              // Handle
-              Container(
-                margin: EdgeInsets.only(top: 12, bottom: 16),
-                child: Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    color: Colors.grey[300],
-                    borderRadius: BorderRadius.circular(2),
+      child: Column(
+        children: [
+          // Handle
+          Container(
+            margin: EdgeInsets.only(top: 8),
+            width: 40,
+            height: 4,
+            decoration: BoxDecoration(
+              color: Colors.grey[300],
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
+
+          // Header
+          Padding(
+            padding: EdgeInsets.all(16),
+            child: Row(
+              children: [
+                Icon(Icons.comment, color: const Color(0xFF8B4513)),
+                SizedBox(width: 8),
+                Text(
+                  'ความคิดเห็น',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: const Color(0xFF8B4513),
                   ),
                 ),
-              ),
-              
-              // Header
-              Padding(
-                padding: EdgeInsets.symmetric(horizontal: 20),
-                child: Row(
-                  children: [
-                    Icon(Icons.comment, color: const Color(0xFF8B4513), size: 24),
-                    SizedBox(width: 8),
-                    Text(
-                      'ความคิดเห็น',
-                      style: TextStyle(
-                        fontSize: 18,
-                        fontWeight: FontWeight.bold,
-                        color: const Color(0xFF8B4513),
-                      ),
-                    ),
-                    Spacer(),
-                    Consumer<CommunityProvider>(
-                      builder: (context, provider, child) {
-                        return Text(
-                          '${provider.currentPostComments.length} ความคิดเห็น',
-                          style: TextStyle(
-                            color: Colors.grey[600],
-                            fontSize: 14,
-                          ),
-                        );
-                      },
-                    ),
-                  ],
-                ),
-              ),
-              
-              Divider(height: 32),
-              
-              // Comments list
-              Expanded(
-                child: Consumer<CommunityProvider>(
+                Spacer(),
+                Consumer<CommunityProvider>(
                   builder: (context, provider, child) {
-                    if (provider.isLoadingComments) {
-                      return Center(
-                        child: CircularProgressIndicator(
-                          color: const Color(0xFFD2B48C),
-                        ),
-                      );
-                    }
-
-                    if (provider.currentPostComments.isEmpty) {
-                      return Center(
-                        child: Column(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Icon(
-                              Icons.comment_outlined,
-                              size: 64,
-                              color: Colors.grey[400],
-                            ),
-                            SizedBox(height: 16),
-                            Text(
-                              'ยังไม่มีความคิดเห็น',
-                              style: TextStyle(
-                                fontSize: 18,
-                                color: Colors.grey[600],
-                              ),
-                            ),
-                            SizedBox(height: 8),
-                            Text(
-                              'เป็นคนแรกที่แสดงความคิดเห็น!',
-                              style: TextStyle(
-                                color: Colors.grey[500],
-                              ),
-                            ),
-                          ],
-                        ),
-                      );
-                    }
-
-                    return ListView.builder(
-                      controller: scrollController,
-                      padding: EdgeInsets.symmetric(horizontal: 20),
-                      itemCount: provider.currentPostComments.length,
-                      itemBuilder: (context, index) {
-                        final comment = provider.currentPostComments[index];
-                        return _buildCommentItem(comment);
-                      },
+                    return Text(
+                      '${provider.currentPostComments.length} ความคิดเห็น',
+                      style: TextStyle(
+                        color: Colors.grey[600],
+                        fontSize: 14,
+                      ),
                     );
                   },
                 ),
-              ),
-              
-              // Comment input
-              Container(
-                padding: EdgeInsets.all(16),
-                decoration: BoxDecoration(
-                  color: Colors.grey[50],
-                  border: Border(top: BorderSide(color: Colors.grey[200]!)),
+                SizedBox(width: 8),
+                IconButton(
+                  onPressed: () => Navigator.pop(context),
+                  icon: Icon(Icons.close, color: Colors.grey[600]),
                 ),
-                child: SafeArea(
-                  child: Row(
-                    children: [
-                      CircleAvatar(
-                        radius: 18,
-                        backgroundColor: const Color(0xFFD2B48C),
-                        child: Icon(Icons.person, color: Colors.white, size: 20),
-                      ),
-                      SizedBox(width: 12),
-                      Expanded(
-                        child: TextField(
-                          controller: _commentController,
-                          decoration: InputDecoration(
-                            hintText: 'เขียนความคิดเห็น...',
-                            border: OutlineInputBorder(
-                              borderRadius: BorderRadius.circular(20),
-                              borderSide: BorderSide.none,
-                            ),
-                            filled: true,
-                            fillColor: Colors.white,
-                            contentPadding: EdgeInsets.symmetric(
-                              horizontal: 16,
-                              vertical: 8,
-                            ),
-                          ),
-                          maxLines: null,
-                          textCapitalization: TextCapitalization.sentences,
+              ],
+            ),
+          ),
+
+          Divider(height: 1),
+
+          // Comments List
+          Expanded(
+            child: Consumer<CommunityProvider>(
+              builder: (context, provider, child) {
+                if (provider.isLoadingComments) {
+                  return Center(
+                    child: CircularProgressIndicator(
+                      color: const Color(0xFFD2B48C),
+                    ),
+                  );
+                }
+
+                if (provider.currentPostComments.isEmpty) {
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(
+                          Icons.comment_outlined,
+                          size: 64,
+                          color: Colors.grey[400],
                         ),
+                        SizedBox(height: 16),
+                        Text(
+                          'ยังไม่มีความคิดเห็น',
+                          style: TextStyle(
+                            fontSize: 16,
+                            color: Colors.grey[600],
+                          ),
+                        ),
+                        SizedBox(height: 8),
+                        Text(
+                          'เป็นคนแรกที่แสดงความคิดเห็น!',
+                          style: TextStyle(
+                            color: Colors.grey[500],
+                          ),
+                        ),
+                      ],
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: EdgeInsets.symmetric(horizontal: 16),
+                  itemCount: provider.currentPostComments.length,
+                  itemBuilder: (context, index) {
+                    final comment = provider.currentPostComments[index];
+                    return _buildCommentItem(comment, provider);
+                  },
+                );
+              },
+            ),
+          ),
+
+          // Comment Input
+          Container(
+            padding: EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              border: Border(top: BorderSide(color: Colors.grey[200]!)),
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: TextField(
+                    controller: _commentController,
+                    focusNode: _focusNode,
+                    decoration: InputDecoration(
+                      hintText: 'เขียนความคิดเห็น...',
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide(color: Colors.grey[300]!),
                       ),
-                      SizedBox(width: 8),
-                      Consumer<CommunityProvider>(
-                        builder: (context, provider, child) {
-                          return IconButton(
-                            onPressed: provider.isLoading ? null : _addComment,
-                            icon: provider.isLoading
-                                ? SizedBox(
-                                    width: 20,
-                                    height: 20,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      color: const Color(0xFFD2B48C),
-                                    ),
-                                  )
-                                : Icon(
-                                    Icons.send,
-                                    color: const Color(0xFF8B4513),
-                                  ),
-                          );
-                        },
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(20),
+                        borderSide: BorderSide(color: const Color(0xFFD2B48C)),
                       ),
-                    ],
+                      contentPadding: EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                    ),
+                    maxLines: null,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => _addComment(),
                   ),
                 ),
-              ),
-            ],
-          );
-        },
+                SizedBox(width: 8),
+                Consumer<CommunityProvider>(
+                  builder: (context, provider, child) {
+                    return IconButton(
+                      onPressed: provider.isLoading ? null : _addComment,
+                      icon: provider.isLoading
+                          ? SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                strokeWidth: 2,
+                                color: const Color(0xFFD2B48C),
+                              ),
+                            )
+                          : Icon(
+                              Icons.send,
+                              color: const Color(0xFF8B4513),
+                            ),
+                    );
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }
 
-  Widget _buildCommentItem(PostComment comment) {
+  Widget _buildCommentItem(PostComment comment, CommunityProvider provider) {
+    final currentUserId = provider.communityService.currentUserId;
+    final isLiked = comment.isLikedBy(currentUserId ?? '');
+    final canDelete = comment.authorId == currentUserId;
+
     return Container(
       margin: EdgeInsets.only(bottom: 16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
+          // Avatar
           CircleAvatar(
-            radius: 18,
-            backgroundImage: comment.authorAvatar != null
-                ? NetworkImage(comment.authorAvatar!)
-                : null,
+            radius: 16,
             backgroundColor: const Color(0xFFD2B48C),
-            child: comment.authorAvatar == null
-                ? Icon(Icons.person, color: Colors.white, size: 18)
-                : null,
+            child: comment.authorAvatar != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: Image.network(
+                      comment.authorAvatar!,
+                      width: 32,
+                      height: 32,
+                      fit: BoxFit.cover,
+                      errorBuilder: (context, error, stackTrace) =>
+                          Icon(Icons.person, color: Colors.white, size: 18),
+                    ),
+                  )
+                : Icon(Icons.person, color: Colors.white, size: 18),
           ),
           SizedBox(width: 12),
+          
+          // Comment Content
           Expanded(
-            child: Container(
-              padding: EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Text(
-                        comment.authorName,
-                        style: TextStyle(
-                          fontWeight: FontWeight.bold,
-                          fontSize: 14,
-                          color: const Color(0xFF8B4513),
-                        ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // Author and time
+                Row(
+                  children: [
+                    Text(
+                      comment.authorName,
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 14,
+                        color: const Color(0xFF8B4513),
                       ),
-                      Spacer(),
-                      Text(
-                        _formatDate(comment.createdAt),
-                        style: TextStyle(
-                          color: Colors.grey[500],
-                          fontSize: 11,
-                        ),
-                      ),
-                    ],
-                  ),
-                  SizedBox(height: 4),
-                  Text(
-                    comment.content,
-                    style: TextStyle(
-                      fontSize: 14,
-                      height: 1.3,
                     ),
-                  ),
-                  SizedBox(height: 8),
-                  Row(
-                    children: [
-                      Consumer<CommunityProvider>(
-                        builder: (context, provider, child) {
-                          final isLiked = comment.likedBy.contains(
-                            provider.communityService.currentUserId,
-                          );
-                          
-                          return InkWell(
-                            onTap: () => provider.toggleCommentLike(comment.id),
-                            borderRadius: BorderRadius.circular(16),
-                            child: Container(
-                              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(
-                                    isLiked ? Icons.favorite : Icons.favorite_border,
-                                    color: isLiked ? Colors.red : Colors.grey[500],
-                                    size: 16,
-                                  ),
-                                  if (comment.likeCount > 0) ...[
-                                    SizedBox(width: 4),
-                                    Text(
-                                      '${comment.likeCount}',
-                                      style: TextStyle(
-                                        color: isLiked ? Colors.red : Colors.grey[500],
-                                        fontSize: 12,
-                                      ),
-                                    ),
-                                  ],
-                                ],
-                              ),
-                            ),
-                          );
-                        },
+                    SizedBox(width: 8),
+                    Text(
+                      _formatDate(comment.createdAt),
+                      style: TextStyle(
+                        color: Colors.grey[500],
+                        fontSize: 12,
                       ),
-                      SizedBox(width: 16),
-                      InkWell(
-                        onTap: () {
-                          // TODO: Implement reply functionality
-                        },
-                        borderRadius: BorderRadius.circular(16),
-                        child: Container(
-                          padding: EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                          child: Text(
-                            'ตอบกลับ',
+                    ),
+                    Spacer(),
+                    if (canDelete)
+                      GestureDetector(
+                        onTap: () => _deleteComment(comment.id),
+                        child: Icon(
+                          Icons.delete_outline,
+                          size: 16,
+                          color: Colors.grey[500],
+                        ),
+                      ),
+                  ],
+                ),
+                SizedBox(height: 4),
+                
+                // Comment text
+                Text(
+                  comment.content,
+                  style: TextStyle(
+                    fontSize: 14,
+                    color: Colors.grey[800],
+                    height: 1.3,
+                  ),
+                ),
+                SizedBox(height: 8),
+                
+                // Actions
+                Row(
+                  children: [
+                    GestureDetector(
+                      onTap: () => provider.toggleCommentLike(comment.id),
+                      child: Row(
+                        children: [
+                          Icon(
+                            isLiked ? Icons.favorite : Icons.favorite_border,
+                            size: 16,
+                            color: isLiked ? Colors.red : Colors.grey[600],
+                          ),
+                          SizedBox(width: 4),
+                          Text(
+                            '${comment.likeCount}',
                             style: TextStyle(
-                              color: Colors.grey[600],
+                              color: isLiked ? Colors.red : Colors.grey[600],
                               fontSize: 12,
-                              fontWeight: FontWeight.w600,
                             ),
                           ),
+                        ],
+                      ),
+                    ),
+                    SizedBox(width: 16),
+                    GestureDetector(
+                      onTap: () => _replyToComment(comment),
+                      child: Text(
+                        'ตอบกลับ',
+                        style: TextStyle(
+                          color: Colors.grey[600],
+                          fontSize: 12,
+                          fontWeight: FontWeight.w500,
                         ),
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ],
+      ),
+    );
+  }
+
+  void _addComment() async {
+    final content = _commentController.text.trim();
+    if (content.isEmpty) return;
+
+    final provider = context.read<CommunityProvider>();
+    final success = await provider.addComment(
+      postId: widget.post.id,
+      content: content,
+    );
+
+    if (success) {
+      _commentController.clear();
+      _focusNode.unfocus();
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Row(
+            children: [
+              Icon(Icons.error, color: Colors.white),
+              SizedBox(width: 8),
+              Text(provider.error ?? 'ไม่สามารถเพิ่มความคิดเห็นได้'),
+            ],
+          ),
+          backgroundColor: Colors.red[600],
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
+  }
+
+  void _deleteComment(String commentId) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: Text('ลบความคิดเห็น'),
+        content: Text('คุณต้องการลบความคิดเห็นนี้หรือไม่?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context, false),
+            child: Text('ยกเลิก'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+            child: Text('ลบ'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final provider = context.read<CommunityProvider>();
+      final success = await provider.deleteComment(commentId, widget.post.id);
+
+      if (success) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.check_circle, color: Colors.white),
+                SizedBox(width: 8),
+                Text('ลบความคิดเห็นเรียบร้อยแล้ว'),
+              ],
+            ),
+            backgroundColor: Colors.green[600],
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(
+              children: [
+                Icon(Icons.error, color: Colors.white),
+                SizedBox(width: 8),
+                Text(provider.error ?? 'ไม่สามารถลบความคิดเห็นได้'),
+              ],
+            ),
+            backgroundColor: Colors.red[600],
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
+  }
+
+  void _replyToComment(PostComment comment) {
+    // TODO: Implement reply functionality
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('ฟีเจอร์ตอบกลับกำลังพัฒนา'),
+        backgroundColor: Colors.blue[600],
       ),
     );
   }
@@ -347,35 +438,6 @@ class _CommentsSheetState extends State<CommentsSheet> {
       return '${difference.inDays} วันที่แล้ว';
     } else {
       return '${date.day}/${date.month}/${date.year}';
-    }
-  }
-
-  void _addComment() async {
-    final content = _commentController.text.trim();
-    if (content.isEmpty) return;
-
-    final provider = context.read<CommunityProvider>();
-    final success = await provider.addComment(
-      postId: widget.post.id,
-      content: content,
-    );
-
-    if (success) {
-      _commentController.clear();
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('เพิ่มความคิดเห็นเรียบร้อยแล้ว'),
-          backgroundColor: Colors.green[600],
-          duration: Duration(seconds: 2),
-        ),
-      );
-    } else {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text(provider.error ?? 'ไม่สามารถเพิ่มความคิดเห็นได้'),
-          backgroundColor: Colors.red[600],
-        ),
-      );
     }
   }
 }

@@ -1,7 +1,7 @@
-// providers/community_provider.dart - เต็มรูปแบบรองรับ Base64
+// providers/community_provider.dart - Complete Cloudinary Integration
 import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
 import 'dart:async';
-import 'dart:convert';
 import 'dart:io';
 import '../models/community_models.dart';
 import '../services/community_service.dart';
@@ -9,53 +9,78 @@ import '../services/community_service.dart';
 class CommunityProvider extends ChangeNotifier {
   final CommunityService _communityService = CommunityService();
   
+  // ==================== STATE VARIABLES ====================
+  
   // Groups
   List<CommunityGroup> _allGroups = [];
   List<CommunityGroup> _userGroups = [];
   
   // Posts
   List<CommunityPost> _currentGroupPosts = [];
+  CommunityGroup? _selectedGroup;
   
   // Comments
   List<PostComment> _currentPostComments = [];
+  CommunityPost? _selectedPost;
   
   // Loading states
   bool _isLoading = false;
   bool _isLoadingPosts = false;
   bool _isLoadingComments = false;
+  bool _isUploading = false;
   
   // Error handling
   String? _error;
 
-  // Streams subscriptions สำหรับ Real-time
+  // Real-time subscriptions
   StreamSubscription? _allGroupsSubscription;
   StreamSubscription? _userGroupsSubscription;
   StreamSubscription? _postsSubscription;
   StreamSubscription? _commentsSubscription;
 
-  // Track initialization
+  // Initialization tracking
   bool _isInitialized = false;
 
-  // Getters
+  // Upload progress tracking
+  double _uploadProgress = 0.0;
+  String _uploadStatus = '';
+
+  // ==================== GETTERS ====================
+  
   List<CommunityGroup> get allGroups => _allGroups;
   List<CommunityGroup> get userGroups => _userGroups;
   List<CommunityPost> get currentGroupPosts => _currentGroupPosts;
   List<PostComment> get currentPostComments => _currentPostComments;
+  
+  CommunityGroup? get selectedGroup => _selectedGroup;
+  CommunityPost? get selectedPost => _selectedPost;
+  
   bool get isLoading => _isLoading;
   bool get isLoadingPosts => _isLoadingPosts;
   bool get isLoadingComments => _isLoadingComments;
+  bool get isUploading => _isUploading;
+  
+  double get uploadProgress => _uploadProgress;
+  String get uploadStatus => _uploadStatus;
+  
   String? get error => _error;
   CommunityService get communityService => _communityService;
   bool get isInitialized => _isInitialized;
 
+  // ==================== LIFECYCLE ====================
+
   @override
   void dispose() {
     print('CommunityProvider disposing...');
+    _cancelAllSubscriptions();
+    super.dispose();
+  }
+
+  void _cancelAllSubscriptions() {
     _allGroupsSubscription?.cancel();
     _userGroupsSubscription?.cancel();
     _postsSubscription?.cancel();
     _commentsSubscription?.cancel();
-    super.dispose();
   }
 
   // ==================== INITIALIZATION ====================
@@ -67,12 +92,14 @@ class CommunityProvider extends ChangeNotifier {
     }
 
     print('Initializing CommunityProvider...');
+    _setLoading(true);
     
     try {
+      // Debug connection
       await _communityService.debugFirestoreConnection();
       
-      loadAllGroups();
-      loadUserGroups();
+      // Start real-time listeners
+      _startGroupListeners();
       
       _isInitialized = true;
       _clearError();
@@ -80,520 +107,17 @@ class CommunityProvider extends ChangeNotifier {
     } catch (e) {
       _setError('ไม่สามารถเริ่มต้นระบบได้: $e');
       print('Error initializing CommunityProvider: $e');
-    }
-  }
-
-  // ==================== GROUP METHODS ====================
-
-  void loadAllGroups() {
-    print('Loading all groups...');
-    _allGroupsSubscription?.cancel();
-    
-    if (_allGroups.isEmpty) {
-      _setLoading(true);
-    }
-    
-    _allGroupsSubscription = _communityService.getAllGroups().listen(
-      (groups) {
-        print('Received ${groups.length} groups from service');
-        _allGroups = groups;
-        _setLoading(false);
-        _clearError();
-        
-        for (var group in groups) {
-          print('Group: ${group.name} (ID: ${group.id}, Members: ${group.memberCount})');
-        }
-      },
-      onError: (error) {
-        print('Error in loadAllGroups: $error');
-        _setError('ไม่สามารถโหลดกลุ่มได้: $error');
-        _setLoading(false);
-      },
-    );
-  }
-
-  void loadUserGroups() {
-    print('Loading user groups...');
-    _userGroupsSubscription?.cancel();
-    
-    if (_userGroups.isEmpty) {
-      _setLoading(true);
-    }
-    
-    _userGroupsSubscription = _communityService.getUserGroups().listen(
-      (groups) {
-        print('Received ${groups.length} user groups from service');
-        _userGroups = groups;
-        _setLoading(false);
-        _clearError();
-        
-        for (var group in groups) {
-          print('User Group: ${group.name} (ID: ${group.id})');
-        }
-      },
-      onError: (error) {
-        print('Error in loadUserGroups: $error');
-        _setError('ไม่สามารถโหลดกลุ่มของคุณได้: $error');
-        _setLoading(false);
-      },
-    );
-  }
-
-  Future<bool> createGroup(CommunityGroup group) async {
-    print('Creating group: ${group.name}');
-    _setLoading(true);
-    try {
-      final groupId = await _communityService.createGroup(group);
+    } finally {
       _setLoading(false);
-      
-      if (groupId != null) {
-        print('Group created successfully with ID: $groupId');
-        _clearError();
-        return true;
-      }
-      
-      _setError('ไม่สามารถสร้างกลุ่มได้');
-      return false;
-    } catch (e) {
-      print('Error creating group: $e');
-      _setLoading(false);
-      _setError('ไม่สามารถสร้างกลุ่มได้: $e');
-      return false;
     }
   }
 
-  Future<List<CommunityGroup>> searchGroups(String query) async {
-    try {
-      print('Searching groups with query: $query');
-      _clearError();
-      final results = await _communityService.searchGroups(query);
-      print('Search returned ${results.length} results');
-      return results;
-    } catch (e) {
-      print('Error searching groups: $e');
-      _setError('ไม่สามารถค้นหากลุ่มได้: $e');
-      return [];
-    }
+  void _startGroupListeners() {
+    loadAllGroups();
+    loadUserGroups();
   }
 
-  Future<bool> joinGroup(String groupId) async {
-    try {
-      print('Joining group: $groupId');
-      _clearError();
-      final success = await _communityService.joinGroup(groupId);
-      
-      if (success) {
-        print('Successfully joined group: $groupId');
-      } else {
-        print('Failed to join group: $groupId');
-        _setError('ไม่สามารถเข้าร่วมกลุ่มได้');
-      }
-      
-      return success;
-    } catch (e) {
-      print('Error joining group: $e');
-      _setError('ไม่สามารถเข้าร่วมกลุ่มได้: $e');
-      return false;
-    }
-  }
-
-  Future<bool> leaveGroup(String groupId) async {
-    try {
-      print('Leaving group: $groupId');
-      _clearError();
-      final success = await _communityService.leaveGroup(groupId);
-      
-      if (success) {
-        print('Successfully left group: $groupId');
-      } else {
-        print('Failed to leave group: $groupId');
-        _setError('ไม่สามารถออกจากกลุ่มได้');
-      }
-      
-      return success;
-    } catch (e) {
-      print('Error leaving group: $e');
-      _setError('ไม่สามารถออกจากกลุ่มได้: $e');
-      return false;
-    }
-  }
-
-  Stream<List<GroupMember>> getGroupMembers(String groupId) {
-    print('Getting members for group: $groupId');
-    return _communityService.getGroupMembers(groupId);
-  }
-
-  // ==================== POST METHODS (อัพเดทสำหรับ Base64) ====================
-
-  void loadGroupPosts(String groupId) {
-    print('Loading posts for group: $groupId');
-    _postsSubscription?.cancel();
-    _setLoadingPosts(true);
-    
-    _postsSubscription = _communityService.getGroupPosts(groupId).listen(
-      (posts) {
-        print('Received ${posts.length} posts for group $groupId');
-        _currentGroupPosts = posts;
-        _setLoadingPosts(false);
-        _clearError();
-        
-        for (var post in posts.take(3)) {
-          print('Post: ${post.content.substring(0, post.content.length > 30 ? 30 : post.content.length)}... (Likes: ${post.likeCount})');
-        }
-      },
-      onError: (error) {
-        print('Error in loadGroupPosts: $error');
-        _setError('ไม่สามารถโหลดโพสต์ได้: $error');
-        _setLoadingPosts(false);
-      },
-    );
-  }
-
-  /// สร้างโพสต์ใหม่พร้อมรองรับ Base64 Images
-  Future<bool> createPost({
-    required String groupId,
-    required String content,
-    List<File>? imageFiles,
-    File? videoFile,
-    bool useBase64 = true, // ใช้ Base64 เป็นค่าเริ่มต้น
-  }) async {
-    print('Creating post in group: $groupId (useBase64: $useBase64)');
-    _setLoading(true);
-    
-    try {
-      List<String> imageUrls = [];
-      List<String> imageBase64s = [];
-      String? videoUrl;
-      String? videoBase64;
-
-      // จัดการรูปภาพ
-      if (imageFiles != null && imageFiles.isNotEmpty) {
-        print('Processing ${imageFiles.length} images...');
-        
-        if (useBase64) {
-          // แปลงเป็น Base64
-          for (File imageFile in imageFiles) {
-            final base64String = await _communityService.convertImageToBase64(imageFile);
-            if (base64String != null) {
-              imageBase64s.add(base64String);
-              print('Image converted to Base64 (${base64String.length} chars)');
-            }
-          }
-        } else {
-          // อัพโหลดไป Firebase Storage
-          for (File imageFile in imageFiles) {
-            final url = await _communityService.uploadImage(imageFile, 'community_posts');
-            if (url != null) {
-              imageUrls.add(url);
-              print('Image uploaded: $url');
-            }
-          }
-        }
-      }
-
-      // จัดการวิดีโอ
-      if (videoFile != null) {
-        print('Processing video...');
-        
-        if (useBase64) {
-          // แปลงเป็น Base64 (เฉพาะไฟล์เล็ก)
-          videoBase64 = await _communityService.convertVideoToBase64(videoFile);
-          if (videoBase64 != null) {
-            print('Video converted to Base64 (${videoBase64.length} chars)');
-          } else {
-            print('Video too large for Base64, uploading to Storage...');
-            videoUrl = await _communityService.uploadVideo(videoFile, 'community_posts');
-          }
-        } else {
-          // อัพโหลดไป Firebase Storage
-          videoUrl = await _communityService.uploadVideo(videoFile, 'community_posts');
-          if (videoUrl != null) {
-            print('Video uploaded: $videoUrl');
-          }
-        }
-      }
-
-      // กำหนดประเภทโพสต์
-      PostType postType = PostType.text;
-      bool hasImages = imageUrls.isNotEmpty || imageBase64s.isNotEmpty;
-      bool hasVideo = videoUrl != null || videoBase64 != null;
-      
-      if (hasImages && hasVideo) {
-        postType = PostType.mixed;
-      } else if (hasImages) {
-        postType = PostType.image;
-      } else if (hasVideo) {
-        postType = PostType.video;
-      }
-
-      // สร้างโพสต์
-      final post = CommunityPost(
-        id: '',
-        groupId: groupId,
-        authorId: '',
-        authorName: '',
-        content: content,
-        imageUrls: imageUrls,
-        imageBase64s: imageBase64s,
-        videoUrl: videoUrl,
-        videoBase64: videoBase64,
-        type: postType,
-        likedBy: [],
-        likeCount: 0,
-        commentCount: 0,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-      );
-
-      final postId = await _communityService.createPost(post);
-      _setLoading(false);
-      
-      if (postId != null) {
-        print('Post created successfully with ID: $postId');
-        _clearError();
-        return true;
-      }
-      
-      _setError('ไม่สามารถสร้างโพสต์ได้');
-      return false;
-    } catch (e) {
-      print('Error creating post: $e');
-      _setLoading(false);
-      _setError('ไม่สามารถสร้างโพสต์ได้: $e');
-      return false;
-    }
-  }
-
-  Future<bool> deletePost(String postId, String groupId) async {
-    try {
-      print('Deleting post: $postId');
-      _clearError();
-      final success = await _communityService.deletePost(postId, groupId);
-      
-      if (success) {
-        print('Post deleted successfully: $postId');
-      } else {
-        print('Failed to delete post: $postId');
-        _setError('ไม่สามารถลบโพสต์ได้');
-      }
-      
-      return success;
-    } catch (e) {
-      print('Error deleting post: $e');
-      _setError('ไม่สามารถลบโพสต์ได้: $e');
-      return false;
-    }
-  }
-
-  Future<bool> togglePostLike(String postId) async {
-    try {
-      print('Toggling like for post: $postId');
-      _clearError();
-      
-      // Optimistic update
-      final postIndex = _currentGroupPosts.indexWhere((post) => post.id == postId);
-      if (postIndex != -1) {
-        final post = _currentGroupPosts[postIndex];
-        final currentUserId = _communityService.currentUserId;
-        
-        if (currentUserId != null) {
-          final isCurrentlyLiked = post.likedBy.contains(currentUserId);
-          final newLikedBy = List<String>.from(post.likedBy);
-          
-          if (isCurrentlyLiked) {
-            newLikedBy.remove(currentUserId);
-          } else {
-            newLikedBy.add(currentUserId);
-          }
-          
-          _currentGroupPosts[postIndex] = post.copyWith(
-            likedBy: newLikedBy,
-            likeCount: newLikedBy.length,
-          );
-          notifyListeners();
-        }
-      }
-      
-      final success = await _communityService.togglePostLike(postId);
-      
-      if (success) {
-        print('Post like toggled successfully: $postId');
-      } else {
-        print('Failed to toggle post like: $postId');
-        _setError('ไม่สามารถกดไลค์ได้');
-        loadGroupPosts(_currentGroupPosts.isNotEmpty ? _currentGroupPosts.first.groupId : '');
-      }
-      
-      return success;
-    } catch (e) {
-      print('Error toggling post like: $e');
-      _setError('ไม่สามารถกดไลค์ได้: $e');
-      if (_currentGroupPosts.isNotEmpty) {
-        loadGroupPosts(_currentGroupPosts.first.groupId);
-      }
-      return false;
-    }
-  }
-
-  // ==================== COMMENT METHODS ====================
-
-  void loadPostComments(String postId) {
-    print('Loading comments for post: $postId');
-    _commentsSubscription?.cancel();
-    _setLoadingComments(true);
-    
-    _commentsSubscription = _communityService.getPostComments(postId).listen(
-      (comments) {
-        print('Received ${comments.length} comments for post $postId');
-        _currentPostComments = comments;
-        _setLoadingComments(false);
-        _clearError();
-      },
-      onError: (error) {
-        print('Error in loadPostComments: $error');
-        _setError('ไม่สามารถโหลดคอมเมนต์ได้: $error');
-        _setLoadingComments(false);
-      },
-    );
-  }
-
-  Future<bool> addComment({
-    required String postId,
-    required String content,
-    String? parentCommentId,
-  }) async {
-    try {
-      print('Adding comment to post: $postId');
-      _clearError();
-      
-      final comment = PostComment(
-        id: '',
-        postId: postId,
-        authorId: '',
-        authorName: '',
-        content: content,
-        likedBy: [],
-        likeCount: 0,
-        createdAt: DateTime.now(),
-        updatedAt: DateTime.now(),
-        parentCommentId: parentCommentId,
-      );
-
-      final commentId = await _communityService.addComment(comment);
-      
-      if (commentId != null) {
-        print('Comment added successfully with ID: $commentId');
-        _clearError();
-        return true;
-      }
-      
-      _setError('ไม่สามารถเพิ่มคอมเมนต์ได้');
-      return false;
-    } catch (e) {
-      print('Error adding comment: $e');
-      _setError('ไม่สามารถเพิ่มคอมเมนต์ได้: $e');
-      return false;
-    }
-  }
-
-  Future<bool> deleteComment(String commentId, String postId) async {
-    try {
-      print('Deleting comment: $commentId');
-      _clearError();
-      final success = await _communityService.deleteComment(commentId, postId);
-      
-      if (success) {
-        print('Comment deleted successfully: $commentId');
-      } else {
-        print('Failed to delete comment: $commentId');
-        _setError('ไม่สามารถลบคอมเมนต์ได้');
-      }
-      
-      return success;
-    } catch (e) {
-      print('Error deleting comment: $e');
-      _setError('ไม่สามารถลบคอมเมนต์ได้: $e');
-      return false;
-    }
-  }
-
-  Future<bool> toggleCommentLike(String commentId) async {
-    try {
-      print('Toggling like for comment: $commentId');
-      _clearError();
-      
-      // Optimistic update
-      final commentIndex = _currentPostComments.indexWhere((comment) => comment.id == commentId);
-      if (commentIndex != -1) {
-        final comment = _currentPostComments[commentIndex];
-        final currentUserId = _communityService.currentUserId;
-        
-        if (currentUserId != null) {
-          final isCurrentlyLiked = comment.likedBy.contains(currentUserId);
-          final newLikedBy = List<String>.from(comment.likedBy);
-          
-          if (isCurrentlyLiked) {
-            newLikedBy.remove(currentUserId);
-          } else {
-            newLikedBy.add(currentUserId);
-          }
-          
-          _currentPostComments[commentIndex] = comment.copyWith(
-            likedBy: newLikedBy,
-            likeCount: newLikedBy.length,
-          );
-          notifyListeners();
-        }
-      }
-      
-      final success = await _communityService.toggleCommentLike(commentId);
-      
-      if (success) {
-        print('Comment like toggled successfully: $commentId');
-      } else {
-        print('Failed to toggle comment like: $commentId');
-        _setError('ไม่สามารถกดไลค์คอมเมนต์ได้');
-        if (_currentPostComments.isNotEmpty) {
-          loadPostComments(_currentPostComments.first.postId);
-        }
-      }
-      
-      return success;
-    } catch (e) {
-      print('Error toggling comment like: $e');
-      _setError('ไม่สามารถกดไลค์คอมเมนต์ได้: $e');
-      if (_currentPostComments.isNotEmpty) {
-        loadPostComments(_currentPostComments.first.postId);
-      }
-      return false;
-    }
-  }
-
-  // ==================== UTILITY METHODS ====================
-
-  void clearError() {
-    _error = null;
-    notifyListeners();
-  }
-
-  void _clearError() {
-    _error = null;
-    notifyListeners();
-  }
-
-  void clearCurrentPosts() {
-    print('Clearing current posts');
-    _postsSubscription?.cancel();
-    _currentGroupPosts = [];
-    notifyListeners();
-  }
-
-  void clearCurrentComments() {
-    print('Clearing current comments');
-    _commentsSubscription?.cancel();
-    _currentPostComments = [];
-    notifyListeners();
-  }
+  // ==================== STATE MANAGEMENT ====================
 
   void _setLoading(bool loading) {
     if (_isLoading != loading) {
@@ -616,49 +140,621 @@ class CommunityProvider extends ChangeNotifier {
     }
   }
 
-  void _setError(String error) {
-    print('Setting error: $error');
+  void _setUploading(bool uploading) {
+    if (_isUploading != uploading) {
+      _isUploading = uploading;
+      if (!uploading) {
+        _uploadProgress = 0.0;
+        _uploadStatus = '';
+      }
+      notifyListeners();
+    }
+  }
+
+  void _setUploadProgress(double progress, String status) {
+    _uploadProgress = progress;
+    _uploadStatus = status;
+    notifyListeners();
+  }
+
+  void _setError(String? error) {
     _error = error;
     notifyListeners();
   }
 
+  void _clearError() {
+    _error = null;
+    notifyListeners();
+  }
+
+  // ==================== GROUP METHODS ====================
+
+  void loadAllGroups() {
+    print('Loading all groups...');
+    _allGroupsSubscription?.cancel();
+    
+    _allGroupsSubscription = _communityService.getAllGroups().listen(
+      (groups) {
+        print('Received ${groups.length} groups from service');
+        _allGroups = groups;
+        _clearError();
+        notifyListeners();
+      },
+      onError: (error) {
+        print('Error in loadAllGroups: $error');
+        _setError('ไม่สามารถโหลดกลุ่มได้: $error');
+      },
+    );
+  }
+
+  void loadUserGroups() {
+    print('Loading user groups...');
+    _userGroupsSubscription?.cancel();
+    
+    _userGroupsSubscription = _communityService.getUserGroups().listen(
+      (groups) {
+        print('Received ${groups.length} user groups from service');
+        _userGroups = groups;
+        _clearError();
+        notifyListeners();
+      },
+      onError: (error) {
+        print('Error in loadUserGroups: $error');
+        _setError('ไม่สามารถโหลดกลุ่มของคุณได้: $error');
+      },
+    );
+  }
+
+  Future<bool> createGroup(CreateGroupDto groupDto) async {
+    print('Creating group: ${groupDto.name}');
+    _setLoading(true);
+    _setUploadProgress(0.0, 'เริ่มสร้างกลุ่ม...');
+    
+    try {
+      _clearError();
+      
+      if (groupDto.coverImageFile != null) {
+        _setUploadProgress(0.3, 'กำลังอัปโหลดรูปปก...');
+      }
+      
+      _setUploadProgress(0.5, 'กำลังสร้างกลุ่ม...');
+      
+      // สร้าง CommunityGroup object
+      final group = CommunityGroup(
+        id: '', // จะถูกสร้างใน service
+        name: groupDto.name,
+        description: groupDto.description,
+        tags: groupDto.tags,
+        memberIds: [],
+        memberCount: 0,
+        postCount: 0,
+        isPublic: groupDto.isPublic,
+        createdBy: _communityService.currentUserId ?? '',
+        createdAt: DateTime.now(),
+        updatedAt: DateTime.now(),
+        coverImageFile: groupDto.coverImageFile,
+      );
+
+      final groupId = await _communityService.createGroup(group);
+      
+      _setUploadProgress(1.0, 'สร้างกลุ่มเรียบร้อย');
+      
+      if (groupId != null) {
+        print('Group created successfully with ID: $groupId');
+        return true;
+      } else {
+        _setError('ไม่สามารถสร้างกลุ่มได้');
+        return false;
+      }
+    } catch (e) {
+      print('Error creating group: $e');
+      _setError('เกิดข้อผิดพลาด: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+      _setUploading(false);
+    }
+  }
+
+  Future<List<CommunityGroup>> searchGroups(String query) async {
+    try {
+      print('Searching groups with query: $query');
+      _clearError();
+      return await _communityService.searchGroups(query);
+    } catch (e) {
+      print('Error searching groups: $e');
+      _setError('ไม่สามารถค้นหากลุ่มได้: $e');
+      return [];
+    }
+  }
+
+  Future<bool> joinGroup(String groupId) async {
+    try {
+      print('Joining group: $groupId');
+      _clearError();
+      final success = await _communityService.joinGroup(groupId);
+      
+      if (!success) {
+        _setError('ไม่สามารถเข้าร่วมกลุ่มได้');
+      }
+      
+      return success;
+    } catch (e) {
+      print('Error joining group: $e');
+      _setError('เกิดข้อผิดพลาด: $e');
+      return false;
+    }
+  }
+
+  Future<bool> leaveGroup(String groupId) async {
+    try {
+      print('Leaving group: $groupId');
+      _clearError();
+      final success = await _communityService.leaveGroup(groupId);
+      
+      if (!success) {
+        _setError('ไม่สามารถออกจากกลุ่มได้');
+      }
+      
+      return success;
+    } catch (e) {
+      print('Error leaving group: $e');
+      _setError('เกิดข้อผิดพลาด: $e');
+      return false;
+    }
+  }
+
+  Future<bool> updateGroup({
+    required String groupId,
+    String? name,
+    String? description,
+    List<String>? tags,
+    XFile? newCoverImage,
+    bool removeCoverImage = false,
+  }) async {
+    try {
+      print('Updating group: $groupId');
+      _setLoading(true);
+      _clearError();
+
+      final success = await _communityService.updateGroup(
+        groupId: groupId,
+        name: name,
+        description: description,
+        tags: tags,
+        newCoverImage: newCoverImage,
+        removeCoverImage: removeCoverImage,
+      );
+      
+      if (!success) {
+        _setError('ไม่สามารถแก้ไขกลุ่มได้');
+      }
+      
+      return success;
+    } catch (e) {
+      print('Error updating group: $e');
+      _setError('เกิดข้อผิดพลาด: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> deleteGroup(String groupId) async {
+    try {
+      print('Deleting group: $groupId');
+      _setLoading(true);
+      _clearError();
+
+      final success = await _communityService.deleteGroup(groupId);
+      
+      if (!success) {
+        _setError('ไม่สามารถลบกลุ่มได้');
+      }
+      
+      return success;
+    } catch (e) {
+      print('Error deleting group: $e');
+      _setError('เกิดข้อผิดพลาด: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  void selectGroup(CommunityGroup group) {
+    print('Selecting group: ${group.name}');
+    _selectedGroup = group;
+    loadGroupPosts(group.id);
+    notifyListeners();
+  }
+
+  void clearSelectedGroup() {
+    print('Clearing selected group');
+    _selectedGroup = null;
+    clearCurrentPosts();
+    notifyListeners();
+  }
+
+  // ==================== POST METHODS ====================
+
+  void loadGroupPosts(String groupId) {
+    print('Loading posts for group: $groupId');
+    _postsSubscription?.cancel();
+    _setLoadingPosts(true);
+    
+    _postsSubscription = _communityService.getGroupPosts(groupId: groupId).listen(
+      (posts) {
+        print('Received ${posts.length} posts for group $groupId');
+        _currentGroupPosts = posts;
+        _setLoadingPosts(false);
+        _clearError();
+        notifyListeners();
+      },
+      onError: (error) {
+        print('Error in loadGroupPosts: $error');
+        _setError('ไม่สามารถโหลดโพสต์ได้: $error');
+        _setLoadingPosts(false);
+      },
+    );
+  }
+
+  Future<bool> createPost({
+    required String groupId,
+    required String content,
+    List<XFile>? imageFiles,
+    XFile? videoFile,
+    PostType type = PostType.text,
+  }) async {
+    print('Creating post in group: $groupId');
+    _setUploading(true);
+    _setUploadProgress(0.0, 'เริ่มสร้างโพสต์...');
+    
+    try {
+      _clearError();
+      
+      if (imageFiles != null && imageFiles.isNotEmpty) {
+        _setUploadProgress(0.2, 'กำลังอัปโหลดรูปภาพ...');
+      }
+      
+      if (videoFile != null) {
+        _setUploadProgress(0.3, 'กำลังอัปโหลดวิดีโอ...');
+      }
+      
+      _setUploadProgress(0.7, 'กำลังบันทึกโพสต์...');
+
+      final postId = await _communityService.createPost(
+        groupId: groupId,
+        content: content,
+        imageFiles: imageFiles,
+        videoFile: videoFile,
+        type: type,
+      );
+      
+      _setUploadProgress(1.0, 'สร้างโพสต์เรียบร้อย');
+      
+      if (postId != null) {
+        print('Post created successfully with ID: $postId');
+        return true;
+      } else {
+        _setError('ไม่สามารถสร้างโพสต์ได้');
+        return false;
+      }
+    } catch (e) {
+      print('Error creating post: $e');
+      _setError('เกิดข้อผิดพลาด: $e');
+      return false;
+    } finally {
+      _setUploading(false);
+    }
+  }
+
+  Future<bool> updatePost({
+    required String postId,
+    String? newContent,
+    List<XFile>? newImageFiles,
+    List<String>? imagesToDelete,
+    XFile? newVideoFile,
+    bool removeVideo = false,
+  }) async {
+    try {
+      print('Updating post: $postId');
+      _setUploading(true);
+      _clearError();
+
+      final success = await _communityService.updatePost(
+        postId: postId,
+        newContent: newContent,
+        newImageFiles: newImageFiles,
+        imagesToDelete: imagesToDelete,
+        newVideoFile: newVideoFile,
+        removeVideo: removeVideo,
+      );
+      
+      if (!success) {
+        _setError('ไม่สามารถแก้ไขโพสต์ได้');
+      }
+      
+      return success;
+    } catch (e) {
+      print('Error updating post: $e');
+      _setError('เกิดข้อผิดพลาด: $e');
+      return false;
+    } finally {
+      _setUploading(false);
+    }
+  }
+
+  Future<bool> deletePost(String postId, String groupId) async {
+    try {
+      print('Deleting post: $postId');
+      _setLoading(true);
+      _clearError();
+
+      final success = await _communityService.deletePost(postId, groupId);
+      
+      if (!success) {
+        _setError('ไม่สามารถลบโพสต์ได้');
+      }
+      
+      return success;
+    } catch (e) {
+      print('Error deleting post: $e');
+      _setError('เกิดข้อผิดพลาด: $e');
+      return false;
+    } finally {
+      _setLoading(false);
+    }
+  }
+
+  Future<bool> togglePostLike(String postId) async {
+    try {
+      // Optimistic update
+      final postIndex = _currentGroupPosts.indexWhere((post) => post.id == postId);
+      if (postIndex != -1) {
+        final post = _currentGroupPosts[postIndex];
+        final currentUserId = _communityService.currentUserId;
+        
+        if (currentUserId != null) {
+          final isCurrentlyLiked = post.likedBy.contains(currentUserId);
+          final newLikedBy = List<String>.from(post.likedBy);
+          
+          if (isCurrentlyLiked) {
+            newLikedBy.remove(currentUserId);
+          } else {
+            newLikedBy.add(currentUserId);
+          }
+          
+          _currentGroupPosts[postIndex] = post.copyWith(
+            likedBy: newLikedBy,
+          );
+          notifyListeners();
+        }
+      }
+      
+      final success = await _communityService.togglePostLike(postId);
+      
+      if (!success) {
+        // Revert optimistic update
+        if (postIndex != -1 && _selectedGroup != null) {
+          loadGroupPosts(_selectedGroup!.id);
+        }
+        _setError('ไม่สามารถกดไลค์ได้');
+      }
+      
+      return success;
+    } catch (e) {
+      print('Error toggling post like: $e');
+      // Revert optimistic update
+      if (_selectedGroup != null) {
+        loadGroupPosts(_selectedGroup!.id);
+      }
+      _setError('เกิดข้อผิดพลาด: $e');
+      return false;
+    }
+  }
+
+  void selectPost(CommunityPost post) {
+    print('Selecting post: ${post.id}');
+    _selectedPost = post;
+    loadPostComments(post.id);
+    notifyListeners();
+  }
+
+  void clearSelectedPost() {
+    print('Clearing selected post');
+    _selectedPost = null;
+    clearCurrentComments();
+    notifyListeners();
+  }
+
+  void clearCurrentPosts() {
+    print('Clearing current posts');
+    _postsSubscription?.cancel();
+    _currentGroupPosts = [];
+    notifyListeners();
+  }
+
+  // ==================== COMMENT METHODS ====================
+
+  void loadPostComments(String postId) {
+    print('Loading comments for post: $postId');
+    _commentsSubscription?.cancel();
+    _setLoadingComments(true);
+    
+    _commentsSubscription = _communityService.getPostComments(postId).listen(
+      (comments) {
+        print('Received ${comments.length} comments for post $postId');
+        _currentPostComments = comments;
+        _setLoadingComments(false);
+        _clearError();
+        notifyListeners();
+      },
+      onError: (error) {
+        print('Error in loadPostComments: $error');
+        _setError('ไม่สามารถโหลดคอมเมนต์ได้: $error');
+        _setLoadingComments(false);
+      },
+    );
+  }
+
+  Future<bool> addComment({
+    required String postId,
+    required String content,
+    String? parentCommentId,
+  }) async {
+    try {
+      print('Adding comment to post: $postId');
+      _clearError();
+
+      final commentId = await _communityService.addComment(
+        postId: postId,
+        content: content,
+        parentCommentId: parentCommentId,
+      );
+      
+      if (commentId != null) {
+        print('Comment added successfully with ID: $commentId');
+        return true;
+      } else {
+        _setError('ไม่สามารถเพิ่มคอมเมนต์ได้');
+        return false;
+      }
+    } catch (e) {
+      print('Error adding comment: $e');
+      _setError('เกิดข้อผิดพลาด: $e');
+      return false;
+    }
+  }
+
+  Future<bool> deleteComment(String commentId, String postId) async {
+    try {
+      print('Deleting comment: $commentId');
+      _clearError();
+
+      final success = await _communityService.deleteComment(commentId, postId);
+      
+      if (!success) {
+        _setError('ไม่สามารถลบคอมเมนต์ได้');
+      }
+      
+      return success;
+    } catch (e) {
+      print('Error deleting comment: $e');
+      _setError('เกิดข้อผิดพลาด: $e');
+      return false;
+    }
+  }
+
+  Future<bool> toggleCommentLike(String commentId) async {
+    try {
+      // Optimistic update
+      final commentIndex = _currentPostComments.indexWhere((comment) => comment.id == commentId);
+      if (commentIndex != -1) {
+        final comment = _currentPostComments[commentIndex];
+        final currentUserId = _communityService.currentUserId;
+        
+        if (currentUserId != null) {
+          final isCurrentlyLiked = comment.likedBy.contains(currentUserId);
+          final newLikedBy = List<String>.from(comment.likedBy);
+          
+          if (isCurrentlyLiked) {
+            newLikedBy.remove(currentUserId);
+          } else {
+            newLikedBy.add(currentUserId);
+          }
+          
+          _currentPostComments[commentIndex] = comment.copyWith(
+            likedBy: newLikedBy,
+          );
+          notifyListeners();
+        }
+      }
+      
+      final success = await _communityService.toggleCommentLike(commentId);
+      
+      if (!success) {
+        // Revert optimistic update
+        if (commentIndex != -1 && _selectedPost != null) {
+          loadPostComments(_selectedPost!.id);
+        }
+        _setError('ไม่สามารถกดไลค์คอมเมนต์ได้');
+      }
+      
+      return success;
+    } catch (e) {
+      print('Error toggling comment like: $e');
+      // Revert optimistic update
+      if (_selectedPost != null) {
+        loadPostComments(_selectedPost!.id);
+      }
+      _setError('เกิดข้อผิดพลาด: $e');
+      return false;
+    }
+  }
+
+  void clearCurrentComments() {
+    print('Clearing current comments');
+    _commentsSubscription?.cancel();
+    _currentPostComments = [];
+    notifyListeners();
+  }
+
+  // ==================== UTILITY METHODS ====================
+
+  void refreshAll() {
+    print('Refreshing all data');
+    loadAllGroups();
+    loadUserGroups();
+    
+    if (_selectedGroup != null) {
+      loadGroupPosts(_selectedGroup!.id);
+    }
+    
+    if (_selectedPost != null) {
+      loadPostComments(_selectedPost!.id);
+    }
+  }
+
   void resetAll() {
     print('Resetting all data');
-    _allGroupsSubscription?.cancel();
-    _userGroupsSubscription?.cancel();
-    _postsSubscription?.cancel();
-    _commentsSubscription?.cancel();
+    _cancelAllSubscriptions();
     
     _allGroups = [];
     _userGroups = [];
     _currentGroupPosts = [];
     _currentPostComments = [];
+    _selectedGroup = null;
+    _selectedPost = null;
+    
     _isLoading = false;
     _isLoadingPosts = false;
     _isLoadingComments = false;
+    _isUploading = false;
+    _uploadProgress = 0.0;
+    _uploadStatus = '';
+    
     _error = null;
     _isInitialized = false;
     
     notifyListeners();
   }
 
-  void refreshAll() {
-    print('Refreshing all data');
-    loadAllGroups();
-    loadUserGroups();
+  // ==================== GROUP MEMBER METHODS ====================
+
+  Stream<List<GroupMember>> getGroupMembers(String groupId) {
+    print('Getting members for group: $groupId');
+    return _communityService.getGroupMembers(groupId);
   }
 
-  void refreshCurrentGroupPosts(String groupId) {
-    print('Refreshing posts for group: $groupId');
-    loadGroupPosts(groupId);
-  }
+  // ==================== HELPER METHODS ====================
 
-  void refreshCurrentPostComments(String postId) {
-    print('Refreshing comments for post: $postId');
-    loadPostComments(postId);
+  bool isUserMemberOfGroup(String groupId) {
+    final userId = _communityService.currentUserId;
+    if (userId == null) return false;
+    
+    return _userGroups.any((group) => group.id == groupId);
   }
-
-  // ==================== ADVANCED FEATURES ====================
 
   CommunityGroup? findGroupById(String groupId) {
     try {
@@ -680,18 +776,12 @@ class CommunityProvider extends ChangeNotifier {
     }
   }
 
-  bool isGroupMember(String groupId) {
-    final isMember = _userGroups.any((group) => group.id == groupId);
-    print('User is member of group $groupId: $isMember');
-    return isMember;
-  }
-
   bool isPostLiked(String postId) {
     final post = findPostById(postId);
     if (post == null) return false;
     final currentUserId = _communityService.currentUserId;
     if (currentUserId == null) return false;
-    return post.likedBy.contains(currentUserId);
+    return post.isLikedBy(currentUserId);
   }
 
   bool isCommentLiked(String commentId) {
@@ -699,19 +789,60 @@ class CommunityProvider extends ChangeNotifier {
       final comment = _currentPostComments.firstWhere((c) => c.id == commentId);
       final currentUserId = _communityService.currentUserId;
       if (currentUserId == null) return false;
-      return comment.likedBy.contains(currentUserId);
+      return comment.isLikedBy(currentUserId);
     } catch (e) {
       return false;
     }
   }
 
-  // Statistics
-  int get totalGroupsCount => _allGroups.length;
-  int get joinedGroupsCount => _userGroups.length;
-  int get currentGroupPostsCount => _currentGroupPosts.length;
-  int get currentPostCommentsCount => _currentPostComments.length;
+  // ==================== STATISTICS ====================
 
-  // Search and Filter
+  Map<String, dynamic> getGroupStatistics(String groupId) {
+    final group = findGroupById(groupId);
+    if (group == null) return {};
+
+    final posts = _selectedGroup?.id == groupId ? _currentGroupPosts : <CommunityPost>[];
+    final totalLikes = posts.fold<int>(0, (sum, post) => sum + post.likeCount);
+    final totalComments = posts.fold<int>(0, (sum, post) => sum + post.commentCount);
+    
+    final postTypes = <PostType, int>{};
+    for (final post in posts) {
+      postTypes[post.type] = (postTypes[post.type] ?? 0) + 1;
+    }
+
+    return {
+      'memberCount': group.memberCount,
+      'postCount': group.postCount,
+      'totalLikes': totalLikes,
+      'totalComments': totalComments,
+      'postTypes': postTypes,
+      'averageLikesPerPost': posts.isNotEmpty ? (totalLikes / posts.length).round() : 0,
+      'averageCommentsPerPost': posts.isNotEmpty ? (totalComments / posts.length).round() : 0,
+    };
+  }
+
+  Map<String, dynamic> getUserStatistics() {
+    final userId = _communityService.currentUserId;
+    if (userId == null) return {};
+
+    final userPosts = _currentGroupPosts.where((post) => post.authorId == userId).toList();
+    final userLikedPosts = _currentGroupPosts.where((post) => post.isLikedBy(userId)).toList();
+
+    final totalLikesReceived = userPosts.fold<int>(0, (sum, post) => sum + post.likeCount);
+    final totalCommentsReceived = userPosts.fold<int>(0, (sum, post) => sum + post.commentCount);
+
+    return {
+      'totalGroups': _userGroups.length,
+      'totalPosts': userPosts.length,
+      'totalLikesReceived': totalLikesReceived,
+      'totalCommentsReceived': totalCommentsReceived,
+      'totalLikesGiven': userLikedPosts.length,
+      'averageLikesPerPost': userPosts.isNotEmpty ? (totalLikesReceived / userPosts.length).round() : 0,
+    };
+  }
+
+  // ==================== SEARCH & FILTER ====================
+
   List<CommunityGroup> filterGroupsByTag(String tag) {
     return _allGroups.where((group) => 
       group.tags.any((t) => t.toLowerCase().contains(tag.toLowerCase()))
@@ -720,9 +851,27 @@ class CommunityProvider extends ChangeNotifier {
 
   List<CommunityGroup> filterGroupsByName(String name) {
     return _allGroups.where((group) => 
-      group.name.toLowerCase().contains(name.toLowerCase())
+      group.name.toLowerCase().contains(name.toLowerCase()) ||
+      group.description.toLowerCase().contains(name.toLowerCase())
     ).toList();
   }
+
+  List<CommunityPost> searchPostsInCurrentGroup(String query) {
+    if (query.isEmpty) return _currentGroupPosts;
+    
+    return _currentGroupPosts.where((post) {
+      return post.content.toLowerCase().contains(query.toLowerCase()) ||
+             post.authorName.toLowerCase().contains(query.toLowerCase());
+    }).toList();
+  }
+
+  List<CommunityPost> filterPostsByType(PostType? type) {
+    if (type == null) return _currentGroupPosts;
+    
+    return _currentGroupPosts.where((post) => post.type == type).toList();
+  }
+
+  // ==================== SORTING ====================
 
   List<CommunityGroup> get groupsSortedByMembers {
     final groups = List<CommunityGroup>.from(_allGroups);
@@ -730,9 +879,9 @@ class CommunityProvider extends ChangeNotifier {
     return groups;
   }
 
-  List<CommunityGroup> get groupsSortedByPosts {
+  List<CommunityGroup> get groupsSortedByActivity {
     final groups = List<CommunityGroup>.from(_allGroups);
-    groups.sort((a, b) => b.postCount.compareTo(a.postCount));
+    groups.sort((a, b) => b.updatedAt.compareTo(a.updatedAt));
     return groups;
   }
 
@@ -742,200 +891,72 @@ class CommunityProvider extends ChangeNotifier {
     return posts;
   }
 
-  CommunityPost? get mostLikedPost {
-    if (_currentGroupPosts.isEmpty) return null;
-    return _currentGroupPosts.reduce((a, b) => 
-      a.likeCount > b.likeCount ? a : b
-    );
+  List<CommunityPost> get postsSortedByComments {
+    final posts = List<CommunityPost>.from(_currentGroupPosts);
+    posts.sort((a, b) => b.commentCount.compareTo(a.commentCount));
+    return posts;
   }
 
-  CommunityPost? get latestPost {
-    if (_currentGroupPosts.isEmpty) return null;
-    return _currentGroupPosts.first;
+  // ==================== DEBUG METHODS ====================
+
+  void debugPrintState() {
+    print('=== CommunityProvider State ===');
+    print('All Groups: ${_allGroups.length}');
+    print('User Groups: ${_userGroups.length}');
+    print('Current Group Posts: ${_currentGroupPosts.length}');
+    print('Current Post Comments: ${_currentPostComments.length}');
+    print('Selected Group: ${_selectedGroup?.name ?? 'None'}');
+    print('Selected Post: ${_selectedPost?.content.substring(0, 20) ?? 'None'}...');
+    print('Is Loading: $_isLoading');
+    print('Is Loading Posts: $_isLoadingPosts');
+    print('Is Loading Comments: $_isLoadingComments');
+    print('Is Uploading: $_isUploading');
+    print('Upload Progress: ${(_uploadProgress * 100).toStringAsFixed(1)}%');
+    print('Upload Status: $_uploadStatus');
+    print('Error: $_error');
+    print('Is Initialized: $_isInitialized');
+    print('Current User ID: ${_communityService.currentUserId}');
+    print('Active Subscriptions:');
+    print('  - All Groups: ${_allGroupsSubscription != null}');
+    print('  - User Groups: ${_userGroupsSubscription != null}');
+    print('  - Posts: ${_postsSubscription != null}');
+    print('  - Comments: ${_commentsSubscription != null}');
+    print('================================');
   }
 
-  int getUserPostCount(String userId) {
-    return _currentGroupPosts.where((post) => post.authorId == userId).length;
+  Future<void> debugFirestoreConnection() async {
+    await _communityService.debugFirestoreConnection();
   }
 
-  int getUserLikeCount(String userId) {
-    return _currentGroupPosts
-        .where((post) => post.authorId == userId)
-        .fold(0, (sum, post) => sum + post.likeCount);
+  Map<String, dynamic> getDebugInfo() {
+    return {
+      'allGroupsCount': _allGroups.length,
+      'userGroupsCount': _userGroups.length,
+      'currentPostsCount': _currentGroupPosts.length,
+      'currentCommentsCount': _currentPostComments.length,
+      'selectedGroup': _selectedGroup?.name,
+      'selectedPost': _selectedPost?.id,
+      'isLoading': _isLoading,
+      'isLoadingPosts': _isLoadingPosts,
+      'isLoadingComments': _isLoadingComments,
+      'isUploading': _isUploading,
+      'uploadProgress': _uploadProgress,
+      'uploadStatus': _uploadStatus,
+      'error': _error,
+      'isInitialized': _isInitialized,
+      'currentUserId': _communityService.currentUserId,
+      'hasActiveSubscriptions': {
+        'allGroups': _allGroupsSubscription != null,
+        'userGroups': _userGroupsSubscription != null,
+        'posts': _postsSubscription != null,
+        'comments': _commentsSubscription != null,
+      },
+      'timestamp': DateTime.now().toIso8601String(),
+    };
   }
 
-  int getUserCommentCount(String userId) {
-    return _currentPostComments.where((comment) => comment.authorId == userId).length;
-  }
+  // ==================== VALIDATION METHODS ====================
 
-  // ==================== BASE64 IMAGE HELPERS ====================
-
-  /// ตรวจสอบว่าสตริงเป็น Base64 หรือไม่
-  bool isBase64String(String str) {
-    return str.startsWith('data:') && str.contains('base64,');
-  }
-
-  /// แปลง Base64 กลับเป็น bytes (สำหรับแสดงผล)
-  List<int>? decodeBase64(String base64String) {
-    try {
-      if (base64String.contains('base64,')) {
-        final base64Data = base64String.split('base64,')[1];
-        return base64.decode(base64Data);
-      }
-      return base64.decode(base64String);
-    } catch (e) {
-      print('Error decoding base64: $e');
-      return null;
-    }
-  }
-
-  /// ดึง MIME type จาก Base64 string
-  String? getMimeTypeFromBase64(String base64String) {
-    try {
-      if (base64String.startsWith('data:')) {
-        final mimeType = base64String.split(';')[0].substring(5);
-        return mimeType;
-      }
-      return null;
-    } catch (e) {
-      print('Error getting mime type: $e');
-      return null;
-    }
-  }
-
-  // ==================== IMAGE CONVERSION HELPERS ====================
-
-  /// แปลงไฟล์รูปภาพเป็น Base64 ผ่าน Service
-  Future<String?> convertImageToBase64(File imageFile) async {
-    try {
-      return await _communityService.convertImageToBase64(imageFile);
-    } catch (e) {
-      print('Error converting image to base64 in provider: $e');
-      return null;
-    }
-  }
-
-  /// แปลงไฟล์วิดีโอเป็น Base64 ผ่าน Service
-  Future<String?> convertVideoToBase64(File videoFile) async {
-    try {
-      return await _communityService.convertVideoToBase64(videoFile);
-    } catch (e) {
-      print('Error converting video to base64 in provider: $e');
-      return null;
-    }
-  }
-
-  /// อัพโหลดรูปภาพไป Firebase Storage ผ่าน Service
-  Future<String?> uploadImageToStorage(File imageFile, String folder) async {
-    try {
-      return await _communityService.uploadImage(imageFile, folder);
-    } catch (e) {
-      print('Error uploading image to storage in provider: $e');
-      return null;
-    }
-  }
-
-  /// อัพโหลดวิดีโอไป Firebase Storage ผ่าน Service
-  Future<String?> uploadVideoToStorage(File videoFile, String folder) async {
-    try {
-      return await _communityService.uploadVideo(videoFile, folder);
-    } catch (e) {
-      print('Error uploading video to storage in provider: $e');
-      return null;
-    }
-  }
-
-  // ==================== BATCH OPERATIONS ====================
-
-  /// สร้างโพสต์หลายๆ โพสต์พร้อมกัน
-  Future<List<String?>> createMultiplePosts(List<CommunityPost> posts) async {
-    final results = <String?>[];
-    
-    for (var post in posts) {
-      try {
-        final postId = await _communityService.createPost(post);
-        results.add(postId);
-      } catch (e) {
-        print('Error creating post in batch: $e');
-        results.add(null);
-      }
-    }
-    
-    return results;
-  }
-
-  /// ลบโพสต์หลายๆ โพสต์พร้อมกัน
-  Future<List<bool>> deleteMultiplePosts(List<String> postIds, String groupId) async {
-    final results = <bool>[];
-    
-    for (var postId in postIds) {
-      try {
-        final success = await _communityService.deletePost(postId, groupId);
-        results.add(success);
-      } catch (e) {
-        print('Error deleting post in batch: $e');
-        results.add(false);
-      }
-    }
-    
-    return results;
-  }
-
-  // ==================== MEDIA MANAGEMENT ====================
-
-  /// ดึงขนาดไฟล์ในรูปแบบที่อ่านง่าย
-  String getFileSizeString(int bytes) {
-    if (bytes < 1024) return '$bytes B';
-    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
-    if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
-    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
-  }
-
-  /// ตรวจสอบขนาดไฟล์ว่าเหมาะสำหรับ Base64 หรือไม่
-  Future<bool> isFileSuitableForBase64(File file, {int maxSizeMB = 5}) async {
-    try {
-      final fileSize = await file.length();
-      final maxSizeBytes = maxSizeMB * 1024 * 1024;
-      return fileSize <= maxSizeBytes;
-    } catch (e) {
-      print('Error checking file size: $e');
-      return false;
-    }
-  }
-
-  /// แนะนำวิธีการอัพโหลดที่เหมาะสม
-  Future<String> getRecommendedUploadMethod(File file) async {
-    try {
-      final fileSize = await file.length();
-      final fileSizeString = getFileSizeString(fileSize);
-      
-      if (fileSize <= 1024 * 1024) { // <= 1MB
-        return 'Base64 (แนะนำ) - ขนาดไฟล์: $fileSizeString';
-      } else if (fileSize <= 5 * 1024 * 1024) { // <= 5MB
-        return 'Base64 หรือ Storage - ขนาดไฟล์: $fileSizeString';
-      } else {
-        return 'Firebase Storage (แนะนำ) - ขนาดไฟล์: $fileSizeString';
-      }
-    } catch (e) {
-      return 'ไม่สามารถตรวจสอบขนาดไฟล์ได้';
-    }
-  }
-
-  // ==================== VALIDATION HELPERS ====================
-
-  /// ตรวจสอบว่าไฟล์เป็นรูปภาพหรือไม่
-  bool isImageFile(File file) {
-    final extension = file.path.split('.').last.toLowerCase();
-    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].contains(extension);
-  }
-
-  /// ตรวจสอบว่าไฟล์เป็นวิดีโอหรือไม่
-  bool isVideoFile(File file) {
-    final extension = file.path.split('.').last.toLowerCase();
-    return ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv'].contains(extension);
-  }
-
-  /// ตรวจสอบความถูกต้องของเนื้อหาโพสต์
   String? validatePostContent(String content, {int maxLength = 5000}) {
     if (content.trim().isEmpty) {
       return 'กรุณาใส่เนื้อหาโพสต์';
@@ -943,138 +964,110 @@ class CommunityProvider extends ChangeNotifier {
     if (content.length > maxLength) {
       return 'เนื้อหาโพสต์ยาวเกินไป (สูงสุด $maxLength ตัวอักษร)';
     }
-    return null; // ถูกต้อง
+    return null;
   }
 
-  /// ตรวจสอบความถูกต้องของรูปภาพ
-  Future<String?> validateImages(List<File> imageFiles, {int maxCount = 10}) async {
+  Future<String?> validateImages(List<XFile> imageFiles, {int maxCount = 10}) async {
     if (imageFiles.length > maxCount) {
       return 'สามารถเลือกรูปภาพได้สูงสุด $maxCount รูป';
     }
 
     for (var file in imageFiles) {
-      if (!isImageFile(file)) {
-        return 'ไฟล์ ${file.path.split('/').last} ไม่ใช่รูปภาพ';
+      if (!_isImageFile(file)) {
+        return 'ไฟล์ ${file.name} ไม่ใช่รูปภาพ';
       }
       
-      final fileSize = await file.length();
+      final fileSize = await File(file.path).length();
       if (fileSize > 50 * 1024 * 1024) { // 50MB
-        return 'รูปภาพ ${file.path.split('/').last} มีขนาดใหญ่เกินไป (สูงสุด 50MB)';
+        return 'รูปภาพ ${file.name} มีขนาดใหญ่เกินไป (สูงสุด 50MB)';
       }
     }
     
-    return null; // ถูกต้อง
+    return null;
   }
 
-  /// ตรวจสอบความถูกต้องของวิดีโอ
-  Future<String?> validateVideo(File videoFile) async {
-    if (!isVideoFile(videoFile)) {
-      return 'ไฟล์ ${videoFile.path.split('/').last} ไม่ใช่วิดีโอ';
+  Future<String?> validateVideo(XFile videoFile) async {
+    if (!_isVideoFile(videoFile)) {
+      return 'ไฟล์ ${videoFile.name} ไม่ใช่วิดีโอ';
     }
     
-    final fileSize = await videoFile.length();
+    final fileSize = await File(videoFile.path).length();
     if (fileSize > 100 * 1024 * 1024) { // 100MB
       return 'วิดีโอมีขนาดใหญ่เกินไป (สูงสุด 100MB)';
     }
     
-    return null; // ถูกต้อง
+    return null;
   }
 
-  // ==================== CACHE MANAGEMENT ====================
-
-  /// ล้างแคช Base64 ที่เก่า (สำหรับประหยัด memory)
-  void clearBase64Cache() {
-    // ในอนาคตอาจเพิ่มระบบแคช Base64 เพื่อประหยัด memory
-    print('Base64 cache cleared (placeholder)');
+  bool _isImageFile(XFile file) {
+    final extension = file.path.split('.').last.toLowerCase();
+    return ['jpg', 'jpeg', 'png', 'gif', 'webp', 'bmp'].contains(extension);
   }
 
-  /// ประมาณขนาด memory ที่ใช้สำหรับ Base64
-  int estimateBase64MemoryUsage() {
-    int totalSize = 0;
+  bool _isVideoFile(XFile file) {
+    final extension = file.path.split('.').last.toLowerCase();
+    return ['mp4', 'avi', 'mov', 'wmv', 'flv', 'webm', 'mkv'].contains(extension);
+  }
+
+  String formatFileSize(int bytes) {
+    if (bytes < 1024) return '$bytes B';
+    if (bytes < 1024 * 1024) return '${(bytes / 1024).toStringAsFixed(1)} KB';
+    if (bytes < 1024 * 1024 * 1024) return '${(bytes / (1024 * 1024)).toStringAsFixed(1)} MB';
+    return '${(bytes / (1024 * 1024 * 1024)).toStringAsFixed(1)} GB';
+  }
+
+  // ==================== BATCH OPERATIONS ====================
+
+  Future<List<bool>> joinMultipleGroups(List<String> groupIds) async {
+    final results = <bool>[];
     
-    for (var post in _currentGroupPosts) {
-      for (var base64String in post.imageBase64s) {
-        // Base64 ใช้ memory ประมาณ 1.33 เท่าของขนาดจริง
-        totalSize += (base64String.length * 0.75).round();
-      }
-      if (post.videoBase64 != null) {
-        totalSize += (post.videoBase64!.length * 0.75).round();
+    for (final groupId in groupIds) {
+      try {
+        final success = await joinGroup(groupId);
+        results.add(success);
+      } catch (e) {
+        print('Error joining group $groupId in batch: $e');
+        results.add(false);
       }
     }
     
-    return totalSize;
+    return results;
   }
 
-  /// แสดงสถิติการใช้ memory
-  String getMemoryUsageInfo() {
-    final memoryUsage = estimateBase64MemoryUsage();
-    return getFileSizeString(memoryUsage);
+  Future<List<bool>> deleteMultiplePosts(List<String> postIds, String groupId) async {
+    final results = <bool>[];
+    
+    for (final postId in postIds) {
+      try {
+        final success = await deletePost(postId, groupId);
+        results.add(success);
+      } catch (e) {
+        print('Error deleting post $postId in batch: $e');
+        results.add(false);
+      }
+    }
+    
+    return results;
   }
 
-  // ==================== DEBUG AND MONITORING ====================
-
-  /// แสดงสถิติของ Provider
-  void printProviderStats() {
-    print('=== CommunityProvider Statistics ===');
-    print('All Groups: ${_allGroups.length}');
-    print('User Groups: ${_userGroups.length}');
-    print('Current Posts: ${_currentGroupPosts.length}');
-    print('Current Comments: ${_currentPostComments.length}');
-    print('Memory Usage (Base64): ${getMemoryUsageInfo()}');
-    print('Is Loading: $_isLoading');
-    print('Is Loading Posts: $_isLoadingPosts');
-    print('Is Loading Comments: $_isLoadingComments');
-    print('Error: ${_error ?? 'None'}');
-    print('Is Initialized: $_isInitialized');
-    print('================================');
-  }
-
-  /// ส่งออกข้อมูลสำหรับ debug
-  Map<String, dynamic> getDebugInfo() {
-    return {
-      'allGroupsCount': _allGroups.length,
-      'userGroupsCount': _userGroups.length,
-      'currentPostsCount': _currentGroupPosts.length,
-      'currentCommentsCount': _currentPostComments.length,
-      'memoryUsage': getMemoryUsageInfo(),
-      'isLoading': _isLoading,
-      'isLoadingPosts': _isLoadingPosts,
-      'isLoadingComments': _isLoadingComments,
-      'error': _error,
-      'isInitialized': _isInitialized,
-      'hasActiveSubscriptions': {
-        'allGroups': _allGroupsSubscription != null,
-        'userGroups': _userGroupsSubscription != null,
-        'posts': _postsSubscription != null,
-        'comments': _commentsSubscription != null,
-      },
-    };
-  }
-
-  // ==================== EXPORT/IMPORT FUNCTIONALITY ====================
-
-  /// ส่งออกข้อมูลโพสต์เป็น JSON (สำหรับ backup)
-  Map<String, dynamic> exportPostsToJson() {
-    return {
-      'timestamp': DateTime.now().toIso8601String(),
-      'version': '1.0',
-      'posts': _currentGroupPosts.map((post) => post.toFirestore()).toList(),
-    };
-  }
-
-  /// ส่งออกข้อมูลกลุ่มเป็น JSON (สำหรับ backup)
-  Map<String, dynamic> exportGroupsToJson() {
-    return {
-      'timestamp': DateTime.now().toIso8601String(),
-      'version': '1.0',
-      'allGroups': _allGroups.map((group) => group.toFirestore()).toList(),
-      'userGroups': _userGroups.map((group) => group.toFirestore()).toList(),
-    };
+  Future<List<bool>> addMultipleComments(List<String> contents, String postId) async {
+    final results = <bool>[];
+    
+    for (final content in contents) {
+      try {
+        final success = await addComment(postId: postId, content: content);
+        results.add(success);
+      } catch (e) {
+        print('Error adding comment in batch: $e');
+        results.add(false);
+      }
+    }
+    
+    return results;
   }
 
   // ==================== PERFORMANCE OPTIMIZATION ====================
 
-  /// จำกัดจำนวนโพสต์ในหน่วยความจำ
   void limitPostsInMemory({int maxPosts = 100}) {
     if (_currentGroupPosts.length > maxPosts) {
       _currentGroupPosts = _currentGroupPosts.take(maxPosts).toList();
@@ -1083,7 +1076,6 @@ class CommunityProvider extends ChangeNotifier {
     }
   }
 
-  /// จำกัดจำนวนคอมเมนต์ในหน่วยความจำ
   void limitCommentsInMemory({int maxComments = 200}) {
     if (_currentPostComments.length > maxComments) {
       _currentPostComments = _currentPostComments.take(maxComments).toList();
@@ -1092,11 +1084,304 @@ class CommunityProvider extends ChangeNotifier {
     }
   }
 
-  /// ทำความสะอาดข้อมูลเก่าออกจากหน่วยความจำ
-  void cleanupOldData() {
+  void optimizeMemoryUsage() {
     limitPostsInMemory();
     limitCommentsInMemory();
-    clearBase64Cache();
-    print('Cleanup completed');
+    print('Memory optimization completed');
+  }
+
+  // ==================== EXPORT/IMPORT FUNCTIONALITY ====================
+
+  Map<String, dynamic> exportUserData() {
+    return {
+      'timestamp': DateTime.now().toIso8601String(),
+      'version': '2.0',
+      'cloudinary': true,
+      'userGroups': _userGroups.map((group) => {
+        'id': group.id,
+        'name': group.name,
+        'description': group.description,
+        'tags': group.tags,
+        'memberCount': group.memberCount,
+        'postCount': group.postCount,
+        'isPublic': group.isPublic,
+        'joinedAt': group.createdAt.toIso8601String(),
+      }).toList(),
+      'statistics': getUserStatistics(),
+    };
+  }
+
+  Map<String, dynamic> exportGroupData(String groupId) {
+    final group = findGroupById(groupId);
+    if (group == null) return {};
+
+    final posts = _selectedGroup?.id == groupId ? _currentGroupPosts : <CommunityPost>[];
+    
+    return {
+      'timestamp': DateTime.now().toIso8601String(),
+      'version': '2.0',
+      'cloudinary': true,
+      'group': {
+        'id': group.id,
+        'name': group.name,
+        'description': group.description,
+        'tags': group.tags,
+        'memberCount': group.memberCount,
+        'postCount': group.postCount,
+        'isPublic': group.isPublic,
+        'createdAt': group.createdAt.toIso8601String(),
+      },
+      'posts': posts.map((post) => {
+        'id': post.id,
+        'content': post.content,
+        'type': post.type.toString(),
+        'imageCount': post.images.length,
+        'hasVideo': post.hasVideo,
+        'likeCount': post.likeCount,
+        'commentCount': post.commentCount,
+        'createdAt': post.createdAt.toIso8601String(),
+        'authorName': post.authorName,
+      }).toList(),
+      'statistics': getGroupStatistics(groupId),
+    };
+  }
+
+  // ==================== ADVANCED SEARCH ====================
+
+  List<CommunityGroup> advancedSearchGroups({
+    String? name,
+    String? description,
+    List<String>? tags,
+    int? minMembers,
+    int? maxMembers,
+    bool? isPublic,
+    DateTime? createdAfter,
+    DateTime? createdBefore,
+  }) {
+    var results = _allGroups;
+
+    if (name != null && name.isNotEmpty) {
+      results = results.where((group) => 
+        group.name.toLowerCase().contains(name.toLowerCase())
+      ).toList();
+    }
+
+    if (description != null && description.isNotEmpty) {
+      results = results.where((group) => 
+        group.description.toLowerCase().contains(description.toLowerCase())
+      ).toList();
+    }
+
+    if (tags != null && tags.isNotEmpty) {
+      results = results.where((group) => 
+        tags.any((tag) => group.tags.any((groupTag) => 
+          groupTag.toLowerCase().contains(tag.toLowerCase())
+        ))
+      ).toList();
+    }
+
+    if (minMembers != null) {
+      results = results.where((group) => group.memberCount >= minMembers).toList();
+    }
+
+    if (maxMembers != null) {
+      results = results.where((group) => group.memberCount <= maxMembers).toList();
+    }
+
+    if (isPublic != null) {
+      results = results.where((group) => group.isPublic == isPublic).toList();
+    }
+
+    if (createdAfter != null) {
+      results = results.where((group) => group.createdAt.isAfter(createdAfter)).toList();
+    }
+
+    if (createdBefore != null) {
+      results = results.where((group) => group.createdAt.isBefore(createdBefore)).toList();
+    }
+
+    return results;
+  }
+
+  List<CommunityPost> advancedSearchPosts({
+    String? content,
+    String? authorName,
+    PostType? type,
+    int? minLikes,
+    int? maxLikes,
+    int? minComments,
+    int? maxComments,
+    DateTime? createdAfter,
+    DateTime? createdBefore,
+    bool? hasImages,
+    bool? hasVideo,
+  }) {
+    var results = _currentGroupPosts;
+
+    if (content != null && content.isNotEmpty) {
+      results = results.where((post) => 
+        post.content.toLowerCase().contains(content.toLowerCase())
+      ).toList();
+    }
+
+    if (authorName != null && authorName.isNotEmpty) {
+      results = results.where((post) => 
+        post.authorName.toLowerCase().contains(authorName.toLowerCase())
+      ).toList();
+    }
+
+    if (type != null) {
+      results = results.where((post) => post.type == type).toList();
+    }
+
+    if (minLikes != null) {
+      results = results.where((post) => post.likeCount >= minLikes).toList();
+    }
+
+    if (maxLikes != null) {
+      results = results.where((post) => post.likeCount <= maxLikes).toList();
+    }
+
+    if (minComments != null) {
+      results = results.where((post) => post.commentCount >= minComments).toList();
+    }
+
+    if (maxComments != null) {
+      results = results.where((post) => post.commentCount <= maxComments).toList();
+    }
+
+    if (createdAfter != null) {
+      results = results.where((post) => post.createdAt.isAfter(createdAfter)).toList();
+    }
+
+    if (createdBefore != null) {
+      results = results.where((post) => post.createdAt.isBefore(createdBefore)).toList();
+    }
+
+    if (hasImages != null) {
+      results = results.where((post) => post.hasImages == hasImages).toList();
+    }
+
+    if (hasVideo != null) {
+      results = results.where((post) => post.hasVideo == hasVideo).toList();
+    }
+
+    return results;
+  }
+
+  // ==================== ANALYTICS ====================
+
+  Map<String, dynamic> getAnalytics() {
+    final now = DateTime.now();
+    final last7Days = now.subtract(Duration(days: 7));
+    final last30Days = now.subtract(Duration(days: 30));
+
+    final recentPosts = _currentGroupPosts.where((post) => 
+      post.createdAt.isAfter(last7Days)
+    ).toList();
+
+    final monthlyPosts = _currentGroupPosts.where((post) => 
+      post.createdAt.isAfter(last30Days)
+    ).toList();
+
+    final recentComments = _currentPostComments.where((comment) => 
+      comment.createdAt.isAfter(last7Days)
+    ).toList();
+
+    return {
+      'totalGroups': _allGroups.length,
+      'joinedGroups': _userGroups.length,
+      'totalPosts': _currentGroupPosts.length,
+      'recentPosts': recentPosts.length,
+      'monthlyPosts': monthlyPosts.length,
+      'totalComments': _currentPostComments.length,
+      'recentComments': recentComments.length,
+      'averageLikesPerPost': _currentGroupPosts.isNotEmpty 
+          ? (_currentGroupPosts.fold<int>(0, (sum, post) => sum + post.likeCount) / _currentGroupPosts.length).round()
+          : 0,
+      'averageCommentsPerPost': _currentGroupPosts.isNotEmpty 
+          ? (_currentGroupPosts.fold<int>(0, (sum, post) => sum + post.commentCount) / _currentGroupPosts.length).round()
+          : 0,
+      'mostActiveGroup': _userGroups.isNotEmpty 
+          ? _userGroups.reduce((a, b) => a.postCount > b.postCount ? a : b).name
+          : null,
+      'postTypeDistribution': _getPostTypeDistribution(),
+      'engagementRate': _calculateEngagementRate(),
+      'growthMetrics': {
+        'last7Days': recentPosts.length,
+        'last30Days': monthlyPosts.length,
+      },
+    };
+  }
+
+  Map<String, int> _getPostTypeDistribution() {
+    final distribution = <String, int>{};
+    
+    for (final post in _currentGroupPosts) {
+      final typeKey = post.type.toString().split('.').last;
+      distribution[typeKey] = (distribution[typeKey] ?? 0) + 1;
+    }
+    
+    return distribution;
+  }
+
+  double _calculateEngagementRate() {
+    if (_currentGroupPosts.isEmpty) return 0.0;
+    
+    final totalEngagement = _currentGroupPosts.fold<int>(0, (sum, post) => 
+      sum + post.likeCount + post.commentCount
+    );
+    
+    return totalEngagement / _currentGroupPosts.length;
+  }
+
+  // ==================== NOTIFICATION HELPERS ====================
+
+  List<Map<String, dynamic>> getPendingNotifications() {
+    final notifications = <Map<String, dynamic>>[];
+    final userId = _communityService.currentUserId;
+    
+    if (userId == null) return notifications;
+
+    // New likes on user's posts
+    for (final post in _currentGroupPosts) {
+      if (post.authorId == userId && post.likeCount > 0) {
+        notifications.add({
+          'type': 'post_liked',
+          'postId': post.id,
+          'content': post.content.substring(0, 50),
+          'likeCount': post.likeCount,
+          'timestamp': post.updatedAt,
+        });
+      }
+    }
+
+    // New comments on user's posts
+    for (final post in _currentGroupPosts) {
+      if (post.authorId == userId && post.commentCount > 0) {
+        notifications.add({
+          'type': 'post_commented',
+          'postId': post.id,
+          'content': post.content.substring(0, 50),
+          'commentCount': post.commentCount,
+          'timestamp': post.updatedAt,
+        });
+      }
+    }
+
+    // Sort by timestamp
+    notifications.sort((a, b) => 
+      (b['timestamp'] as DateTime).compareTo(a['timestamp'] as DateTime)
+    );
+
+    return notifications.take(20).toList();
+  }
+
+  // ==================== CLEANUP ====================
+
+  void cleanup() {
+    print('Cleaning up CommunityProvider...');
+    optimizeMemoryUsage();
+    _clearError();
   }
 }

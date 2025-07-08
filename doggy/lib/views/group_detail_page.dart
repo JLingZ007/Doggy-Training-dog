@@ -461,7 +461,11 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
-      builder: (context) => GroupMembersSheet(groupId: widget.group.id),
+      // Fixed: Added the required groupName parameter
+      builder: (context) => GroupMembersSheet(
+        groupId: widget.group.id,
+        groupName: widget.group.name,
+      ),
     );
   }
 

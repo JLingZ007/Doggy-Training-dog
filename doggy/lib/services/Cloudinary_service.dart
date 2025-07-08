@@ -5,75 +5,107 @@ import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:crypto/crypto.dart';
 
+// Import SimpleImageHandler ที่เราสร้าง
+import 'ImageHandler_Service.dart'; 
+
 class CloudinaryService {
   // ค่าต่างๆ จาก Cloudinary Dashboard
-  static const String cloudName = 'YOUR_CLOUD_NAME'; // เปลี่ยนเป็นของคุณ
-  static const String apiKey = 'YOUR_API_KEY';       // เปลี่ยนเป็นของคุณ
-  static const String apiSecret = 'YOUR_API_SECRET'; // เปลี่ยนเป็นของคุณ
+  static const String cloudName = 'duyhqyjjo';
+  static const String apiKey = '243279538533494';
+  static const String apiSecret = 'FZC1FO0pBpEwV7nFJSczRGfCJCs';
   
   static const String baseUrl = 'https://api.cloudinary.com/v1_1';
-  static const String uploadUrl = '$baseUrl/$cloudName/image/upload';
+  static const String imageUploadUrl = '$baseUrl/$cloudName/image/upload';
+  static const String videoUploadUrl = '$baseUrl/$cloudName/video/upload';
 
-  /// อัปโหลดรูปภาพไป Cloudinary
+  /// อัปโหลดรูปภาพไป Cloudinary พร้อมประมวลผลรูปภาพ
   static Future<Map<String, dynamic>> uploadImage({
     required XFile imageFile,
     String? folder,
-    Map<String, String>? tags,
+    Map<String, String>? customTags,
     bool autoOptimize = true,
+    bool processImage = true,
     String quality = 'auto',
     int? maxWidth,
     int? maxHeight,
   }) async {
     try {
+      XFile fileToUpload = imageFile;
+      
+      // ประมวลผลรูปภาพก่อนอัปโหลด (แก้ปัญหา HEIF)
+      if (processImage) {
+        print('Processing image before upload...');
+        
+       
+       
+        fileToUpload = await SimpleImageHandler.processImageBasic(imageFile);
+        print('Image processed successfully');
+        
+        
+        // ประมวลผลพื้นฐาน (สำหรับตอนนี้)
+        // fileToUpload = await _basicImageProcessing(imageFile);
+      }
+
       // อ่านไฟล์รูปภาพ
-      final bytes = await imageFile.readAsBytes();
-      final fileName = imageFile.name.split('.').first;
-      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+      final bytes = await fileToUpload.readAsBytes();
+      final fileName = fileToUpload.name.split('.').first;
+      final timestamp = DateTime.now().millisecondsSinceEpoch ~/ 1000;
 
       // สร้าง public_id ที่ไม่ซ้ำ
       final publicId = folder != null 
           ? '$folder/${fileName}_$timestamp'
           : '${fileName}_$timestamp';
 
-      // เตรียมข้อมูลสำหรับอัปโหลด
-      Map<String, String> uploadParams = {
+      // เตรียมข้อมูลสำหรับ signature (เฉพาะที่จำเป็น)
+      Map<String, String> signatureParams = {
+        'timestamp': timestamp.toString(),
         'public_id': publicId,
-        'timestamp': timestamp,
-        'api_key': apiKey,
       };
 
-      // เพิ่มการ optimize รูปภาพ
+      // เพิ่ม folder ถ้ามี
+      if (folder != null) {
+        signatureParams['folder'] = folder;
+      }
+
+      // เพิ่มการ resize (ถ้ากำหนด) - สำหรับ signature
+      if (maxWidth != null || maxHeight != null) {
+        String resize = 'c_limit';
+        if (maxWidth != null) resize += ',w_$maxWidth';
+        if (maxHeight != null) resize += ',h_$maxHeight';
+        signatureParams['transformation'] = resize;
+      }
+
+      // เพิ่ม tags สำหรับ signature
+      if (customTags != null && customTags.isNotEmpty) {
+        List<String> tagsList = [];
+        customTags.forEach((key, value) {
+          tagsList.add('${key}_$value');
+        });
+        
+        if (tagsList.isNotEmpty) {
+          signatureParams['tags'] = tagsList.join(',');
+        }
+      }
+
+      // สร้าง signature ก่อน
+      final signature = _generateSignature(signatureParams, apiSecret);
+
+      // เตรียมข้อมูลสำหรับ upload (รวม optimization params)
+      Map<String, String> uploadParams = Map.from(signatureParams);
+      
+      // เพิ่มการ optimize รูปภาพ (ไม่รวมใน signature)
       if (autoOptimize) {
         uploadParams['quality'] = quality;
         uploadParams['fetch_format'] = 'auto';
         uploadParams['flags'] = 'progressive';
       }
 
-      // เพิ่มการ resize (ถ้ากำหนด)
-      List<String> transformations = [];
-      if (maxWidth != null || maxHeight != null) {
-        String resize = 'c_limit';
-        if (maxWidth != null) resize += ',w_$maxWidth';
-        if (maxHeight != null) resize += ',h_$maxHeight';
-        transformations.add(resize);
-      }
-
-      if (transformations.isNotEmpty) {
-        uploadParams['transformation'] = transformations.join('/');
-      }
-
-      // เพิ่ม tags (ถ้ามี)
-      if (tags != null && tags.isNotEmpty) {
-        uploadParams['tags'] = tags.values.join(',');
-        uploadParams.addAll(tags);
-      }
-
-      // สร้าง signature
-      final signature = _generateSignature(uploadParams, apiSecret);
+      // เพิ่ม api_key และ signature
+      uploadParams['api_key'] = apiKey;
       uploadParams['signature'] = signature;
 
       // สร้าง multipart request
-      var request = http.MultipartRequest('POST', Uri.parse(uploadUrl));
+      var request = http.MultipartRequest('POST', Uri.parse(imageUploadUrl));
       
       // เพิ่ม parameters
       request.fields.addAll(uploadParams);
@@ -83,19 +115,24 @@ class CloudinaryService {
         http.MultipartFile.fromBytes(
           'file',
           bytes,
-          filename: imageFile.name,
+          filename: fileToUpload.name,
         ),
       );
 
       // ส่ง request
-      print('กำลังอัปโหลดไป Cloudinary...');
+      print('กำลังอัปโหลดรูปภาพไป Cloudinary...');
+      print('File size: ${bytes.length} bytes');
+      print('Signature params: ${signatureParams.keys.join(', ')}');
+      
       final streamedResponse = await request.send();
       final response = await http.Response.fromStream(streamedResponse);
+
+      print('Response status: ${response.statusCode}');
 
       if (response.statusCode == 200) {
         final result = jsonDecode(response.body);
         
-        print('อัปโหลดสำเร็จ: ${result['secure_url']}');
+        print('อัปโหลดรูปภาพสำเร็จ: ${result['secure_url']}');
         
         return {
           'success': true,
@@ -110,12 +147,13 @@ class CloudinaryService {
           'version': result['version'],
         };
       } else {
+        print('Error response body: ${response.body}');
         final error = jsonDecode(response.body);
         throw Exception('Cloudinary Error: ${error['error']['message']}');
       }
 
     } catch (e) {
-      print('Error uploading to Cloudinary: $e');
+      print('Error uploading image to Cloudinary: $e');
       return {
         'success': false,
         'error': e.toString(),
@@ -123,15 +161,97 @@ class CloudinaryService {
     }
   }
 
-  /// อัปโหลดหลายรูปพร้อมกัน
+  /// ประมวลผลรูปภาพพื้นฐาน (Fallback)
+  static Future<XFile> _basicImageProcessing(XFile originalFile) async {
+    try {
+      // ตรวจสอบว่าเป็นไฟล์ HEIF/HEIC หรือไม่
+      final fileName = originalFile.name.toLowerCase();
+      if (fileName.endsWith('.heic') || fileName.endsWith('.heif')) {
+        print('⚠️ HEIF/HEIC file detected. Converting to JPEG.');
+        
+        // สำหรับตอนนี้ให้เปลี่ยนชื่อไฟล์เป็น .jpg
+        final newFileName = fileName
+            .replaceAll('.heic', '.jpg')
+            .replaceAll('.heif', '.jpg');
+        
+        // สร้างไฟล์ใหม่โดยคัดลอกข้อมูล
+        final bytes = await originalFile.readAsBytes();
+        final tempDir = Directory.systemTemp;
+        final timestamp = DateTime.now().millisecondsSinceEpoch;
+        final tempFile = File('${tempDir.path}/${timestamp}_$newFileName');
+        await tempFile.writeAsBytes(bytes);
+        
+        print('✅ HEIF converted to: ${tempFile.path}');
+        return XFile(tempFile.path);
+      }
+      
+      return originalFile;
+    } catch (e) {
+      print('Error in basic image processing: $e');
+      return originalFile;
+    }
+  }
+
+  /// อัปโหลดรูปภาพแบบง่าย (สำหรับ post ในกลุ่ม)
+  static Future<String?> uploadPostImage(XFile imageFile) async {
+    try {
+      final result = await uploadImage(
+        imageFile: imageFile,
+        folder: 'doggy_training/posts',
+        autoOptimize: true,
+        processImage: true, // เปิดการประมวลผลรูปภาพ
+        maxWidth: 1200,
+        maxHeight: 1200,
+        customTags: {
+          'category': 'post',
+          'app': 'doggy_training',
+        },
+      );
+
+      if (result['success'] == true) {
+        return result['url'];
+      } else {
+        throw Exception(result['error']);
+      }
+    } catch (e) {
+      print('Error uploading post image: $e');
+      return null;
+    }
+  }
+
+  /// อัปโหลดหลายรูปพร้อมกัน (สำหรับ post)
+  static Future<List<String>> uploadPostImages(List<XFile> imageFiles) async {
+    List<String> uploadedUrls = [];
+    
+    print('Uploading ${imageFiles.length} images to Cloudinary...');
+    
+    for (int i = 0; i < imageFiles.length; i++) {
+      try {
+        print('Uploading image ${i + 1}/${imageFiles.length}...');
+        final url = await uploadPostImage(imageFiles[i]);
+        if (url != null) {
+          uploadedUrls.add(url);
+        }
+      } catch (e) {
+        print('Failed to upload image ${i + 1}: $e');
+        // Continue with other images even if one fails
+      }
+    }
+    
+    print('Successfully uploaded ${uploadedUrls.length}/${imageFiles.length} images');
+    return uploadedUrls;
+  }
+
+  /// อัปโหลดหลายรูปพร้อมกัน (เวอร์ชันขั้นสูง)
   static Future<List<Map<String, dynamic>>> uploadMultipleImages({
     required List<XFile> imageFiles,
     String? folder,
-    Map<String, String>? tags,
+    Map<String, String>? customTags,
     bool autoOptimize = true,
+    bool processImages = true,
     int? maxWidth,
     int? maxHeight,
-    int maxConcurrent = 3, // จำกัดการอัปโหลดพร้อมกัน
+    int maxConcurrent = 3,
   }) async {
     List<Map<String, dynamic>> results = [];
     
@@ -143,8 +263,9 @@ class CloudinaryService {
         batch.map((imageFile) => uploadImage(
           imageFile: imageFile,
           folder: folder,
-          tags: tags,
+          customTags: customTags,
           autoOptimize: autoOptimize,
+          processImage: processImages, // เปิดการประมวลผลรูปภาพ
           maxWidth: maxWidth,
           maxHeight: maxHeight,
         )),
@@ -156,41 +277,202 @@ class CloudinaryService {
     return results;
   }
 
+  /// อัปโหลดวิดีโอไป Cloudinary
+  static Future<Map<String, dynamic>> uploadVideo({
+    required XFile videoFile,
+    String? folder,
+    Map<String, String>? customTags,
+    bool autoOptimize = true,
+    String quality = 'auto',
+    int? maxWidth,
+    int? maxHeight,
+  }) async {
+    try {
+      // อ่านไฟล์วิดีโอ
+      final bytes = await videoFile.readAsBytes();
+      final fileName = videoFile.name.split('.').first;
+      final timestamp = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+
+      // สร้าง public_id ที่ไม่ซ้ำ
+      final publicId = folder != null 
+          ? '$folder/${fileName}_$timestamp'
+          : '${fileName}_$timestamp';
+
+      // เตรียมข้อมูลสำหรับ signature (เฉพาะที่จำเป็น)
+      Map<String, String> signatureParams = {
+        'timestamp': timestamp.toString(),
+        'resource_type': 'video',
+        'public_id': publicId,
+      };
+
+      // เพิ่ม folder ถ้ามี
+      if (folder != null) {
+        signatureParams['folder'] = folder;
+      }
+
+      // เพิ่มการ resize (ถ้ากำหนด) - สำหรับ signature
+      if (maxWidth != null || maxHeight != null) {
+        String resize = 'c_limit';
+        if (maxWidth != null) resize += ',w_$maxWidth';
+        if (maxHeight != null) resize += ',h_$maxHeight';
+        signatureParams['transformation'] = resize;
+      }
+
+      // เพิ่ม tags สำหรับ signature
+      if (customTags != null && customTags.isNotEmpty) {
+        List<String> tagsList = [];
+        customTags.forEach((key, value) {
+          tagsList.add('${key}_$value');
+        });
+        
+        if (tagsList.isNotEmpty) {
+          signatureParams['tags'] = tagsList.join(',');
+        }
+      }
+
+      // สร้าง signature ก่อน
+      final signature = _generateSignature(signatureParams, apiSecret);
+
+      // เตรียมข้อมูลสำหรับ upload (รวม optimization params)
+      Map<String, String> uploadParams = Map.from(signatureParams);
+
+      // เพิ่มการ optimize วิดีโอ (ไม่รวมใน signature)
+      if (autoOptimize) {
+        uploadParams['quality'] = quality;
+        uploadParams['format'] = 'mp4';
+        uploadParams['video_codec'] = 'h264';
+      }
+
+      // เพิ่ม api_key และ signature
+      uploadParams['api_key'] = apiKey;
+      uploadParams['signature'] = signature;
+
+      // สร้าง multipart request
+      var request = http.MultipartRequest('POST', Uri.parse(videoUploadUrl));
+      
+      // เพิ่ม parameters
+      request.fields.addAll(uploadParams);
+      
+      // เพิ่มไฟล์วิดีโอ
+      request.files.add(
+        http.MultipartFile.fromBytes(
+          'file',
+          bytes,
+          filename: videoFile.name,
+        ),
+      );
+
+      // ส่ง request
+      print('กำลังอัปโหลดวิดีโอไป Cloudinary...');
+      final streamedResponse = await request.send();
+      final response = await http.Response.fromStream(streamedResponse);
+
+      if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
+        
+        print('อัปโหลดวิดีโอสำเร็จ: ${result['secure_url']}');
+        
+        // สร้าง thumbnail URL สำหรับวิดีโอ
+        final thumbnailUrl = 'https://res.cloudinary.com/$cloudName/video/upload/c_scale,w_300,h_200/${result['public_id']}.jpg';
+        
+        return {
+          'success': true,
+          'url': result['secure_url'],
+          'public_id': result['public_id'],
+          'width': result['width'],
+          'height': result['height'],
+          'format': result['format'],
+          'bytes': result['bytes'],
+          'duration': result['duration'],
+          'created_at': result['created_at'],
+          'resource_type': result['resource_type'],
+          'version': result['version'],
+          'thumbnail_url': thumbnailUrl,
+        };
+      } else {
+        final error = jsonDecode(response.body);
+        throw Exception('Cloudinary Error: ${error['error']['message']}');
+      }
+
+    } catch (e) {
+      print('Error uploading video to Cloudinary: $e');
+      return {
+        'success': false,
+        'error': e.toString(),
+      };
+    }
+  }
+
   /// ลบรูปภาพจาก Cloudinary
   static Future<bool> deleteImage(String publicId) async {
     try {
-      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
+      final timestamp = DateTime.now().millisecondsSinceEpoch ~/ 1000;
       
       final params = {
         'public_id': publicId,
-        'timestamp': timestamp,
-        'api_key': apiKey,
+        'timestamp': timestamp.toString(),
       };
 
       final signature = _generateSignature(params, apiSecret);
-      params['signature'] = signature;
+      
+      final finalParams = {
+        ...params,
+        'api_key': apiKey,
+        'signature': signature,
+      };
 
       final response = await http.post(
         Uri.parse('$baseUrl/$cloudName/image/destroy'),
-        body: params,
+        body: finalParams,
       );
 
       if (response.statusCode == 200) {
         final result = jsonDecode(response.body);
+        print('ลบรูปภาพสำเร็จ: $publicId');
         return result['result'] == 'ok';
       }
       
       return false;
     } catch (e) {
-      print('Error deleting from Cloudinary: $e');
+      print('Error deleting image from Cloudinary: $e');
       return false;
     }
   }
 
-  /// ลบหลายรูปพร้อมกัน
-  static Future<void> deleteMultipleImages(List<String> publicIds) async {
-    for (final publicId in publicIds) {
-      await deleteImage(publicId);
+  /// ลบวิดีโอจาก Cloudinary
+  static Future<bool> deleteVideo(String publicId) async {
+    try {
+      final timestamp = DateTime.now().millisecondsSinceEpoch ~/ 1000;
+      
+      final params = {
+        'public_id': publicId,
+        'timestamp': timestamp.toString(),
+        'resource_type': 'video',
+      };
+
+      final signature = _generateSignature(params, apiSecret);
+      
+      final finalParams = {
+        ...params,
+        'api_key': apiKey,
+        'signature': signature,
+      };
+
+      final response = await http.post(
+        Uri.parse('$baseUrl/$cloudName/video/destroy'),
+        body: finalParams,
+      );
+
+      if (response.statusCode == 200) {
+        final result = jsonDecode(response.body);
+        print('ลบวิดีโอสำเร็จ: $publicId');
+        return result['result'] == 'ok';
+      }
+      
+      return false;
+    } catch (e) {
+      print('Error deleting video from Cloudinary: $e');
+      return false;
     }
   }
 
@@ -238,82 +520,8 @@ class CloudinaryService {
       width: size,
       height: size,
       quality: quality,
-      crop: 'fill', // crop เป็นสี่เหลี่ยมจัตุรัส
+      crop: 'fill',
     );
-  }
-
-  /// ดึงข้อมูลรูปภาพ
-  static Future<Map<String, dynamic>?> getImageDetails(String publicId) async {
-    try {
-      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-      
-      final params = {
-        'timestamp': timestamp,
-        'api_key': apiKey,
-      };
-
-      final signature = _generateSignature(params, apiSecret);
-      
-      final response = await http.get(
-        Uri.parse('$baseUrl/$cloudName/resources/image/upload/$publicId')
-          .replace(queryParameters: {
-            ...params,
-            'signature': signature,
-          }),
-      );
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      }
-      
-      return null;
-    } catch (e) {
-      print('Error getting image details: $e');
-      return null;
-    }
-  }
-
-  /// ค้นหารูปภาพ
-  static Future<List<Map<String, dynamic>>> searchImages({
-    String? expression,
-    String? tag,
-    int maxResults = 50,
-  }) async {
-    try {
-      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-      
-      Map<String, String> params = {
-        'timestamp': timestamp,
-        'api_key': apiKey,
-        'max_results': maxResults.toString(),
-      };
-
-      if (expression != null) {
-        params['expression'] = expression;
-      }
-      
-      if (tag != null) {
-        params['tags'] = tag;
-      }
-
-      final signature = _generateSignature(params, apiSecret);
-      params['signature'] = signature;
-
-      final response = await http.post(
-        Uri.parse('$baseUrl/$cloudName/resources/search'),
-        body: params,
-      );
-
-      if (response.statusCode == 200) {
-        final result = jsonDecode(response.body);
-        return List<Map<String, dynamic>>.from(result['resources'] ?? []);
-      }
-      
-      return [];
-    } catch (e) {
-      print('Error searching images: $e');
-      return [];
-    }
   }
 
   /// สร้าง signature สำหรับ Cloudinary API
@@ -321,9 +529,15 @@ class CloudinaryService {
     Map<String, String> params,
     String apiSecret,
   ) {
-    // เรียงพารามิเตอร์ตามลำดับตัวอักษร
+    // เรียงพารามิเตอร์ตามลำดับตัวอักษร (ไม่รวม api_key และ signature)
     final sortedParams = Map.fromEntries(
-      params.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
+      params.entries
+          .where((entry) => 
+              entry.key != 'signature' && 
+              entry.key != 'api_key' &&
+              entry.value.isNotEmpty)
+          .toList()
+          ..sort((a, b) => a.key.compareTo(b.key)),
     );
 
     // สร้าง query string
@@ -334,6 +548,9 @@ class CloudinaryService {
     // เพิ่ม API secret
     final stringToSign = '$queryString$apiSecret';
 
+    print('Parameters for signature: ${sortedParams.keys.join(', ')}');
+    print('String to sign: $stringToSign');
+
     // สร้าง SHA1 hash
     final bytes = utf8.encode(stringToSign);
     final digest = sha1.convert(bytes);
@@ -341,34 +558,8 @@ class CloudinaryService {
     return digest.toString();
   }
 
-  /// ตรวจสอบ usage ปัจจุบัน
-  static Future<Map<String, dynamic>?> getUsage() async {
-    try {
-      final timestamp = DateTime.now().millisecondsSinceEpoch.toString();
-      
-      final params = {
-        'timestamp': timestamp,
-        'api_key': apiKey,
-      };
-
-      final signature = _generateSignature(params, apiSecret);
-      
-      final response = await http.get(
-        Uri.parse('$baseUrl/$cloudName/usage')
-          .replace(queryParameters: {
-            ...params,
-            'signature': signature,
-          }),
-      );
-
-      if (response.statusCode == 200) {
-        return jsonDecode(response.body);
-      }
-      
-      return null;
-    } catch (e) {
-      print('Error getting usage: $e');
-      return null;
-    }
+  // Utility method สำหรับแปลง File เป็น XFile
+  static XFile fileToXFile(File file) {
+    return XFile(file.path);
   }
 }
