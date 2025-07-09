@@ -1,7 +1,7 @@
-// models/community_models.dart - Fixed version
+// models/community_models.dart - Fixed version without duplicate extensions
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:flutter/material.dart'; // ⭐ เพิ่ม import นี้
+import 'package:flutter/material.dart';
 
 // ==================== ENUMS ====================
 
@@ -81,7 +81,6 @@ class CommunityGroup {
     };
   }
 
-  // ⭐ เพิ่ม toFirestore method
   Map<String, dynamic> toFirestore() => toMap();
 
   CommunityGroup copyWith({
@@ -357,7 +356,6 @@ class CommunityPost {
     };
   }
 
-  // ⭐ เพิ่ม toFirestore method
   Map<String, dynamic> toFirestore() => toMap();
 
   // Helper getters
@@ -561,34 +559,6 @@ class CreateCommentDto {
 
 // ==================== UTILITY EXTENSIONS ====================
 
-extension PostTypeExtension on PostType {
-  String get displayName {
-    switch (this) {
-      case PostType.text:
-        return 'ข้อความ';
-      case PostType.image:
-        return 'รูปภาพ';
-      case PostType.video:
-        return 'วิดีโอ';
-      case PostType.mixed:
-        return 'รูปภาพและวิดีโอ';
-    }
-  }
-
-  IconData get icon {
-    switch (this) {
-      case PostType.text:
-        return Icons.text_fields;
-      case PostType.image:
-        return Icons.image;
-      case PostType.video:
-        return Icons.videocam;
-      case PostType.mixed:
-        return Icons.perm_media;
-    }
-  }
-}
-
 extension DateTimeExtension on DateTime {
   String get timeAgo {
     final now = DateTime.now();
@@ -607,5 +577,33 @@ extension DateTimeExtension on DateTime {
 
   String get formattedDate {
     return '${day}/${month}/${year} ${hour.toString().padLeft(2, '0')}:${minute.toString().padLeft(2, '0')}';
+  }
+}
+
+// ==================== HELPER FUNCTIONS ====================
+
+String getPostTypeDisplayName(PostType type) {
+  switch (type) {
+    case PostType.text:
+      return 'ข้อความ';
+    case PostType.image:
+      return 'รูปภาพ';
+    case PostType.video:
+      return 'วิดีโอ';
+    case PostType.mixed:
+      return 'รูปภาพและวิดีโอ';
+  }
+}
+
+IconData getPostTypeIcon(PostType type) {
+  switch (type) {
+    case PostType.text:
+      return Icons.text_fields;
+    case PostType.image:
+      return Icons.image;
+    case PostType.video:
+      return Icons.videocam;
+    case PostType.mixed:
+      return Icons.perm_media;
   }
 }

@@ -1,9 +1,10 @@
-// widgets/community_widgets/create_post_sheet.dart - Updated for Cloudinary
+// widgets/community_widgets/create_post_sheet.dart - Enhanced for HEIC Support
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:image_picker/image_picker.dart';
 import '../../providers/community_provider.dart';
 import '../../models/community_models.dart';
+import '../../services/enhanced_image_handler_service.dart';
 import 'dart:io';
 
 class CreatePostSheet extends StatefulWidget {
@@ -17,10 +18,12 @@ class CreatePostSheet extends StatefulWidget {
 
 class _CreatePostSheetState extends State<CreatePostSheet> {
   final _contentController = TextEditingController();
-  final List<XFile> _selectedImages = [];  // เปลี่ยนเป็น XFile
-  XFile? _selectedVideo;  // เปลี่ยนเป็น XFile
+  final List<XFile> _selectedImages = [];
+  XFile? _selectedVideo;
   final ImagePicker _picker = ImagePicker();
   bool _isLoading = false;
+  bool _isProcessingImages = false;
+  List<Map<String, dynamic>> _imageAnalysis = [];
 
   @override
   void dispose() {
@@ -75,6 +78,25 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
                         color: const Color(0xFF8B4513),
                       ),
                     ),
+                    if (_isProcessingImages) ...[
+                      SizedBox(width: 12),
+                      SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: const Color(0xFF8B4513),
+                        ),
+                      ),
+                      SizedBox(width: 8),
+                      Text(
+                        'กำลังประมวลผล...',
+                        style: TextStyle(
+                          color: const Color(0xFF8B4513),
+                          fontSize: 12,
+                        ),
+                      ),
+                    ],
                   ],
                 ),
                 
@@ -98,13 +120,14 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
                 
                 SizedBox(height: 16),
                 
-                // Media options
+                // Media options with HEIC support indicator
                 Row(
                   children: [
                     Expanded(
                       child: _buildMediaButton(
                         icon: Icons.image,
                         label: 'รูปภาพ',
+                        subtitle: 'สูงสุด 10 รูป',
                         onTap: _pickImages,
                         isSelected: _selectedImages.isNotEmpty,
                         count: _selectedImages.length,
@@ -115,12 +138,19 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
                       child: _buildMediaButton(
                         icon: Icons.videocam,
                         label: 'วิดีโอ',
+                        subtitle: 'สูงสุด 5 นาที',
                         onTap: _pickVideo,
                         isSelected: _selectedVideo != null,
                       ),
                     ),
                   ],
                 ),
+                
+                // Image analysis results
+                if (_imageAnalysis.isNotEmpty) ...[
+                  SizedBox(height: 16),
+                  _buildImageAnalysisCard(),
+                ],
                 
                 // Selected media preview
                 if (_selectedImages.isNotEmpty) ...[
@@ -146,13 +176,17 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Icon(
-                          _getPostType().icon,
+                          _getPostType() == PostType.text ? Icons.text_fields :
+                          _getPostType() == PostType.image ? Icons.image :
+                          _getPostType() == PostType.video ? Icons.videocam : Icons.collections,
                           size: 16,
                           color: const Color(0xFF8B4513),
                         ),
                         SizedBox(width: 6),
                         Text(
-                          _getPostType().displayName,
+                          _getPostType() == PostType.text ? 'ข้อความ' :
+                          _getPostType() == PostType.image ? 'รูปภาพ' :
+                          _getPostType() == PostType.video ? 'วิดีโอ' : 'ผสม',
                           style: TextStyle(
                             color: const Color(0xFF8B4513),
                             fontSize: 12,
@@ -170,7 +204,9 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
                   children: [
                     Expanded(
                       child: OutlinedButton(
-                        onPressed: _isLoading ? null : () => Navigator.pop(context),
+                        onPressed: _isLoading || _isProcessingImages 
+                            ? null 
+                            : () => Navigator.pop(context),
                         style: OutlinedButton.styleFrom(
                           side: BorderSide(color: Colors.grey[400]!),
                           padding: EdgeInsets.symmetric(vertical: 12),
@@ -187,7 +223,9 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
                     SizedBox(width: 12),
                     Expanded(
                       child: ElevatedButton(
-                        onPressed: _isLoading || !_canPost() ? null : _createPost,
+                        onPressed: _isLoading || _isProcessingImages || !_canPost() 
+                            ? null 
+                            : _createPost,
                         style: ElevatedButton.styleFrom(
                           backgroundColor: const Color(0xFFD2B48C),
                           foregroundColor: Colors.black,
@@ -224,6 +262,7 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
   Widget _buildMediaButton({
     required IconData icon,
     required String label,
+    String? subtitle,
     required VoidCallback onTap,
     required bool isSelected,
     int? count,
@@ -245,24 +284,89 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
             width: isSelected ? 2 : 1,
           ),
         ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
+        child: Column(
           children: [
-            Icon(
-              icon,
-              color: isSelected ? const Color(0xFF8B4513) : Colors.grey[600],
-              size: 20,
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Icon(
+                  icon,
+                  color: isSelected ? const Color(0xFF8B4513) : Colors.grey[600],
+                  size: 20,
+                ),
+                SizedBox(width: 8),
+                Flexible(
+                  child: Text(
+                    count != null && count > 0 ? '$label ($count)' : label,
+                    style: TextStyle(
+                      color: isSelected ? const Color(0xFF8B4513) : Colors.grey[600],
+                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                    ),
+                  ),
+                ),
+              ],
             ),
-            SizedBox(width: 8),
-            Text(
-              count != null && count > 0 ? '$label ($count)' : label,
-              style: TextStyle(
-                color: isSelected ? const Color(0xFF8B4513) : Colors.grey[600],
-                fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+            if (subtitle != null) ...[
+              SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  color: Colors.grey[500],
+                  fontSize: 10,
+                ),
+                textAlign: TextAlign.center,
               ),
-            ),
+            ],
           ],
         ),
+      ),
+    );
+  }
+
+  Widget _buildImageAnalysisCard() {
+    final heicCount = _imageAnalysis.where((analysis) => analysis['isHeif'] == true).length;
+    final needsProcessingCount = _imageAnalysis.where((analysis) => analysis['needsProcessing'] == true).length;
+    
+    if (heicCount == 0 && needsProcessingCount == 0) {
+      return SizedBox.shrink();
+    }
+    
+    return Container(
+      padding: EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: Colors.blue[50],
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.blue[200]!),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.info_outline, size: 16, color: Colors.blue[700]),
+              SizedBox(width: 6),
+              Text(
+                'การวิเคราะห์ไฟล์รูปภาพ',
+                style: TextStyle(
+                  color: Colors.blue[700],
+                  fontWeight: FontWeight.w500,
+                  fontSize: 14,
+                ),
+              ),
+            ],
+          ),
+          SizedBox(height: 8),
+          if (heicCount > 0)
+            Text(
+              '📱 พบไฟล์ HEIC/HEIF: $heicCount ไฟล์ (จะถูกแปลงเป็น JPEG อัตโนมัติ)',
+              style: TextStyle(fontSize: 12, color: Colors.blue[700]),
+            ),
+          if (needsProcessingCount > 0)
+            Text(
+              '🔧 ไฟล์ที่ต้องประมวลผล: $needsProcessingCount ไฟล์ (บีบอัด/ปรับขนาด)',
+              style: TextStyle(fontSize: 12, color: Colors.blue[700]),
+            ),
+        ],
       ),
     );
   }
@@ -287,6 +391,7 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
               onPressed: () {
                 setState(() {
                   _selectedImages.clear();
+                  _imageAnalysis.clear();
                 });
               },
               child: Text(
@@ -298,25 +403,61 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
         ),
         SizedBox(height: 8),
         Container(
-          height: 100,
+          height: 120,
           child: ListView.builder(
             scrollDirection: Axis.horizontal,
             itemCount: _selectedImages.length,
             itemBuilder: (context, index) {
               final image = _selectedImages[index];
+              final analysis = index < _imageAnalysis.length ? _imageAnalysis[index] : null;
+              
               return Container(
                 width: 100,
                 margin: EdgeInsets.only(right: 8),
                 child: Stack(
                   children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(8),
-                      child: Image.file(
-                        File(image.path),
-                        fit: BoxFit.cover,
-                        width: 100,
-                        height: 100,
-                      ),
+                    Column(
+                      children: [
+                        Expanded(
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(8),
+                            child: Image.file(
+                              File(image.path),
+                              fit: BoxFit.cover,
+                              width: 100,
+                            ),
+                          ),
+                        ),
+                        if (analysis != null) ...[
+                          SizedBox(height: 4),
+                          Container(
+                            width: 100,
+                            padding: EdgeInsets.symmetric(horizontal: 4, vertical: 2),
+                            child: Column(
+                              children: [
+                                if (analysis['isHeif'] == true)
+                                  Container(
+                                    padding: EdgeInsets.symmetric(horizontal: 4, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: Colors.orange[200],
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      'HEIC',
+                                      style: TextStyle(fontSize: 8, color: Colors.orange[800]),
+                                    ),
+                                  ),
+                                Text(
+                                  analysis['sizeFormatted'] ?? '',
+                                  style: TextStyle(fontSize: 8, color: Colors.grey[600]),
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     Positioned(
                       top: 4,
@@ -325,6 +466,9 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
                         onTap: () {
                           setState(() {
                             _selectedImages.removeAt(index);
+                            if (index < _imageAnalysis.length) {
+                              _imageAnalysis.removeAt(index);
+                            }
                           });
                         },
                         child: Container(
@@ -454,6 +598,10 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
   // ==================== MEDIA SELECTION METHODS ====================
 
   void _pickImages() async {
+    setState(() {
+      _isProcessingImages = true;
+    });
+
     try {
       final images = await _picker.pickMultipleMedia(
         maxWidth: 1920,
@@ -464,24 +612,32 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
       if (images.isNotEmpty) {
         // กรองเฉพาะไฟล์รูปภาพ
         final imageFiles = images.where((file) {
-          final extension = file.path.toLowerCase();
-          return extension.endsWith('.jpg') || 
-                 extension.endsWith('.jpeg') || 
-                 extension.endsWith('.png') || 
-                 extension.endsWith('.gif') || 
-                 extension.endsWith('.webp');
+          return EnhancedImageHandler.isValidImageFile(file.name);
         }).toList();
 
         if (imageFiles.isNotEmpty) {
+          // วิเคราะห์ไฟล์ทั้งหมด
+          List<Map<String, dynamic>> analysisResults = [];
+          for (final imageFile in imageFiles) {
+            final analysis = await EnhancedImageHandler.analyzeImageFile(imageFile);
+            analysisResults.add(analysis);
+          }
+
           setState(() {
             _selectedImages.addAll(imageFiles);
+            _imageAnalysis.addAll(analysisResults);
             _selectedVideo = null; // Clear video if images selected
+            
             // จำกัดไม่เกิน 10 รูป
             if (_selectedImages.length > 10) {
+              final excess = _selectedImages.length - 10;
               _selectedImages.removeRange(10, _selectedImages.length);
-              _showSnackBar('สามารถเลือกได้สูงสุด 10 รูปภาพ');
+              _imageAnalysis.removeRange(10, _imageAnalysis.length);
+              _showSnackBar('สามารถเลือกได้สูงสุด 10 รูปภาพ (ลบ $excess รูป)');
             }
           });
+
+          
         } else {
           _showSnackBar('กรุณาเลือกไฟล์รูปภาพเท่านั้น');
         }
@@ -489,6 +645,10 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
     } catch (e) {
       print('Error picking images: $e');
       _showSnackBar('ไม่สามารถเลือกรูปภาพได้');
+    } finally {
+      setState(() {
+        _isProcessingImages = false;
+      });
     }
   }
 
@@ -513,7 +673,10 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
         setState(() {
           _selectedVideo = video;
           _selectedImages.clear(); // Clear images if video selected
+          _imageAnalysis.clear();
         });
+
+        _showSnackBar('เลือกวิดีโอเรียบร้อย (${_formatFileSize(fileSize)})');
       }
     } catch (e) {
       print('Error picking video: $e');
@@ -547,10 +710,11 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
     return '${(bytes / (1024 * 1024)).toStringAsFixed(1)}MB';
   }
 
-  void _showSnackBar(String message) {
+  void _showSnackBar(String message, {Duration? duration}) {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: Text(message),
+        duration: duration ?? Duration(seconds: 3),
         behavior: SnackBarBehavior.floating,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       ),
@@ -572,6 +736,15 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
     try {
       final provider = context.read<CommunityProvider>();
       
+      // แสดงข้อมูลก่อนการอัปโหลด
+      if (_selectedImages.isNotEmpty) {
+        final heicCount = _imageAnalysis.where((a) => a['isHeif'] == true).length;
+        if (heicCount > 0) {
+          _showSnackBar('กำลังประมวลผลไฟล์ HEIC/HEIF $heicCount ไฟล์...', 
+                       duration: Duration(seconds: 5));
+        }
+      }
+
       final success = await provider.createPost(
         groupId: widget.groupId,
         content: _contentController.text.trim(),
@@ -581,14 +754,19 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
       );
 
       if (success) {
+        // ทำความสะอาดไฟล์ชั่วคราว
+        await EnhancedImageHandler.cleanupTempFiles();
+        
         Navigator.pop(context);
-        _showSnackBar('สร้างโพสต์เรียบร้อยแล้ว');
+        _showSnackBar('สร้างโพสต์เรียบร้อยแล้ว 🎉');
       } else {
         _showSnackBar(provider.error ?? 'ไม่สามารถสร้างโพสต์ได้');
       }
     } catch (e) {
       print('Error creating post: $e');
-      _showSnackBar('เกิดข้อผิดพลาด: ${e.toString()}');
+      
+      String errorMessage = 'เกิดข้อผิดพลาด'; 
+      _showSnackBar(errorMessage);
     } finally {
       if (mounted) {
         setState(() {
