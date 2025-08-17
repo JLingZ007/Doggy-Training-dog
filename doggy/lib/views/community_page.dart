@@ -41,7 +41,7 @@ class _CommunityPageState extends State<CommunityPage>
       backgroundColor: const Color(0xFFF3F6F8),
       appBar: AppBar(
         title: Text(
-          'ชุมชนสายพันธุ์',
+          'ชุมชน',
           style: TextStyle(
             color: Colors.black,
             fontWeight: FontWeight.bold,
@@ -51,28 +51,88 @@ class _CommunityPageState extends State<CommunityPage>
         backgroundColor: const Color(0xFFD2B48C),
         elevation: 0,
         centerTitle: true,
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: Colors.black,
-          unselectedLabelColor: Colors.black54,
-          indicatorColor: const Color(0xFF8B4513),
-          indicatorWeight: 3,
-          labelStyle: TextStyle(fontWeight: FontWeight.bold),
-          tabs: [
-            Tab(text: 'กลุ่มของฉัน'),
-            Tab(text: 'ค้นพบกลุ่ม'),
-          ],
+        flexibleSpace: Container(
+          decoration: BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                const Color(0xFFD2B48C),
+                const Color(0xFFD2B48C).withOpacity(0.9),
+              ],
+            ),
+          ),
+        ),
+        bottom: PreferredSize(
+          preferredSize: Size.fromHeight(60),
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.05),
+                  blurRadius: 8,
+                  offset: Offset(0, -1),
+                ),
+              ],
+            ),
+            child: TabBar(
+              controller: _tabController,
+              labelColor: const Color(0xFF8B4513),
+              unselectedLabelColor: Colors.black54,
+              indicatorColor: const Color(0xFF8B4513),
+              indicatorWeight: 3,
+              indicatorSize: TabBarIndicatorSize.label,
+              labelStyle: TextStyle(
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+              unselectedLabelStyle: TextStyle(
+                fontWeight: FontWeight.w500,
+                fontSize: 15,
+              ),
+              tabs: [
+                Tab(
+                  child: Container(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Text('กลุ่มของฉัน'),
+                  ),
+                ),
+                Tab(
+                  child: Container(
+                    padding: EdgeInsets.symmetric(vertical: 12),
+                    child: Text('ค้นพบกลุ่ม'),
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
         actions: [
-          IconButton(
-            icon: Icon(Icons.add_circle, color: Colors.black, size: 28),
-            onPressed: () => _showCreateGroupDialog(),
-            tooltip: 'สร้างกลุ่มใหม่',
+          Container(
+            margin: EdgeInsets.only(right: 6),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: IconButton(
+              icon: Icon(Icons.add_circle, color: Colors.black, size: 28),
+              onPressed: () => _showCreateGroupDialog(),
+              tooltip: 'สร้างกลุ่มใหม่',
+            ),
           ),
-          IconButton(
-            icon: Icon(Icons.search, color: Colors.black, size: 26),
-            onPressed: () => _showSearchDialog(),
-            tooltip: 'ค้นหากลุ่ม',
+          Container(
+            margin: EdgeInsets.only(right: 4),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.15),
+              borderRadius: BorderRadius.circular(10),
+            ),
+            child: IconButton(
+              icon: Icon(Icons.search, color: Colors.black, size: 26),
+              onPressed: () => _showSearchDialog(),
+              tooltip: 'ค้นหากลุ่ม',
+            ),
           ),
           SizedBox(width: 8),
         ],
@@ -381,11 +441,11 @@ class _CommunityPageState extends State<CommunityPage>
                       Consumer<CommunityProvider>(
                         builder: (context, provider, child) {
                           return ElevatedButton(
-                            onPressed: provider.isLoading 
-                              ? null 
-                              : () => isJoined
-                                  ? _leaveGroup(group.id)
-                                  : _joinGroup(group.id),
+                            onPressed: provider.isLoading
+                                ? null
+                                : () => isJoined
+                                    ? _leaveGroup(group.id)
+                                    : _joinGroup(group.id),
                             style: ElevatedButton.styleFrom(
                               backgroundColor: isJoined
                                   ? Colors.grey[300]
@@ -404,7 +464,9 @@ class _CommunityPageState extends State<CommunityPage>
                                     height: 16,
                                     child: CircularProgressIndicator(
                                       strokeWidth: 2,
-                                      color: isJoined ? Colors.grey[700] : Colors.black,
+                                      color: isJoined
+                                          ? Colors.grey[700]
+                                          : Colors.black,
                                     ),
                                   )
                                 : Text(

@@ -114,9 +114,11 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
     return Scaffold(
       appBar: AppBar(
         title: const Text('แก้ไขข้อมูลสุนัข'),
-        backgroundColor: Colors.brown,
+        backgroundColor: const Color(0xFFD2B48C), // ใช้โทนเดียวกับ Login/Register
+        foregroundColor: Colors.black87,
+        elevation: 0,
       ),
-      backgroundColor: Colors.brown[50],
+      backgroundColor: const Color(0xFFD2B48C), // พื้นหลัง
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(16),
         child: Form(
@@ -133,16 +135,18 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
                 Image.asset('assets/images/dog_profile.jpg',
                     height: 180, fit: BoxFit.cover),
 
-              const SizedBox(height: 10),
+              const SizedBox(height: 15),
 
+              // ชื่อสุนัข
               TextFormField(
                 controller: nameController,
                 decoration: _inputDecoration('ชื่อสุนัข'),
                 validator: (value) =>
                     value!.isEmpty ? 'กรุณากรอกชื่อสุนัข' : null,
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
 
+              // อายุ
               DropdownButtonFormField<String>(
                 value: List.generate(15, (i) => '${i + 1} ปี')
                         .contains(ageController.text)
@@ -156,63 +160,62 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
                     setState(() => ageController.text = value!),
                 decoration: _inputDecoration('อายุ'),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
 
+              // เพศ
               DropdownButtonFormField<String>(
-                value: genders.contains(selectedGender)
-                    ? selectedGender
-                    : null,
+                value: genders.contains(selectedGender) ? selectedGender : null,
                 items: genders
                     .map((g) => DropdownMenuItem(value: g, child: Text(g)))
                     .toList(),
                 onChanged: (value) => setState(() => selectedGender = value),
                 decoration: _inputDecoration('เพศ'),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 12),
 
+              // สายพันธุ์
               DropdownButtonFormField<String>(
-                value: breeds.contains(selectedBreed)
-                    ? selectedBreed
-                    : null,
+                value: breeds.contains(selectedBreed) ? selectedBreed : null,
                 items: breeds
                     .map((b) => DropdownMenuItem(value: b, child: Text(b)))
                     .toList(),
                 onChanged: (value) => setState(() => selectedBreed = value),
                 decoration: _inputDecoration('สายพันธุ์'),
               ),
-              const SizedBox(height: 10),
+              const SizedBox(height: 15),
 
+              // ปุ่มอัปโหลดรูปภาพ
               ElevatedButton.icon(
                 onPressed: _pickImage,
                 icon: const Icon(Icons.upload_file),
                 label: const Text("อัปโหลดรูปภาพ"),
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.brown[300],
-                  foregroundColor: Colors.white,
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black87,
+                  side: const BorderSide(color: Colors.black87),
                   minimumSize: const Size(400, 50),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(28),
                   ),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 ),
               ),
               const SizedBox(height: 25),
 
+              // ปุ่มบันทึก
               ElevatedButton(
                 onPressed: _saveDog,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.brown,
+                  backgroundColor: Colors.white,
+                  foregroundColor: Colors.black87,
+                  side: const BorderSide(color: Colors.black87),
                   minimumSize: const Size(400, 50),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
                   shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
+                    borderRadius: BorderRadius.circular(28),
                   ),
                 ),
                 child: const Text(
                   'บันทึกข้อมูล',
-                  style: TextStyle(color: Colors.white, fontSize: 16),
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                 ),
               ),
             ],
@@ -226,8 +229,19 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
     return InputDecoration(
       labelText: label,
       filled: true,
-      fillColor: Colors.brown[100],
-      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+      fillColor: Colors.white,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(28),
+        borderSide: const BorderSide(color: Colors.black87),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(28),
+        borderSide: const BorderSide(color: Colors.black87),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(28),
+        borderSide: const BorderSide(color: Colors.black, width: 2),
+      ),
     );
   }
 }

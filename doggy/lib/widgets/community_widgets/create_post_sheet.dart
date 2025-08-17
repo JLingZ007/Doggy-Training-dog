@@ -146,11 +146,11 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
                   ],
                 ),
                 
-                // Image analysis results
-                if (_imageAnalysis.isNotEmpty) ...[
-                  SizedBox(height: 16),
-                  _buildImageAnalysisCard(),
-                ],
+                // // Image analysis results
+                // if (_imageAnalysis.isNotEmpty) ...[
+                //   SizedBox(height: 16),
+                //   _buildImageAnalysisCard(),
+                // ],
                 
                 // Selected media preview
                 if (_selectedImages.isNotEmpty) ...[
@@ -323,53 +323,7 @@ class _CreatePostSheetState extends State<CreatePostSheet> {
     );
   }
 
-  Widget _buildImageAnalysisCard() {
-    final heicCount = _imageAnalysis.where((analysis) => analysis['isHeif'] == true).length;
-    final needsProcessingCount = _imageAnalysis.where((analysis) => analysis['needsProcessing'] == true).length;
-    
-    if (heicCount == 0 && needsProcessingCount == 0) {
-      return SizedBox.shrink();
-    }
-    
-    return Container(
-      padding: EdgeInsets.all(12),
-      decoration: BoxDecoration(
-        color: Colors.blue[50],
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.blue[200]!),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Icon(Icons.info_outline, size: 16, color: Colors.blue[700]),
-              SizedBox(width: 6),
-              Text(
-                'การวิเคราะห์ไฟล์รูปภาพ',
-                style: TextStyle(
-                  color: Colors.blue[700],
-                  fontWeight: FontWeight.w500,
-                  fontSize: 14,
-                ),
-              ),
-            ],
-          ),
-          SizedBox(height: 8),
-          if (heicCount > 0)
-            Text(
-              '📱 พบไฟล์ HEIC/HEIF: $heicCount ไฟล์ (จะถูกแปลงเป็น JPEG อัตโนมัติ)',
-              style: TextStyle(fontSize: 12, color: Colors.blue[700]),
-            ),
-          if (needsProcessingCount > 0)
-            Text(
-              '🔧 ไฟล์ที่ต้องประมวลผล: $needsProcessingCount ไฟล์ (บีบอัด/ปรับขนาด)',
-              style: TextStyle(fontSize: 12, color: Colors.blue[700]),
-            ),
-        ],
-      ),
-    );
-  }
+  
 
   Widget _buildImagePreview() {
     return Column(

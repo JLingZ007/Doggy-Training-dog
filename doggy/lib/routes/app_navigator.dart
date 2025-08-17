@@ -2,7 +2,7 @@
 import 'package:dog_training_app/views/program.dart';
 import 'package:flutter/material.dart';
 import '../views/home.dart' as views_home;
-import '../main.dart'; // ตรวจสอบว่า MainPage อยู่ในไฟล์นี้
+import '../main.dart';
 import '../views/dog_profiles.dart';
 import '../views/edit_dog_profile.dart';
 import '../views/add_dog.dart';

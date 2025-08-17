@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'dart:typed_data';
-import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:image/image.dart' as img;
 import 'package:path/path.dart' as path;
@@ -13,11 +12,10 @@ class EnhancedImageHandler {
       
       // ตรวจสอบว่าเป็นไฟล์ HEIF/HEIC หรือไม่
       if (fileName.endsWith('.heic') || fileName.endsWith('.heif')) {
-        print('🔄 Processing HEIF/HEIC file: ${originalFile.name}');
+        
         
         // อ่านข้อมูลไฟล์เดิม
         final originalBytes = await originalFile.readAsBytes();
-        print('📁 Original file size: ${_formatFileSize(originalBytes.length)}');
         
         try {
           // ใช้ image package เพื่อ decode และ encode ใหม่
@@ -39,19 +37,14 @@ class EnhancedImageHandler {
             
             // เขียนข้อมูลลงไฟล์ใหม่
             await tempFile.writeAsBytes(jpegBytes);
-            
-            print('✅ Successfully converted HEIF to JPEG');
-            print('📁 New file size: ${_formatFileSize(jpegBytes.length)}');
-            print('📍 Saved to: ${tempFile.path}');
+
             
             return XFile(tempFile.path);
           } else {
-            print('⚠️ Cannot decode HEIF image, using fallback method');
+
             return await _fallbackHeifConversion(originalFile, originalBytes);
           }
         } catch (decodeError) {
-          print('⚠️ Image package decode failed: $decodeError');
-          print('🔄 Using fallback conversion method...');
           return await _fallbackHeifConversion(originalFile, originalBytes);
         }
       }
@@ -60,7 +53,6 @@ class EnhancedImageHandler {
       return await _optimizeRegularImage(originalFile);
       
     } catch (e) {
-      print('❌ Error in processImageAdvanced: $e');
       // ส่งไฟล์เดิมกลับไปถ้าไม่สามารถประมวลผลได้
       return originalFile;
     }
@@ -84,8 +76,6 @@ class EnhancedImageHandler {
       // เขียนข้อมูลลงไฟล์ใหม่ (แม้จะยังเป็น HEIF format ภายใน)
       await tempFile.writeAsBytes(originalBytes);
       
-      print('✅ Fallback conversion completed');
-      print('⚠️ Note: File content is still HEIF, but with .jpg extension');
       
       return XFile(tempFile.path);
     } catch (e) {
