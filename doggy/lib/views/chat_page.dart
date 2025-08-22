@@ -116,10 +116,10 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
         ),
         backgroundColor: const Color(0xFFD2B48C), // สีน้ำตาล
         elevation: 0,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
+        // leading: IconButton(
+        //   icon: const Icon(Icons.arrow_back, color: Colors.black),
+        //   onPressed: () => Navigator.pop(context),
+        // ),
         actions: [
           Consumer<ChatProvider>(
             builder: (context, chatProvider, child) {
