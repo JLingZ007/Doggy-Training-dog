@@ -1,335 +1,726 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+
 import '../widgets/slidebar.dart';
-import '../widgets/bottom_navbar.dart'; // ใช้ไฟล์เดิม
+import '../widgets/bottom_navbar.dart';
 import '../routes/app_routes.dart';
+import '../services/home_service.dart';
+import '../widgets/app_header.dart'; 
+
 
 class HomePage extends StatefulWidget {
+  const HomePage({super.key});
+
   @override
-  _HomePageState createState() => _HomePageState();
+  State<HomePage> createState() => _HomePageState();
 }
 
 class _HomePageState extends State<HomePage> {
-  int _currentIndex = 0; // ใช้เป็น index สำหรับ BottomNavBar
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  List<Map<String, dynamic>> _randomCourses = [];
-  late PageController _pageController;
+  final _auth = FirebaseAuth.instance;
+  final _service = HomeService(firestore: FirebaseFirestore.instance);
+
+  // Data (น้อยลง)
+  String? _dogImageRaw;
+  Map<String, dynamic>? _continueCourse;
+  List<Map<String, dynamic>> _categories = [];
+  List<Map<String, dynamic>> _featured = [];
+
+  // Carousel
+  late final PageController _pageController;
   Timer? _timer;
+  int _currentBanner = 0;
+
+  bool _loading = true;
 
   @override
   void initState() {
     super.initState();
-    _pageController = PageController();
-    _loadRandomCourses();
-    _startAutoScroll();
+    _pageController = PageController(viewportFraction: 0.92);
+    _initFast();
   }
 
   @override
   void dispose() {
-    _pageController.dispose();
     _timer?.cancel();
+    _pageController.dispose();
     super.dispose();
   }
 
-  // โหลดบทเรียนแบบสุ่ม 3 บทจาก Firestore
-  void _loadRandomCourses() async {
-    final snapshot = await _firestore.collectionGroup('programs').get();
-
-    if (snapshot.docs.isNotEmpty) {
-      final allCourses = snapshot.docs.map((doc) {
-        return {
-          'image': doc['image'],
-          'name': doc['name'],
-          'documentId': doc.id,
-          'categoryId': doc.reference.parent.parent!.id,
-        };
-      }).toList();
-
-      allCourses.shuffle(Random());
-
-      setState(() {
-        _randomCourses = allCourses.take(3).toList();
-      });
+  /// ครอบ future ด้วย timeout: ถ้าช้าเกินไป คืนค่า default ทันที
+  Future<T?> _withTimeout<T>(Future<T> f, {int ms = 1500}) async {
+    try {
+      return await f.timeout(Duration(milliseconds: ms));
+    } catch (_) {
+      return null;
     }
   }
 
-  // ฟังก์ชันเลื่อน PageView อัตโนมัติ
-  void _startAutoScroll() {
-    _timer = Timer.periodic(const Duration(seconds: 3), (timer) {
-      if (_pageController.hasClients) {
-        int nextPage = _pageController.page!.toInt() + 1;
-        if (nextPage >=
-            (_randomCourses.isNotEmpty ? _randomCourses.length : 3)) {
-          nextPage = 0;
-        }
-        _pageController.animateToPage(
-          nextPage,
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.easeInOut,
-        );
+  Future<void> _initFast() async {
+    final user = _auth.currentUser;
+
+    // 1) ดึงชุดแรกแบบขนาดเล็ก + ใส่ timeout (1.5-2.0s)
+    final futures = <Future>[];
+
+    if (user != null) {
+      futures.add(_withTimeout(_service.fetchDogProfileImage(user.uid), ms: 1200)
+          .then((v) => _dogImageRaw = v));
+      futures
+          .add(_withTimeout(_service.fetchContinueCourse(user.uid), ms: 1500)
+              .then((v) => _continueCourse = v));
+    }
+
+    futures
+        .add(_withTimeout(_service.fetchFeaturedQuick(limit: 8), ms: 1800)
+            .then((v) => _featured = (v ?? [])));
+
+    await Future.wait(futures);
+
+    if (!mounted) return;
+    setState(() => _loading = false);
+
+    // 2) แบนเนอร์เริ่ม auto-scroll ถ้ามีข้อมูล
+    _startAutoScroll();
+
+    // 3) Lazy-load หมวดหมู่ภายหลัง (ลดแรงโหลดช่วงแรก)
+    Future.delayed(const Duration(milliseconds: 500), () async {
+      final cats = await _withTimeout(_service.fetchCategoriesFast(limit: 6), ms: 1500);
+      if (!mounted) return;
+      if (cats != null) {
+        setState(() => _categories = cats);
       }
     });
   }
 
+  void _startAutoScroll() {
+    _timer?.cancel();
+    if (_featured.isEmpty) return;
+    _timer = Timer.periodic(const Duration(seconds: 4), (_) {
+      if (!_pageController.hasClients) return;
+      int next = _currentBanner + 1;
+      if (next >= _featured.length) next = 0;
+      _pageController.animateToPage(
+        next,
+        duration: const Duration(milliseconds: 460),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
+  ImageProvider _dogAvatarImage() {
+    if (_dogImageRaw == null || _dogImageRaw!.isEmpty) {
+      return const AssetImage('assets/images/dog_profile.jpg');
+    }
+    if (_dogImageRaw!.startsWith('http')) {
+      return NetworkImage(_dogImageRaw!);
+    }
+    try {
+      return MemoryImage(base64Decode(_dogImageRaw!));
+    } catch (_) {
+      return const AssetImage('assets/images/dog_profile.jpg');
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
+    final user = _auth.currentUser;
+
     return Scaffold(
-      appBar: AppBar(
-        backgroundColor: const Color(0xFFD2B48C),
-        elevation: 0,
-        title: const Text(
-          'หน้าหลัก',
-          style: TextStyle(color: Colors.black),
-        ),
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu, color: Colors.black),
-            onPressed: () {
-              Scaffold.of(context).openDrawer();
-            },
-          ),
-        ),
-        actions: [
-          Padding(
-            padding: const EdgeInsets.all(8.0),
-            child: FutureBuilder<QuerySnapshot>(
-              future: _auth.currentUser != null
-                  ? _firestore
-                      .collection('users')
-                      .doc(_auth.currentUser!.uid)
-                      .collection('dogs')
-                      .limit(1)
-                      .get()
-                  : null,
-              builder: (context, snapshot) {
-                ImageProvider profileImage =
-                    const AssetImage('assets/images/dog_profile.jpg');
-
-                if (snapshot.hasData &&
-                    snapshot.data!.docs.isNotEmpty &&
-                    snapshot.data!.docs.first.data() != null) {
-                  final dogData =
-                      snapshot.data!.docs.first.data() as Map<String, dynamic>;
-                  final imageRaw = dogData['image'] ?? '';
-
-                  if (imageRaw.isNotEmpty) {
-                    if (imageRaw.startsWith('http')) {
-                      profileImage = NetworkImage(imageRaw);
-                    } else {
-                      try {
-                        profileImage = MemoryImage(base64Decode(imageRaw));
-                      } catch (e) {
-                        profileImage =
-                            const AssetImage('assets/images/dog_profile.jpg');
-                      }
-                    }
-                  }
-                }
-
-                return GestureDetector(
-                  onTap: () {
-                    Navigator.pushNamed(context, AppRoutes.dogProfiles);
-                  },
-                  child: CircleAvatar(
-                    backgroundImage: profileImage,
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
+  backgroundColor: const Color(0xFFFDF9F4),
+  appBar: AppHeader(
+    title: 'หน้าหลัก',   // ตั้งชื่อหัวข้อได้
+    backgroundColor: const Color(0xFFD2B48C),
+  ),
       drawer: SlideBar(),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pushNamed(context, AppRoutes.myCourses);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.brown,
-                minimumSize: const Size(250, 50),
-                side: const BorderSide(color: Colors.brown, width: 2),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-              child: const Text(
-                'คอร์สเรียนของฉัน',
-                style: TextStyle(
-                  fontSize: 16,
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const SizedBox(height: 20),
-            ElevatedButton(
-              onPressed: () {
-                Navigator.pushNamed(context, AppRoutes.courses);
-              },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.brown,
-                minimumSize: const Size(250, 50),
-                side: const BorderSide(color: Colors.brown, width: 2),
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-              ),
-              child: const Text(
-                'คอร์สเรียนทั้งหมด',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              ),
-            ),
-            const SizedBox(height: 30),
-
-            // แสดงบทเรียนแบบสุ่ม 3 บท และเลื่อนอัตโนมัติ
-            Expanded(
-              child: Column(
-                children: [
-                  Expanded(
-                    child: PageView.builder(
-                      controller: _pageController,
-                      itemCount:
-                          _randomCourses.isNotEmpty ? _randomCourses.length : 3,
-                      itemBuilder: (context, index) {
-                        if (_randomCourses.isNotEmpty) {
-                          final course = _randomCourses[index];
-                          return GestureDetector(
-                            onTap: () {
-                              Navigator.pushNamed(
-                                context,
-                                AppRoutes.trainingDetails,
-                                arguments: {
-                                  'documentId': course['documentId'],
-                                  'categoryId': course['categoryId'],
-                                },
-                              );
-                            },
-                            child: Container(
-                              margin: const EdgeInsets.symmetric(horizontal: 8),
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(16),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.1),
-                                    blurRadius: 8,
-                                    offset: const Offset(0, 4),
-                                  ),
-                                ],
-                              ),
-                              child: ClipRRect(
-                                borderRadius: BorderRadius.circular(16),
-                                child: Stack(
-                                  children: [
-                                    Image.network(
-                                      course['image'],
-                                      fit: BoxFit.cover,
-                                      width: double.infinity,
-                                      height: double.infinity,
-                                    ),
-                                    Positioned(
-                                      bottom: 0,
-                                      left: 0,
-                                      right: 0,
-                                      child: Container(
-                                        padding: const EdgeInsets.all(12),
-                                        decoration: BoxDecoration(
-                                          gradient: LinearGradient(
-                                            begin: Alignment.bottomCenter,
-                                            end: Alignment.topCenter,
-                                            colors: [
-                                              Colors.black.withOpacity(0.7),
-                                              Colors.transparent,
-                                            ],
-                                          ),
-                                        ),
-                                        child: Text(
-                                          course['name'] ?? 'บทเรียน',
-                                          style: const TextStyle(
-                                            color: Colors.white,
-                                            fontSize: 16,
-                                            fontWeight: FontWeight.bold,
-                                          ),
-                                          textAlign: TextAlign.center,
-                                        ),
-                                      ),
-                                    ),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          );
-                        } else {
-                          return Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 8),
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(16),
-                              boxShadow: [
-                                BoxShadow(
-                                  color: Colors.black.withOpacity(0.1),
-                                  blurRadius: 8,
-                                  offset: const Offset(0, 4),
-                                ),
-                              ],
-                            ),
-                            child: ClipRRect(
-                              borderRadius: BorderRadius.circular(16),
-                              child: Image.asset(
-                                [
-                                  'assets/images/drip_dog4.jpg',
-                                  'assets/images/drip_dog2.jpg',
-                                  'assets/images/drip_dog3.jpg'
-                                ][index],
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          );
-                        }
-                      },
+      body: _loading
+          ? const _HomeSkeleton()
+          : RefreshIndicator(
+              onRefresh: _initFast,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.fromLTRB(16, 14, 16, 16),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Greeting + Search
+                    _GreetingRow(
+                      userName: user?.displayName ?? 'นักฝึกสุนัข',
+                      onSearchTap: () =>
+                          Navigator.pushNamed(context, AppRoutes.courses),
                     ),
-                  ),
-                  const SizedBox(height: 16),
-                  // Dots indicator
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: List.generate(
-                      _randomCourses.isNotEmpty ? _randomCourses.length : 3,
-                      (index) => AnimatedContainer(
-                        duration: const Duration(milliseconds: 300),
-                        margin: const EdgeInsets.symmetric(horizontal: 4),
-                        width: 10,
-                        height: 10,
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.brown.withOpacity(0.5),
+                    const SizedBox(height: 14),
+
+                    // Quick Actions
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _QuickAction(
+                            icon: Icons.play_circle_fill,
+                            label: 'คอร์สของฉัน',
+                            onTap: () => Navigator.pushNamed(context, AppRoutes.myCourses),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: _QuickAction(
+                            icon: Icons.menu_book_rounded,
+                            label: 'คอร์สทั้งหมด',
+                            onTap: () => Navigator.pushNamed(context, AppRoutes.courses),
+                          ),
+                        ),
+                      ],
+                    ),
+                    const SizedBox(height: 18),
+
+                    // Continue Learning (อาจไม่มี)
+                    if (_continueCourse != null) ...[
+                      _SectionTitle('เรียนต่อ', onSeeAll: () {
+                        Navigator.pushNamed(context, AppRoutes.myCourses);
+                      }),
+                      const SizedBox(height: 10),
+                      _ContinueCard(
+                        name: _continueCourse!['name'] ?? '',
+                        image: _continueCourse!['image'] ?? '',
+                        percent: (_continueCourse!['percent'] ?? 0) as int,
+                        currentStep: (_continueCourse!['currentStep'] ?? 1) as int,
+                        totalSteps: (_continueCourse!['totalSteps'] ?? 0) as int,
+                        onResume: () {
+                          if ((_continueCourse!['categoryId'] ?? '').toString().isEmpty) return;
+                          Navigator.pushNamed(
+                            context,
+                            AppRoutes.trainingDetails,
+                            arguments: {
+                              'documentId': _continueCourse!['programId'],
+                              'categoryId': _continueCourse!['categoryId'],
+                            },
+                          );
+                        },
+                      ),
+                      const SizedBox(height: 18),
+                    ],
+
+                    // Banner carousel (มีโอกาสมาเร็วสุด)
+                    if (_featured.isNotEmpty) ...[
+                      _SectionTitle('คอร์สแนะนำสำหรับคุณ', onSeeAll: () {
+                        Navigator.pushNamed(context, AppRoutes.courses);
+                      }),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        height: 180,
+                        child: PageView.builder(
+                          controller: _pageController,
+                          itemCount: _featured.length,
+                          onPageChanged: (i) => setState(() => _currentBanner = i),
+                          itemBuilder: (_, i) {
+                            final item = _featured[i];
+                            return _BannerCard(
+                              image: item['image'] ?? '',
+                              title: item['name'] ?? '',
+                              subtitle:
+                                  'ความยาก: ${item['difficulty'] ?? '-'} • ${item['duration'] ?? '-'} นาที',
+                              onTap: () {
+                                if ((item['categoryId'] ?? '').toString().isEmpty) return;
+                                Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.trainingDetails,
+                                  arguments: {
+                                    'documentId': item['documentId'],
+                                    'categoryId': item['categoryId'],
+                                  },
+                                );
+                              },
+                            );
+                          },
                         ),
                       ),
-                    ),
-                  ),
-                ],
+                      const SizedBox(height: 10),
+                      Center(
+                        child: _DotsIndicator(
+                          count: _featured.length,
+                          index: _currentBanner,
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                    ],
+
+                    // Categories (lazy-loaded)
+                    if (_categories.isNotEmpty) ...[
+                      _SectionTitle('หมวดหมู่ยอดนิยม', onSeeAll: () {
+                        Navigator.pushNamed(context, AppRoutes.courses);
+                      }),
+                      const SizedBox(height: 10),
+                      SizedBox(
+                        height: 96,
+                        child: ListView.separated(
+                          scrollDirection: Axis.horizontal,
+                          itemCount: _categories.length,
+                          separatorBuilder: (_, __) => const SizedBox(width: 10),
+                          itemBuilder: (_, i) {
+                            final c = _categories[i];
+                            return _CategoryChip(
+                              name: c['name'] ?? '',
+                              image: c['image'] ?? '',
+                              onTap: () {
+                                Navigator.pushNamed(
+                                  context,
+                                  AppRoutes.courses,
+                                  arguments: {'categoryId': c['categoryId']},
+                                );
+                              },
+                            );
+                          },
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+
+                    const SizedBox(height: 16),
+                  ],
+                ),
               ),
             ),
-          ],
+      bottomNavigationBar: const BottomNavBar(currentIndex: 0),
+    );
+  }
+}
+
+// ===================== WIDGETS (เหมือนเดิม, เบา) =====================
+
+class _GreetingRow extends StatelessWidget {
+  final String userName;
+  final VoidCallback onSearchTap;
+  const _GreetingRow({
+    required this.userName,
+    required this.onSearchTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text('สวัสดี, $userName 👋',
+            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
+        const SizedBox(height: 6),
+        const Text('พร้อมฝึกน้องหมาวันนี้หรือยัง?', style: TextStyle(color: Colors.black54)),
+        const SizedBox(height: 12),
+        GestureDetector(
+          onTap: onSearchTap,
+          child: Container(
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFE6D6C2)),
+            ),
+            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+            child: Row(
+              children: const [
+                Icon(Icons.search, color: Colors.black54),
+                SizedBox(width: 8),
+                Expanded(
+                  child: Text('ค้นหาคอร์ส เช่น นั่งคอย, เดินตาม',
+                      style: TextStyle(color: Colors.black54)),
+                ),
+              ],
+            ),
+          ),
         ),
-      ),
-      bottomNavigationBar: BottomNavBar(
-        currentIndex: 0, // หน้าหลัก
+      ],
+    );
+  }
+}
+
+class _QuickAction extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+  const _QuickAction({required this.icon, required this.label, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: const Color(0xFFFFFFFF),
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          height: 72,
+          padding: const EdgeInsets.symmetric(horizontal: 14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE6D6C2)),
+          ),
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: Colors.brown[400]),
+              const SizedBox(width: 10),
+              Text(label, style: const TextStyle(fontWeight: FontWeight.w800)),
+            ],
+          ),
+        ),
       ),
     );
   }
+}
+
+class _ContinueCard extends StatelessWidget {
+  final String name;
+  final String image;
+  final int percent;
+  final int currentStep;
+  final int totalSteps;
+  final VoidCallback onResume;
+
+  const _ContinueCard({
+    required this.name,
+    required this.image,
+    required this.percent,
+    required this.currentStep,
+    required this.totalSteps,
+    required this.onResume,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: const Color(0xFFFFF1DC),
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: const Color(0xFFE3B086)),
+      ),
+      padding: const EdgeInsets.all(12),
+      child: Row(
+        children: [
+          ClipRRect(
+            borderRadius: BorderRadius.circular(12),
+            child: (image.isNotEmpty)
+                ? Image.network(
+                    image,
+                    width: 76,
+                    height: 76,
+                    fit: BoxFit.cover,
+                    errorBuilder: (_, __, ___) => _imgFallback(),
+                  )
+                : _imgFallback(),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(name,
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(fontWeight: FontWeight.w800)),
+                const SizedBox(height: 6),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(8),
+                  child: LinearProgressIndicator(
+                    value: (percent / 100).clamp(0, 1),
+                    minHeight: 8,
+                    backgroundColor: const Color(0xFFECECEC),
+                  ),
+                ),
+                const SizedBox(height: 6),
+                Text('ความคืบหน้า $percent% • ขั้นที่ $currentStep / $totalSteps',
+                    style: const TextStyle(fontSize: 12)),
+              ],
+            ),
+          ),
+          const SizedBox(width: 10),
+          ElevatedButton(
+            onPressed: onResume,
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFA4D6A7),
+              foregroundColor: Colors.black,
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            ),
+            child: const Text('เรียนต่อ', style: TextStyle(fontWeight: FontWeight.bold)),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _imgFallback() => Container(
+        width: 76,
+        height: 76,
+        color: const Color(0xFFEFEFEF),
+        alignment: Alignment.center,
+        child: const Icon(Icons.image_not_supported),
+      );
+}
+
+class _CategoryChip extends StatelessWidget {
+  final String name;
+  final String image;
+  final VoidCallback onTap;
+  const _CategoryChip({required this.name, required this.image, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: Colors.white,
+      borderRadius: BorderRadius.circular(14),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(14),
+        child: Container(
+          width: 140,
+          padding: const EdgeInsets.all(10),
+          decoration: BoxDecoration(
+            border: Border.all(color: const Color(0xFFE6D6C2)),
+            borderRadius: BorderRadius.circular(14),
+          ),
+          child: Row(
+            children: [
+              ClipRRect(
+                borderRadius: BorderRadius.circular(10),
+                child: (image.isNotEmpty)
+                    ? Image.network(
+                        image,
+                        width: 42,
+                        height: 42,
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => _imgBox(),
+                      )
+                    : _imgBox(),
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  name,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(fontWeight: FontWeight.w700),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _imgBox() => Container(
+        width: 42,
+        height: 42,
+        color: const Color(0xFFEFEFEF),
+        alignment: Alignment.center,
+        child: const Icon(Icons.pets, color: Colors.grey),
+      );
+}
+
+class _BannerCard extends StatelessWidget {
+  final String image;
+  final String title;
+  final String subtitle;
+  final VoidCallback onTap;
+  const _BannerCard({
+    required this.image,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 6),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(16),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withOpacity(0.08),
+            blurRadius: 8,
+            offset: const Offset(0, 4),
+          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(16),
+        child: InkWell(
+          onTap: onTap,
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              (image.isNotEmpty)
+                  ? Image.network(
+                      image,
+                      fit: BoxFit.cover,
+                      errorBuilder: (_, __, ___) => Container(color: const Color(0xFFEFEFEF)),
+                    )
+                  : Container(color: const Color(0xFFEFEFEF)),
+              Positioned(
+                left: 0,
+                right: 0,
+                bottom: 0,
+                child: Container(
+                  padding: const EdgeInsets.fromLTRB(12, 20, 12, 12),
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.bottomCenter,
+                      end: Alignment.topCenter,
+                      colors: [
+                        Colors.black.withOpacity(0.75),
+                        Colors.black.withOpacity(0.0),
+                      ],
+                    ),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w800,
+                            fontSize: 16,
+                          )),
+                      const SizedBox(height: 4),
+                      Text(subtitle,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: const TextStyle(
+                            color: Colors.white70,
+                            fontSize: 12,
+                          )),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _DotsIndicator extends StatelessWidget {
+  final int count;
+  final int index;
+  const _DotsIndicator({required this.count, required this.index});
+
+  @override
+  Widget build(BuildContext context) {
+    return Wrap(
+      spacing: 6,
+      children: List.generate(count, (i) {
+        final active = i == index;
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          width: active ? 18 : 8,
+          height: 8,
+          decoration: BoxDecoration(
+            color: active ? Colors.brown : Colors.brown.withOpacity(0.35),
+            borderRadius: BorderRadius.circular(99),
+          ),
+        );
+      }),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String title;
+  final VoidCallback? onSeeAll;
+
+  const _SectionTitle(this.title, {Key? key, this.onSeeAll}) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    final hasSeeAll = onSeeAll != null;
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+      child: Row(
+        mainAxisAlignment:
+            hasSeeAll ? MainAxisAlignment.spaceBetween : MainAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              fontSize: 20,
+              fontWeight: FontWeight.bold,
+              color: Colors.brown,
+            ),
+          ),
+          if (hasSeeAll)
+            TextButton(
+              onPressed: onSeeAll,
+              child: const Text(
+                "ดูทั้งหมด",
+                style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w500,
+                  color: Colors.brown,
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+// =============== Skeleton (คงไว้) ===============
+
+class _HomeSkeleton extends StatelessWidget {
+  const _HomeSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    Widget bar({double h = 14, double w = 120}) => Container(
+          width: w,
+          height: h,
+          decoration: BoxDecoration(
+            color: const Color(0xFFEFEFEF),
+            borderRadius: BorderRadius.circular(8),
+          ),
+        );
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          bar(h: 22, w: 180),
+          const SizedBox(height: 10),
+          bar(w: 220),
+          const SizedBox(height: 12),
+          Container(
+            height: 44,
+            decoration: BoxDecoration(
+              color: const Color(0xFFEFEFEF),
+              borderRadius: BorderRadius.circular(12),
+            ),
+          ),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(child: Container(height: 72, decoration: _b())),
+              const SizedBox(width: 10),
+              Expanded(child: Container(height: 72, decoration: _b())),
+            ],
+          ),
+          const SizedBox(height: 18),
+          bar(w: 200),
+          const SizedBox(height: 10),
+          Container(height: 180, decoration: _b()),
+        ],
+      ),
+    );
+  }
+
+  static BoxDecoration _b() => BoxDecoration(
+        color: const Color(0xFFEFEFEF),
+        borderRadius: BorderRadius.circular(12),
+      );
 }
