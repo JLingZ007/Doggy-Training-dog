@@ -1,18 +1,34 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'routes/app_navigator.dart';
 import 'routes/app_routes.dart';
 import 'firebase_options.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'views/login_page.dart';
+import 'services/chat_provider.dart';
+import 'providers/community_provider.dart';
+
+/// === Palette ให้เหมือนหน้า Login/Register ===
+const kBgColor = Color(0xFFF7EFE7);     // พื้นหลังครีมอ่อน
+const kSurfaceCream = Color(0xFFEFE2D3); // สีปุ่ม/การ์ดอ่อน
+const kFieldCream = Color(0xFFEAD8C8);   // สีฟิลด์ (เผื่อใช้ในหน้าฟอร์มอื่น)
+const kCancelColor = Color(0xFF7C5959);  // โทนม่วงน้ำตาล (ปุ่มยกเลิก)
+const kBorder = Colors.black87;
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
-  // เริ่มต้น Firebase
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // Sign in anonymously สำหรับการใช้งาน Firebase
+  try {
+    await FirebaseAuth.instance.signInAnonymously();
+    // print('Signed in anonymously to Firebase');
+  } catch (e) {
+    // print('Error signing in anonymously: $e');
+  }
 
   runApp(MyApp());
 }
@@ -20,88 +36,115 @@ void main() async {
 class MyApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Doggy Training',
-      debugShowCheckedModeBanner: false,
-      initialRoute: AppRoutes.mainPage, // เส้นทางเริ่มต้น
-      onGenerateRoute: AppNavigator.onGenerateRoute, // ใช้ Navigator ที่สร้างไว้
+    return MultiProvider(
+      providers: [
+        ChangeNotifierProvider(create: (_) => ChatProvider()),
+        ChangeNotifierProvider(create: (_) => CommunityProvider()),
+      ],
+      child: MaterialApp(
+        title: 'Doggy Training',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          useMaterial3: false,
+          scaffoldBackgroundColor: kBgColor,
+          fontFamily: 'Roboto',
+
+          // โทนสีหลักให้ใกล้กับหน้า Login/Register
+          colorScheme: ColorScheme.fromSeed(
+            seedColor: const Color(0xFFB08968),
+            background: kBgColor,
+            primary: Colors.brown,
+          ),
+
+          appBarTheme: const AppBarTheme(
+            elevation: 0,
+            centerTitle: true,
+            backgroundColor: Colors.transparent,
+            foregroundColor: Colors.brown,
+          ),
+
+          cardColor: Colors.white,
+
+          // ปุ่มหลักสไตล์เดียวกับหน้า Login/Register
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: kSurfaceCream,
+              foregroundColor: Colors.black87,
+              elevation: 3,
+              padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(28),
+                side: const BorderSide(color: kBorder, width: 1),
+              ),
+              textStyle: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+
+          // ปุ่มขอบ (ใช้กับปุ่มยกเลิกได้ ถ้าต้องการ)
+          outlinedButtonTheme: OutlinedButtonThemeData(
+            style: OutlinedButton.styleFrom(
+              backgroundColor: kCancelColor,
+              foregroundColor: Colors.white,
+              side: const BorderSide(color: kBorder, width: 1),
+              padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 14),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(28),
+              ),
+              textStyle: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+          ),
+        ),
+        initialRoute: AppRoutes.mainPage,
+        onGenerateRoute: AppNavigator.onGenerateRoute,
+      ),
     );
   }
 }
 
 class MainPage extends StatelessWidget {
+  const MainPage({super.key});
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.white,
+      // สีพื้นหลังจะมาจาก Theme (kBgColor)
       appBar: AppBar(
-        title: const Text(
-          '',
-          style: TextStyle(color: Colors.grey),
-        ),
-        centerTitle: true,
-        backgroundColor: Colors.transparent,
-        elevation: 0, // ทำให้ AppBar โปร่งใส
+        automaticallyImplyLeading: false,
+        title: const Text(''),
       ),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // รูปภาพ
+            // โลโก้
             Image.asset(
-              'assets/images/doggy_logo.png', // ใส่ path ของไฟล์รูปภาพใน assets
+              'assets/images/doggy_logo.png',
               width: 300,
               height: 300,
               fit: BoxFit.cover,
             ),
             const SizedBox(height: 20),
 
-            // ปุ่ม "เริ่มต้นใช้งาน"
+            // ปุ่ม "เริ่มต้นใช้งาน" (สไตล์เดียวกับหน้า Login/Register จาก Theme)
             ElevatedButton(
               onPressed: () {
-                Navigator.pushNamed(context, AppRoutes.home); // ใช้ AppRoutes.home
+                Navigator.pushNamed(context, AppRoutes.home);
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.black,
-                side: const BorderSide(color: Colors.black, width: 1),
-                minimumSize: const Size(250, 50), // กำหนดความกว้างและความสูงขั้นต่ำ
-                padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-              ),
               child: const Text(
                 'เริ่มต้นใช้งาน !',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 18),
               ),
             ),
-            const SizedBox(height: 15), // ระยะห่างระหว่างปุ่ม
+            const SizedBox(height: 15),
 
-            // ปุ่ม "เข้าสู่ระบบ" (เหมือนปุ่ม "เริ่มต้นใช้งาน")
+            // ปุ่ม "เข้าสู่ระบบ"
             ElevatedButton(
               onPressed: () {
-                Navigator.pushNamed(context, AppRoutes.login); // ใช้ AppRoutes.login
+                Navigator.pushNamed(context, AppRoutes.login);
               },
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.white,
-                foregroundColor: Colors.black,
-                side: const BorderSide(color: Colors.black, width: 1),
-                minimumSize: const Size(250, 50), // กำหนดความกว้างและความสูงขั้นต่ำ
-                padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 15),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(15),
-                ),
-              ),
               child: const Text(
                 'เข้าสู่ระบบ',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.bold,
-                ),
+                style: TextStyle(fontSize: 18),
               ),
             ),
           ],
