@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'add_dog.dart';
 import 'edit_dog_profile.dart';
 
 class DogProfilesPage extends StatefulWidget {
@@ -12,7 +15,7 @@ class _DogProfilesPageState extends State<DogProfilesPage> {
   final FirebaseAuth _auth = FirebaseAuth.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // ฟังก์ชันลบโปรไฟล์สุนัข
+  // ลบโปรไฟล์สุนัข
   Future<void> _deleteDogProfile(String docId) async {
     final user = _auth.currentUser;
     if (user == null) return;
@@ -23,6 +26,29 @@ class _DogProfilesPageState extends State<DogProfilesPage> {
         .collection('dogs')
         .doc(docId)
         .delete();
+  }
+
+  // แปลงข้อมูล image เป็น ImageProvider
+  ImageProvider _buildImage(String? imageData) {
+    if (imageData == null || imageData.isEmpty) {
+      return const AssetImage('assets/images/dog_profile.jpg');
+    }
+
+    // ถ้าเป็น Base64
+    if (imageData.length > 100) {
+      try {
+        return MemoryImage(base64Decode(imageData));
+      } catch (e) {
+        return const AssetImage('assets/images/dog_profile.jpg');
+      }
+    }
+
+    // ถ้าเป็น URL
+    if (imageData.startsWith('http')) {
+      return NetworkImage(imageData);
+    }
+
+    return const AssetImage('assets/images/dog_profile.jpg');
   }
 
   @override
@@ -57,7 +83,7 @@ class _DogProfilesPageState extends State<DogProfilesPage> {
                       child: Column(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
-                          Icon(Icons.pets, size: 60, color: const Color.fromARGB(255, 154, 137, 130)),
+                          Icon(Icons.pets, size: 60, color: Colors.grey),
                           const SizedBox(height: 20),
                           const Text(
                             'ยังไม่มีข้อมูลสุนัข',
@@ -83,12 +109,7 @@ class _DogProfilesPageState extends State<DogProfilesPage> {
                           contentPadding: const EdgeInsets.all(12),
                           leading: CircleAvatar(
                             radius: 30,
-                            backgroundImage:
-                                dog['image'] != null && dog['image'].isNotEmpty
-                                    ? NetworkImage(dog['image'])
-                                    : const AssetImage(
-                                            'assets/images/dog_profile.png')
-                                        as ImageProvider,
+                            backgroundImage: _buildImage(dog['image']),
                           ),
                           title: Text(dog['name'],
                               style: const TextStyle(
@@ -96,7 +117,7 @@ class _DogProfilesPageState extends State<DogProfilesPage> {
                           subtitle: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text('อายุ: ${dog['age']} ปี',
+                              Text('อายุ: ${dog['age']}',
                                   style: const TextStyle(fontSize: 14)),
                               Text('สายพันธุ์: ${dog['breed']}',
                                   style: const TextStyle(fontSize: 14)),
@@ -106,8 +127,7 @@ class _DogProfilesPageState extends State<DogProfilesPage> {
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               IconButton(
-                                icon:
-                                    const Icon(Icons.edit, color: Colors.brown),
+                                icon: const Icon(Icons.edit, color: Colors.brown),
                                 onPressed: () {
                                   Navigator.push(
                                     context,
@@ -119,8 +139,7 @@ class _DogProfilesPageState extends State<DogProfilesPage> {
                                 },
                               ),
                               IconButton(
-                                icon:
-                                    const Icon(Icons.delete, color: Colors.red),
+                                icon: const Icon(Icons.delete, color: Colors.red),
                                 onPressed: () {
                                   _deleteDogProfile(docId);
                                 },
@@ -139,7 +158,7 @@ class _DogProfilesPageState extends State<DogProfilesPage> {
               onPressed: () {
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => EditDogProfilePage()),
+                  MaterialPageRoute(builder: (context) => AddDogPage()),
                 );
               },
               style: ElevatedButton.styleFrom(

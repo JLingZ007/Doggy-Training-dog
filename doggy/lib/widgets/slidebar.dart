@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -20,7 +22,7 @@ class SlideBar extends StatelessWidget {
                   decoration: BoxDecoration(color: Color(0xFFD2B48C)),
                   currentAccountPicture: CircleAvatar(
                     backgroundImage:
-                        AssetImage('assets/images/dog_profile.png'),
+                        AssetImage('assets/images/dog_profile.jpg'),
                   ),
                   accountName: Text('ไม่ได้เข้าสู่ระบบ'),
                   accountEmail: Text('กรุณาล็อกอินเพื่อดูโปรไฟล์สุนัข'),
@@ -30,38 +32,50 @@ class SlideBar extends StatelessWidget {
                       .collection('users')
                       .doc(user.uid)
                       .collection('dogs')
+                      .limit(1) // ดึงแค่ตัวแรก
                       .get(),
                   builder: (context, snapshot) {
                     if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                      // ถ้าไม่มีข้อมูลสุนัขให้แสดงค่าเริ่มต้น
                       return UserAccountsDrawerHeader(
-                        decoration: BoxDecoration(color: Color(0xFFD2B48C)),
-                        currentAccountPicture: CircleAvatar(
+                        decoration:
+                            const BoxDecoration(color: Color(0xFFD2B48C)),
+                        currentAccountPicture: const CircleAvatar(
                           backgroundImage:
-                              AssetImage('assets/images/dog_profile.png'),
+                              AssetImage('assets/images/dog_profile.jpg'),
                         ),
                         accountName: const Text('ไม่มีโปรไฟล์สุนัข'),
                         accountEmail: const Text('กรุณาเพิ่มสุนัขของคุณ'),
                       );
                     }
 
-                    // ดึงข้อมูลสุนัขตัวแรกจาก Firestore
                     final dogData = snapshot.data!.docs.first.data()
                         as Map<String, dynamic>;
-                    final profilePic = (dogData['image'] != null &&
-                            dogData['image'].isNotEmpty)
-                        ? NetworkImage(dogData['image'])
-                        : const AssetImage('assets/images/dog_profile.png')
-                            as ImageProvider;
-                    final name = dogData['name'] ?? 'ไม่ระบุ';
+                    final String imageRaw = dogData['image'] ?? '';
+                    ImageProvider profileImage;
+
+                    if (imageRaw.isNotEmpty) {
+                      if (imageRaw.startsWith('http')) {
+                        profileImage = NetworkImage(imageRaw);
+                      } else {
+                        try {
+                          profileImage = MemoryImage(base64Decode(imageRaw));
+                        } catch (e) {
+                          profileImage =
+                              const AssetImage('assets/images/dog_profile.jpg');
+                        }
+                      }
+                    } else {
+                      profileImage =
+                          const AssetImage('assets/images/dog_profile.jpg');
+                    }
 
                     return UserAccountsDrawerHeader(
-                      decoration: BoxDecoration(color: Color(0xFFD2B48C)),
+                      decoration: const BoxDecoration(color: Color(0xFFD2B48C)),
                       currentAccountPicture: CircleAvatar(
-                        backgroundImage: profilePic,
+                        backgroundImage: profileImage,
                       ),
-                      accountName: Text(name),
-                      accountEmail: Text('🐶 โปรไฟล์สุนัขของคุณ'),
+                      accountName: Text(dogData['name'] ?? 'ไม่ระบุ'),
+                      accountEmail: const Text('🐶 โปรไฟล์สุนัขของคุณ'),
                     );
                   },
                 ),

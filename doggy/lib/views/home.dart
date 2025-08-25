@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:convert';
 import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -121,26 +122,36 @@ class _HomePageState extends State<HomePage> {
                       .collection('users')
                       .doc(_auth.currentUser!.uid)
                       .collection('dogs')
+                      .limit(1)
                       .get()
                   : null,
               builder: (context, snapshot) {
-                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
-                  return CircleAvatar(
-                    backgroundImage:
-                        AssetImage('assets/images/dog_profile.png'),
-                  );
+                ImageProvider profileImage =
+                    const AssetImage('assets/images/dog_profile.jpg');
+
+                if (snapshot.hasData &&
+                    snapshot.data!.docs.isNotEmpty &&
+                    snapshot.data!.docs.first.data() != null) {
+                  final dogData =
+                      snapshot.data!.docs.first.data() as Map<String, dynamic>;
+                  final imageRaw = dogData['image'] ?? '';
+
+                  if (imageRaw.isNotEmpty) {
+                    if (imageRaw.startsWith('http')) {
+                      profileImage = NetworkImage(imageRaw);
+                    } else {
+                      try {
+                        profileImage = MemoryImage(base64Decode(imageRaw));
+                      } catch (e) {
+                        profileImage =
+                            const AssetImage('assets/images/dog_profile.jpg');
+                      }
+                    }
+                  }
                 }
 
-                final dogData =
-                    snapshot.data!.docs.first.data() as Map<String, dynamic>;
-                final profilePic =
-                    (dogData['image'] != null && dogData['image'].isNotEmpty)
-                        ? NetworkImage(dogData['image'])
-                        : AssetImage('assets/images/dog_profile.png')
-                            as ImageProvider;
-
                 return CircleAvatar(
-                  backgroundImage: profilePic,
+                  backgroundImage: profileImage,
                 );
               },
             ),
@@ -161,16 +172,22 @@ class _HomePageState extends State<HomePage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.brown,
+                minimumSize:
+                    const Size(250, 50), // กำหนดความกว้างและความสูงขั้นต่ำ
                 side: const BorderSide(color: Colors.brown, width: 2),
                 padding:
                     const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
+                  borderRadius: BorderRadius.circular(20),
                 ),
               ),
+              //minimumSize: const Size(250, 50),
               child: const Text(
                 'คอร์สเรียนของฉัน',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                style: TextStyle(
+                  fontSize: 16,
+                  fontWeight: FontWeight.bold,
+                ),
               ),
             ),
             const SizedBox(height: 20),
@@ -181,11 +198,13 @@ class _HomePageState extends State<HomePage> {
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.white,
                 foregroundColor: Colors.brown,
+                minimumSize:
+                    const Size(250, 50), // กำหนดความกว้างและความสูงขั้นต่ำ
                 side: const BorderSide(color: Colors.brown, width: 2),
                 padding:
                     const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
+                  borderRadius: BorderRadius.circular(20),
                 ),
               ),
               child: const Text(

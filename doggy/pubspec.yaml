@@ -28,6 +28,7 @@ environment:
 # the latest version available on pub.dev. To see which dependencies have newer
 # versions available, run `flutter pub outdated`.
 dependencies:
+  image_picker: ^1.1.2
   flutter:
     sdk: flutter
   video_player: ^2.5.1 # เวอร์ชันล่าสุดสำหรับการเล่นวิดีโอ
@@ -39,8 +40,8 @@ dependencies:
   webview_flutter: ^4.4.4
   webview_flutter_web: ^0.2.2
   youtube_player_flutter: ^9.1.1
-  image_picker: ^0.8.4+4
   audioplayers: ^6.4.0
+  flutter_sound: ^9.28.0
 
   # The following adds the Cupertino Icons font to your application.
   # Use with the CupertinoIcons class for iOS style icons.
@@ -70,9 +71,13 @@ flutter:
   assets:
     - assets/images/
     - assets/images/doggy_logo.png
+    - assets/images/dog_profile.jpg
+    - assets/images/whistle.png
+    - assets/images/clicker.png
     - assets/images/dog_profile.png
     - assets/sounds/clicker_sound.mp3
-    - assets/sounds/whistle_sound.mp3
+    # - assets/sounds/whistle_sound.mp3
+    - assets/sounds/Whistle.mp3
 
   # To add assets to your application, add an assets section, like this:
   # assets:

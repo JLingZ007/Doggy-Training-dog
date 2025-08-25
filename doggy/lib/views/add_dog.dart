@@ -6,28 +6,18 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
-class EditDogProfilePage extends StatefulWidget {
-  final Map<String, dynamic>? dogData;
-  final String? docId;
-
-  EditDogProfilePage({this.dogData, this.docId});
-
+class AddDogPage extends StatefulWidget {
   @override
-  _EditDogProfilePageState createState() => _EditDogProfilePageState();
+  _AddDogPageState createState() => _AddDogPageState();
 }
 
-class _EditDogProfilePageState extends State<EditDogProfilePage> {
+class _AddDogPageState extends State<AddDogPage> {
   final _formKey = GlobalKey<FormState>();
   final nameController = TextEditingController();
   final ageController = TextEditingController();
   String? selectedGender;
   String? selectedBreed;
   File? selectedImageFile;
-  String? base64Image;
-
-  final FirebaseAuth _auth = FirebaseAuth.instance;
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final ImagePicker _picker = ImagePicker();
 
   final List<String> genders = ['เพศผู้', 'เพศเมีย'];
   final List<String> breeds = [
@@ -37,22 +27,9 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
     'ลาบราดอร์'
   ];
 
-  @override
-  void initState() {
-    super.initState();
-    final dog = widget.dogData;
-    if (dog != null) {
-      nameController.text = dog['name'] ?? '';
-      ageController.text = dog['age'] ?? '1 ปี';
-      selectedGender = genders.contains(dog['gender']) ? dog['gender'] : null;
-      selectedBreed = breeds.contains(dog['breed']) ? dog['breed'] : null;
-
-      final imageData = dog['image'];
-      if (imageData != null && imageData.isNotEmpty) {
-        base64Image = imageData;
-      }
-    }
-  }
+  final FirebaseAuth _auth = FirebaseAuth.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final ImagePicker _picker = ImagePicker();
 
   Future<void> _pickImage() async {
     final pickedFile = await _picker.pickImage(source: ImageSource.gallery);
@@ -68,10 +45,10 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    String? imageToSave = base64Image;
+    String? base64Image;
     if (selectedImageFile != null) {
       final bytes = await selectedImageFile!.readAsBytes();
-      imageToSave = base64Encode(bytes);
+      base64Image = base64Encode(bytes);
     }
 
     final dogData = {
@@ -79,17 +56,14 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
       'age': ageController.text.trim(),
       'gender': selectedGender ?? '',
       'breed': selectedBreed ?? '',
-      'image': imageToSave ?? '',
+      'image': base64Image ?? '',
     };
 
-    if (widget.docId != null) {
-      await _firestore
-          .collection('users')
-          .doc(user.uid)
-          .collection('dogs')
-          .doc(widget.docId)
-          .update(dogData);
-    }
+    await _firestore
+        .collection('users')
+        .doc(user.uid)
+        .collection('dogs')
+        .add(dogData);
 
     showDialog(
       context: context,
@@ -111,9 +85,14 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
 
   @override
   Widget build(BuildContext context) {
+    final imageWidget = selectedImageFile != null
+        ? Image.file(selectedImageFile!, height: 180, fit: BoxFit.cover)
+        : Image.asset('assets/images/dog_profile.jpg',
+            height: 180, fit: BoxFit.cover);
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('แก้ไขข้อมูลสุนัข'),
+        title: const Text('เพิ่มข้อมูลสุนัข'),
         backgroundColor: Colors.brown,
       ),
       backgroundColor: Colors.brown[50],
@@ -123,16 +102,10 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
           key: _formKey,
           child: Column(
             children: [
-              // พรีวิวรูปภาพ
-              if (selectedImageFile != null)
-                Image.file(selectedImageFile!, height: 180, fit: BoxFit.cover)
-              else if (base64Image != null && base64Image!.isNotEmpty)
-                Image.memory(base64Decode(base64Image!),
-                    height: 180, fit: BoxFit.cover)
-              else
-                Image.asset('assets/images/dog_profile.jpg',
-                    height: 180, fit: BoxFit.cover),
-
+              ClipRRect(
+                borderRadius: BorderRadius.circular(12),
+                child: imageWidget,
+              ),
               const SizedBox(height: 10),
 
               TextFormField(
@@ -144,13 +117,9 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
               const SizedBox(height: 10),
 
               DropdownButtonFormField<String>(
-                value: List.generate(15, (i) => '${i + 1} ปี')
-                        .contains(ageController.text)
-                    ? ageController.text
-                    : '1 ปี',
+                value: ageController.text.isNotEmpty ? ageController.text : '1 ปี',
                 items: List.generate(15, (i) => '${i + 1} ปี')
-                    .map((age) =>
-                        DropdownMenuItem(value: age, child: Text(age)))
+                    .map((age) => DropdownMenuItem(value: age, child: Text(age)))
                     .toList(),
                 onChanged: (value) =>
                     setState(() => ageController.text = value!),
@@ -159,9 +128,7 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
               const SizedBox(height: 10),
 
               DropdownButtonFormField<String>(
-                value: genders.contains(selectedGender)
-                    ? selectedGender
-                    : null,
+                value: selectedGender,
                 items: genders
                     .map((g) => DropdownMenuItem(value: g, child: Text(g)))
                     .toList(),
@@ -171,9 +138,7 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
               const SizedBox(height: 10),
 
               DropdownButtonFormField<String>(
-                value: breeds.contains(selectedBreed)
-                    ? selectedBreed
-                    : null,
+                value: selectedBreed,
                 items: breeds
                     .map((b) => DropdownMenuItem(value: b, child: Text(b)))
                     .toList(),
@@ -204,8 +169,7 @@ class _EditDogProfilePageState extends State<EditDogProfilePage> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: Colors.brown,
                   minimumSize: const Size(400, 50),
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
+                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 15),
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),

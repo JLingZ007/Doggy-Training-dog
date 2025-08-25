@@ -4,6 +4,7 @@ import '../views/home.dart';
 import '../main.dart';
 import '../views/dog_profiles.dart';
 import '../views/edit_dog_profile.dart'; //
+import '../views/add_dog.dart';
 import '../views/courses.dart';
 import '../views/training_details.dart';
 // import '../views/my_courses.dart';
@@ -22,6 +23,8 @@ class AppNavigator {
         return MaterialPageRoute(builder: (_) => LoginPage());
       case AppRoutes.dogProfiles:
         return MaterialPageRoute(builder: (_) => DogProfilesPage());
+      case AppRoutes.AddDogPage:
+        return MaterialPageRoute(builder: (_) => AddDogPage());
       case AppRoutes.editDogProfile:
         final args = settings.arguments as Map<String, dynamic>?;
         return MaterialPageRoute(
