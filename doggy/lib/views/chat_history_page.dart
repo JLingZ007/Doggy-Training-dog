@@ -212,24 +212,6 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                 : Colors.orange,
           ),
           SizedBox(width: 8),
-          Expanded(
-            child: Text(
-              chatProvider.error != null 
-                ? 'Error: ${chatProvider.error}'
-                : isConnected
-                  ? 'เชื่อมต่อ Firebase สำเร็จ (${user?.uid?.substring(0, 8)}...)'
-                  : 'กำลังเชื่อมต่อ Firebase...',
-              style: TextStyle(
-                fontSize: 12,
-                color: chatProvider.error != null 
-                  ? Colors.red[700] 
-                  : isConnected 
-                    ? Colors.green[700] 
-                    : Colors.orange[700],
-              ),
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
           if (chatProvider.error != null)
             IconButton(
               icon: Icon(Icons.close, size: 16),

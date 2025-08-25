@@ -4,6 +4,93 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../routes/app_routes.dart';
 
+/// แปลงสตริงรูปให้เป็นรูปแบบที่พร้อมใช้งาน
+String normalizeRaw(String? raw) {
+  final r = (raw ?? '').trim();
+  if (r.isEmpty || r.toLowerCase() == 'null') return '';
+  return r;
+}
+
+/// Avatar แบบเสถียร: แปลง raw → ImageProvider เฉพาะตอน raw เปลี่ยนจริง ๆ
+class StableAvatar extends StatefulWidget {
+  const StableAvatar({
+    Key? key,
+    required this.raw, // url / base64 / data-url / '' (ว่าง = ไม่มีรูปจริง)
+    required this.placeholder,
+    this.radius = 18,
+  }) : super(key: key);
+
+  final String raw;
+  final ImageProvider placeholder;
+  final double radius;
+
+  @override
+  State<StableAvatar> createState() => _StableAvatarState();
+}
+
+class _StableAvatarState extends State<StableAvatar> {
+  ImageProvider? _fg; // real image (memoized)
+  String _lastEffectiveRaw = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _updateIfNeeded(widget.raw);
+  }
+
+  @override
+  void didUpdateWidget(covariant StableAvatar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.raw != widget.raw) {
+      _updateIfNeeded(widget.raw);
+    }
+  }
+
+  void _updateIfNeeded(String rawIn) {
+    String raw = normalizeRaw(rawIn);
+
+    // รองรับ data URL
+    if (raw.startsWith('data:image')) {
+      final comma = raw.indexOf(',');
+      if (comma != -1) raw = raw.substring(comma + 1); // เอาเฉพาะส่วน base64
+    }
+
+    // ถ้าเหมือนเดิมไม่ต้องทำอะไร
+    if (_lastEffectiveRaw == raw) return;
+    _lastEffectiveRaw = raw;
+
+    if (raw.isEmpty) {
+      _fg = null;
+      setState(() {});
+      return;
+    }
+
+    if (raw.startsWith('http://') || raw.startsWith('https://')) {
+      _fg = NetworkImage(raw);
+      setState(() {});
+      return;
+    }
+
+    // base64 (ยอมรับทุกความยาว)
+    try {
+      final bytes = base64Decode(raw);
+      _fg = MemoryImage(bytes);
+    } catch (_) {
+      _fg = null;
+    }
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CircleAvatar(
+      radius: widget.radius,
+      backgroundImage: widget.placeholder, // โชว์ก่อน
+      foregroundImage: _fg,                // โหลดเสร็จทับ
+    );
+  }
+}
+
 class AppHeader extends StatelessWidget implements PreferredSizeWidget {
   AppHeader({
     super.key,
@@ -45,47 +132,55 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
         ),
       ),
       actions: [
-        // ยังไม่ล็อกอิน → กดแล้วไปหน้าเข้าสู่ระบบ
         if (user == null || user.isAnonymous)
           GestureDetector(
             onTap: () => Navigator.pushNamed(context, AppRoutes.login),
             child: const Padding(
               padding: EdgeInsets.symmetric(horizontal: 12),
-              child: CircleAvatar(
-                backgroundImage: AssetImage('assets/images/dog_profile.jpg'),
+              child: StableAvatar(
+                raw: '',
+                placeholder: AssetImage('assets/images/dog_profile.jpg'),
+                radius: 18,
               ),
             ),
           )
         else
-          // ล็อกอินแล้ว → ฟัง users/{uid} เพื่อดู activeDogId แบบ realtime
+          // ฟัง users/{uid} (ไม่กรอง cache เพื่อให้มีค่าเสมอ)
           StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
             stream: _firestore.collection('users').doc(user.uid).snapshots(),
             builder: (context, userSnap) {
-              // กำลังโหลด / ไม่มีข้อมูล → แสดง default ไปก่อน (ไม่มี error)
-              if (userSnap.connectionState == ConnectionState.waiting ||
-                  !userSnap.hasData ||
-                  !(userSnap.data?.exists ?? false)) {
-                return _avatarButton(
-                  context: context,
-                  image: const AssetImage('assets/images/dog_profile.jpg'),
-                  // กดแล้วไปจัดการสุนัข
+              if (!userSnap.hasData || !(userSnap.data?.exists ?? false)) {
+                return GestureDetector(
                   onTap: () => Navigator.pushNamed(context, AppRoutes.dogProfiles),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: StableAvatar(
+                      raw: '',
+                      placeholder: AssetImage('assets/images/dog_profile.jpg'),
+                      radius: 18,
+                    ),
+                  ),
                 );
               }
 
-              final userData = userSnap.data!.data(); // อาจเป็น null ก็ต้องกัน
-              final activeDogId = userData?['activeDogId'] as String?;
+              final userData = userSnap.data!.data();
+              final activeDogId = (userData?['activeDogId'] as String?)?.trim();
 
-              // ยังไม่ได้เลือกสุนัข → ใช้รูป default
               if (activeDogId == null || activeDogId.isEmpty) {
-                return _avatarButton(
-                  context: context,
-                  image: const AssetImage('assets/images/dog_profile.jpg'),
+                return GestureDetector(
                   onTap: () => Navigator.pushNamed(context, AppRoutes.dogProfiles),
+                  child: const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 12),
+                    child: StableAvatar(
+                      raw: '',
+                      placeholder: AssetImage('assets/images/dog_profile.jpg'),
+                      radius: 18,
+                    ),
+                  ),
                 );
               }
 
-              // มี activeDogId → ฟังโปรไฟล์น้องหมาแบบ realtime
+              // ฟัง dogs/{activeDogId} (ไม่กรอง cache)
               return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
                 stream: _firestore
                     .collection('users')
@@ -94,19 +189,21 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
                     .doc(activeDogId)
                     .snapshots(),
                 builder: (context, dogSnap) {
-                  ImageProvider avatar =
-                      const AssetImage('assets/images/dog_profile.jpg');
-
+                  String raw = '';
                   if (dogSnap.hasData && (dogSnap.data?.exists ?? false)) {
-                    final dogData = dogSnap.data!.data();
-                    final raw = (dogData?['image'] ?? '').toString();
-                    avatar = _imageFromDog(raw);
+                    raw = normalizeRaw(dogSnap.data!.data()?['image'] as String?);
                   }
 
-                  return _avatarButton(
-                    context: context,
-                    image: avatar,
+                  return GestureDetector(
                     onTap: () => Navigator.pushNamed(context, AppRoutes.dogProfiles),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 12),
+                      child: StableAvatar(
+                        raw: raw,
+                        placeholder: const AssetImage('assets/images/dog_profile.jpg'),
+                        radius: 18,
+                      ),
+                    ),
                   );
                 },
               );
@@ -114,41 +211,5 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
           ),
       ],
     );
-  }
-
-  /// ปุ่มรูป Avatar มุมขวา
-  Widget _avatarButton({
-    required BuildContext context,
-    required ImageProvider image,
-    required VoidCallback onTap,
-  }) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        child: CircleAvatar(backgroundImage: image),
-      ),
-    );
-  }
-
-  /// สร้าง ImageProvider จากสตริงรูป (รองรับ URL/BASE64/ค่าว่าง)
-  ImageProvider _imageFromDog(String raw) {
-    if (raw.isEmpty) {
-      return const AssetImage('assets/images/dog_profile.jpg');
-    }
-    if (raw.startsWith('http')) {
-      return NetworkImage(raw);
-    }
-    // เดาว่า base64 ถ้ายาว ๆ
-    if (raw.length > 80) {
-      try {
-        return MemoryImage(base64Decode(raw));
-      } catch (_) {
-        // เผื่อ base64 เสีย
-        return const AssetImage('assets/images/dog_profile.jpg');
-      }
-    }
-    // เผื่อรูปแบบอื่น ๆ → fallback
-    return const AssetImage('assets/images/dog_profile.jpg');
   }
 }

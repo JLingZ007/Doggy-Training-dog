@@ -2,7 +2,9 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:youtube_player_flutter/youtube_player_flutter.dart';
+
+// ใช้ iframe
+import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 import '../services/training_service.dart';
 import '../services/user_service.dart';
@@ -29,9 +31,11 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
   final _service = TrainingService(firestore: FirebaseFirestore.instance);
   final _userService = UserService();
 
+  // --- ควบคุมวิดีโอ (iframe) ---
   YoutubePlayerController? _yt;
-  Timer? _ytTimer;
-  Duration _lastYtPos = Duration.zero;
+  StreamSubscription<Duration>? _posSub;                 // เวลา ณ ตอนนี้
+  StreamSubscription<YoutubePlayerValue>? _valSub;       // ค่า value (มี playerState)
+  int _lastSeconds = 0;
 
   bool _isLoading = true;
   bool _saving = false;
@@ -40,8 +44,8 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
 
   // progress
   User? _user;
-  String? _dogId; // ใช้จาก arguments หรือ activeDogId (ตั้งมาจากหน้าแรก)
-  int _currentStep = 1; // เริ่มนับจาก 1
+  String? _dogId;
+  int _currentStep = 1;
   Set<int> _completed = {};
   int _totalSteps = 0;
 
@@ -65,9 +69,10 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
   @override
   void dispose() {
     try {
-      _yt?.dispose();
+      _posSub?.cancel();
+      _valSub?.cancel();
+      _yt?.close(); // สำคัญ: iframe ใช้ close()
     } catch (_) {}
-    _ytTimer?.cancel();
     _scroll.dispose();
     super.dispose();
   }
@@ -91,24 +96,31 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
       if (data != null) {
         final id = _service.extractYoutubeId((data['video'] ?? '').toString());
         if (id.isNotEmpty) {
-          _yt = YoutubePlayerController(
-            initialVideoId: id,
-            flags: const YoutubePlayerFlags(autoPlay: false, mute: false),
+          // --- สร้าง controller แบบ iframe ---
+          _yt = YoutubePlayerController.fromVideoId(
+            videoId: id,
+            autoPlay: false,
+            params: const YoutubePlayerParams(
+              showControls: true,
+              showFullscreenButton: true,
+              enableCaption: true,
+              strictRelatedVideos: true,
+              playsInline: true,
+            ),
           );
 
-          // ติดตามเวลาที่ดูวิดีโอทุก 1 วินาที
-          _ytTimer?.cancel();
-          _ytTimer = Timer.periodic(const Duration(seconds: 1), (_) async {
-            if (!mounted || _yt == null) return;
-            final pos = _yt!.value.position;
+          // --- ติดตามเวลา (Duration) ---
+          _posSub?.cancel();
+          _posSub = _yt!.getCurrentPositionStream().listen((dur) async {
+            final sec = dur.inSeconds;
+            if (sec > _lastSeconds) {
+              _lastSeconds = sec;
+              _introWatchSec = sec;
 
-            // อัปเดตเวลาที่ดู
-            if (pos > _lastYtPos) {
-              _lastYtPos = pos;
-              _introWatchSec = pos.inSeconds;
-
-              // ถ้ายังไม่ mark watched และดูเกินเกณฑ์ -> mark watched
-              if (!_introWatched && _introWatchSec >= _INTRO_MIN_SEC && _user != null && _dogId != null) {
+              if (!_introWatched &&
+                  _introWatchSec >= _INTRO_MIN_SEC &&
+                  _user != null &&
+                  _dogId != null) {
                 _introWatched = true;
                 try {
                   await _service.updateIntroWatch(
@@ -122,10 +134,13 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
                 } catch (_) {}
               }
             }
+          });
 
-            // ถ้าจบวิดีโอ -> mark watched เช่นกัน
+          // --- ติดตามสถานะ player ผ่าน stream ของ controller ---
+          _valSub?.cancel();
+          _valSub = _yt!.stream.listen((value) async {
             if (!_introWatched &&
-                _yt!.value.playerState == PlayerState.ended &&
+                value.playerState == PlayerState.ended &&
                 _user != null &&
                 _dogId != null) {
               _introWatched = true;
@@ -476,10 +491,7 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
                             child: ClipRRect(
                               borderRadius: BorderRadius.circular(16),
                               child: _yt != null
-                                  ? YoutubePlayerBuilder(
-                                      player: YoutubePlayer(controller: _yt!),
-                                      builder: (_, player) => player,
-                                    )
+                                  ? YoutubePlayer(controller: _yt!)
                                   : ((data['image'] ?? '').toString().isNotEmpty)
                                       ? Image.network(
                                           (data['image'] ?? '').toString(),
@@ -530,7 +542,7 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
                         // Step Navigator (ชิป 1..N)
                         SliverToBoxAdapter(child: _stepNavigator(steps)),
 
-                        // รายการ Step (การ์ด) - ใช้ SliverList เพื่อประสิทธิภาพ
+                        // รายการ Step (การ์ด)
                         SliverList(
                           delegate: SliverChildBuilderDelegate(
                             (context, i) {
@@ -739,52 +751,52 @@ class _StepCard extends StatelessWidget {
     Widget actionBtn;
 
     if (isCompleted) {
-  bg = const Color(0xFFE5F6E8); // เขียวอ่อน
-  badge = 'สำเร็จแล้ว ✓';
-  actionBtn = ElevatedButton(
-    onPressed: null,
-    style: ElevatedButton.styleFrom(
-      backgroundColor: const Color(0xFFE5F6E8),
-      foregroundColor: const Color(0xFF2E7D32), // เขียวเข้ม
-      disabledBackgroundColor: const Color(0xFFE5F6E8),
-      disabledForegroundColor: const Color(0xFF2E7D32),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-    ),
-    child: const Text('สำเร็จแล้ว', style: TextStyle(fontWeight: FontWeight.bold)),
-  );
-} else if (isCurrent) {
-  bg = const Color(0xFFFFF9E6); // เหลืองพาสเทล
-  badge = 'ขั้นตอนปัจจุบัน ⏳';
-  actionBtn = ElevatedButton(
-    onPressed: saving ? null : onDone,
-    style: ElevatedButton.styleFrom(
-      backgroundColor: const Color(0xFFA5D6A7), // เขียวพาสเทล
-      foregroundColor: Colors.black,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-      elevation: 0,
-    ),
-    child: Text(
-      saving ? 'กำลังบันทึก...' : 'ทำสำเร็จแล้ว',
-      style: const TextStyle(fontWeight: FontWeight.bold),
-    ),
-  );
-} else {
-  bg = const Color(0xFFE3F2FD); // ฟ้าอ่อน
-  badge = 'รอคิว ▶️';
-  actionBtn = ElevatedButton(
-    onPressed: onStart,
-    style: ElevatedButton.styleFrom(
-      backgroundColor: const Color(0xFF90CAF9), // ฟ้าเข้มกว่านิด
-      foregroundColor: Colors.black,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
-      elevation: 0,
-    ),
-    child: const Text('เริ่มฝึก', style: TextStyle(fontWeight: FontWeight.bold)),
-  );
-}
+      bg = const Color(0xFFE5F6E8); // เขียวอ่อน
+      badge = 'สำเร็จแล้ว ✓';
+      actionBtn = ElevatedButton(
+        onPressed: null,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFE5F6E8),
+          foregroundColor: const Color(0xFF2E7D32), // เขียวเข้ม
+          disabledBackgroundColor: const Color(0xFFE5F6E8),
+          disabledForegroundColor: const Color(0xFF2E7D32),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+        ),
+        child: const Text('สำเร็จแล้ว', style: TextStyle(fontWeight: FontWeight.bold)),
+      );
+    } else if (isCurrent) {
+      bg = const Color(0xFFFFF9E6); // เหลืองพาสเทล
+      badge = 'ขั้นตอนปัจจุบัน ⏳';
+      actionBtn = ElevatedButton(
+        onPressed: saving ? null : onDone,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFFA5D6A7), // เขียวพาสเทล
+          foregroundColor: Colors.black,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          elevation: 0,
+        ),
+        child: Text(
+          saving ? 'กำลังบันทึก...' : 'ทำสำเร็จแล้ว',
+          style: const TextStyle(fontWeight: FontWeight.bold),
+        ),
+      );
+    } else {
+      bg = const Color(0xFFE3F2FD); // ฟ้าอ่อน
+      badge = 'รอคิว ▶️';
+      actionBtn = ElevatedButton(
+        onPressed: onStart,
+        style: ElevatedButton.styleFrom(
+          backgroundColor: const Color(0xFF90CAF9),
+          foregroundColor: Colors.black,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+          padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+          elevation: 0,
+        ),
+        child: const Text('เริ่มฝึก', style: TextStyle(fontWeight: FontWeight.bold)),
+      );
+    }
 
     return Container(
       decoration: BoxDecoration(
