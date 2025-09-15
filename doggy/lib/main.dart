@@ -1,3 +1,4 @@
+// main.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'routes/app_navigator.dart';
@@ -15,25 +16,16 @@ const kFieldCream = Color(0xFFEAD8C8);   // สีฟิลด์ (เผื่�
 const kCancelColor = Color(0xFF7C5959);  // โทนม่วงน้ำตาล (ปุ่มยกเลิก)
 const kBorder = Colors.black87;
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
-  // Sign in anonymously สำหรับการใช้งาน Firebase
-  try {
-    await FirebaseAuth.instance.signInAnonymously();
-    // print('Signed in anonymously to Firebase');
-  } catch (e) {
-    // print('Error signing in anonymously: $e');
-  }
-
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -94,15 +86,93 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        initialRoute: AppRoutes.mainPage,
+
+        // ❗ ให้ AuthGate เป็นตัวตัดสินใจหน้าเริ่มต้น (จำสถานะล็อกอินเดิม)
+        home: const AuthGate(),
+
         onGenerateRoute: AppNavigator.onGenerateRoute,
       ),
     );
   }
 }
 
+/// ฟังสถานะ user จาก Firebase แล้วนำทางอัตโนมัติ
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  void _safeNavigate(String route) {
+    // กัน multiple push เวลา stream มีการ emit ใกล้ๆกัน
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(context, route, (_) => false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const _Splash();
+        }
+
+        if (snap.hasData) {
+          // มีผู้ใช้เดิม (อีเมล/กูเกิล/นิรนามก็ได้) → เข้าแอป
+          _safeNavigate(AppRoutes.home);
+        } else {
+          // ไม่มีผู้ใช้ → ไปหน้า Landing ของคุณ
+          _safeNavigate(AppRoutes.mainPage);
+        }
+
+        // ระหว่างกำลังนำทาง แสดง splash ว่างๆ
+        return const _Splash();
+      },
+    );
+  }
+}
+
+/// Splash/Loading หน้าจอเรียบๆระหว่างตัดสินใจเส้นทาง
+class _Splash extends StatelessWidget {
+  const _Splash();
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
+      backgroundColor: kBgColor,
+    );
+  }
+}
+
+/// Landing Page เดิมของคุณ (ปรับปุ่ม "เริ่มต้นใช้งาน !" ให้ล็อกอินนิรนามเฉพาะตอนกด)
 class MainPage extends StatelessWidget {
   const MainPage({super.key});
+
+  Future<void> _enterAsGuest(BuildContext context) async {
+    try {
+      // ล็อกอินนิรนามเฉพาะเมื่อยังไม่มี user
+      if (FirebaseAuth.instance.currentUser == null) {
+        await FirebaseAuth.instance.signInAnonymously();
+      }
+      // แล้วเข้า Home
+      // ใช้ removeUntil กันย้อนกลับไปหน้า main
+      // ถ้าใช้ onGenerateRoute แล้วมี guard ใน home อยู่ก็โอเค
+      // แต่ตรงนี้เข้าได้เลยตามที่คุณออกแบบ
+      // (ใช้ชื่อ route ของคุณเอง)
+      // ignore: use_build_context_synchronously
+      Navigator.pushNamedAndRemoveUntil(context, AppRoutes.home, (_) => false);
+    } catch (e) {
+      // แจ้งผู้ใช้กรณีเข้าโหมด Guest ไม่สำเร็จ
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ไม่สามารถเข้าแบบ Guest ได้')),
+      );
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -125,11 +195,9 @@ class MainPage extends StatelessWidget {
             ),
             const SizedBox(height: 20),
 
-            // ปุ่ม "เริ่มต้นใช้งาน" (สไตล์เดียวกับหน้า Login/Register จาก Theme)
+            // ปุ่ม "เริ่มต้นใช้งาน !" → เข้าแบบ Guest
             ElevatedButton(
-              onPressed: () {
-                Navigator.pushNamed(context, AppRoutes.home);
-              },
+              onPressed: () => _enterAsGuest(context),
               child: const Text(
                 'เริ่มต้นใช้งาน !',
                 style: TextStyle(fontSize: 18),
@@ -137,7 +205,7 @@ class MainPage extends StatelessWidget {
             ),
             const SizedBox(height: 15),
 
-            // ปุ่ม "เข้าสู่ระบบ"
+            // ปุ่ม "เข้าสู่ระบบ" → ไปหน้า Login
             ElevatedButton(
               onPressed: () {
                 Navigator.pushNamed(context, AppRoutes.login);
