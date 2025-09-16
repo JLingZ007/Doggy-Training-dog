@@ -6,6 +6,90 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../routes/app_routes.dart';
 import '../services/user_service.dart';
 
+/// ---------- Image helpers (ไม่กะพริบ) ----------
+String normalizeRaw(String? raw) {
+  final r = (raw ?? '').trim();
+  if (r.isEmpty || r.toLowerCase() == 'null') return '';
+  return r;
+}
+
+class StableAvatar extends StatefulWidget {
+  const StableAvatar({
+    Key? key,
+    required this.raw,                 // url / base64 / data-url / '' 
+    required this.placeholder,
+    this.radius = 18,
+  }) : super(key: key);
+
+  final String raw;
+  final ImageProvider placeholder;
+  final double radius;
+
+  @override
+  State<StableAvatar> createState() => _StableAvatarState();
+}
+
+class _StableAvatarState extends State<StableAvatar> {
+  ImageProvider? _fg;
+  String _lastEffectiveRaw = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _updateIfNeeded(widget.raw);
+  }
+
+  @override
+  void didUpdateWidget(covariant StableAvatar oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.raw != widget.raw) {
+      _updateIfNeeded(widget.raw);
+    }
+  }
+
+  void _updateIfNeeded(String rawIn) {
+    String raw = normalizeRaw(rawIn);
+
+    // data:image/...;base64,xxxx
+    if (raw.startsWith('data:image')) {
+      final comma = raw.indexOf(',');
+      if (comma != -1) raw = raw.substring(comma + 1);
+    }
+
+    if (_lastEffectiveRaw == raw) return;
+    _lastEffectiveRaw = raw;
+
+    if (raw.isEmpty) {
+      _fg = null;
+      setState(() {});
+      return;
+    }
+    if (raw.startsWith('http://') || raw.startsWith('https://')) {
+      _fg = NetworkImage(raw);
+      setState(() {});
+      return;
+    }
+
+    // base64 ทุกความยาว
+    try {
+      _fg = MemoryImage(base64Decode(raw));
+    } catch (_) {
+      _fg = null;
+    }
+    setState(() {});
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return CircleAvatar(
+      radius: widget.radius,
+      backgroundImage: widget.placeholder,
+      foregroundImage: _fg,
+    );
+  }
+}
+
+/// ---------- SlideBar ----------
 class SlideBar extends StatefulWidget {
   const SlideBar({super.key});
 
@@ -19,12 +103,12 @@ class _SlideBarState extends State<SlideBar> {
   final UserService _userService = UserService();
 
   // Color scheme
-  static const Color primaryColor = Color(0xFFD2B48C);
-  static const Color accentColor = Color(0xFF8B4513);
+  static const Color primaryColor   = Color(0xFFD2B48C);
+  static const Color accentColor    = Color(0xFF8B4513);
   static const Color secondaryColor = Color(0xFFC19A5B);
-  static const Color surfaceColor = Colors.white;
-  static const Color textPrimary = Color(0xFF5D4037);
-  static const Color textSecondary = Color(0xFF8D6E63);
+  static const Color surfaceColor   = Colors.white;
+  static const Color textPrimary    = Color(0xFF5D4037);
+  static const Color textSecondary  = Color(0xFF8D6E63);
 
   @override
   Widget build(BuildContext context) {
@@ -62,26 +146,15 @@ class _SlideBarState extends State<SlideBar> {
                         icon: Icons.home,
                         activeIcon: Icons.home,
                         title: 'หน้าหลัก',
-                        onTap: () {
-                          Navigator.pushReplacementNamed(context, AppRoutes.home);
-                        },
+                        onTap: () => Navigator.pushReplacementNamed(context, AppRoutes.home),
                       ),
                       _buildSimpleMenuItem(
                         icon: Icons.pets,
                         activeIcon: Icons.pets,
                         title: 'ข้อมูลสุนัขของคุณ',
-                        onTap: () {
-                          Navigator.pushNamed(context, AppRoutes.dogProfiles);
-                        },
+                        onTap: () => Navigator.pushNamed(context, AppRoutes.dogProfiles),
                       ),
-                      if (user != null && !user.isAnonymous)
-                        _buildSimpleMenuItem(
-                          icon: Icons.switch_account_outlined,
-                          activeIcon: Icons.switch_account,
-                          title: 'สลับโปรไฟล์สุนัข',
-                          subtitle: 'เลือกตัวหลักสำหรับติดตามความคืบหน้า',
-                          onTap: _openSwitchDogSheet,
-                        ),
+                      
 
                       _buildDivider(),
 
@@ -90,17 +163,13 @@ class _SlideBarState extends State<SlideBar> {
                         icon: Icons.school_outlined,
                         activeIcon: Icons.school,
                         title: 'บทเรียนของฉัน',
-                        onTap: () {
-                          Navigator.pushNamed(context, AppRoutes.myCourses);
-                        },
+                        onTap: () => Navigator.pushNamed(context, AppRoutes.myCourses),
                       ),
                       _buildSimpleMenuItem(
                         icon: Icons.menu_book_outlined,
                         activeIcon: Icons.menu_book,
                         title: 'บทเรียนทั้งหมด',
-                        onTap: () {
-                          Navigator.pushNamed(context, AppRoutes.courses);
-                        },
+                        onTap: () => Navigator.pushNamed(context, AppRoutes.courses),
                       ),
 
                       _buildDivider(),
@@ -141,9 +210,7 @@ class _SlideBarState extends State<SlideBar> {
                           icon: Icons.history_outlined,
                           activeIcon: Icons.history,
                           title: 'ประวัติการสนทนา',
-                          onTap: () {
-                            Navigator.pushNamed(context, AppRoutes.chatHistory);
-                          },
+                          onTap: () => Navigator.pushNamed(context, AppRoutes.chatHistory),
                         ),
 
                       _buildDivider(),
@@ -154,18 +221,14 @@ class _SlideBarState extends State<SlideBar> {
                         activeIcon: Icons.touch_app,
                         title: 'คลิกเกอร์',
                         subtitle: 'เครื่องมือฝึกด้วยเสียง',
-                        onTap: () {
-                          Navigator.pushNamed(context, AppRoutes.clicker);
-                        },
+                        onTap: () => Navigator.pushNamed(context, AppRoutes.clicker),
                       ),
                       _buildSimpleMenuItem(
                         icon: Icons.volume_up_outlined,
                         activeIcon: Icons.volume_up,
                         title: 'นกหวีด',
                         subtitle: 'เครื่องมือเรียกสุนัข',
-                        onTap: () {
-                          Navigator.pushNamed(context, AppRoutes.whistle);
-                        },
+                        onTap: () => Navigator.pushNamed(context, AppRoutes.whistle),
                       ),
 
                       _buildDivider(),
@@ -175,9 +238,7 @@ class _SlideBarState extends State<SlideBar> {
                           activeIcon: Icons.login,
                           title: 'เข้าสู่ระบบ',
                           subtitle: 'ใช้งานฟีเจอร์เพิ่มเติม',
-                          onTap: () {
-                            Navigator.pushNamed(context, AppRoutes.login);
-                          },
+                          onTap: () => Navigator.pushNamed(context, AppRoutes.login),
                         )
                       else
                         _buildSimpleMenuItem(
@@ -185,9 +246,7 @@ class _SlideBarState extends State<SlideBar> {
                           activeIcon: Icons.logout,
                           title: 'ออกจากระบบ',
                           subtitle: user.email ?? '',
-                          onTap: () {
-                            _showLogoutDialog(context);
-                          },
+                          onTap: () => _showLogoutDialog(context),
                         ),
 
                       const SizedBox(height: 32),
@@ -237,9 +296,10 @@ class _SlideBarState extends State<SlideBar> {
               CircleAvatar(
                 radius: 35,
                 backgroundColor: surfaceColor,
-                child: const CircleAvatar(
+                child: const StableAvatar(
+                  raw: '',
+                  placeholder: AssetImage('assets/images/dog_profile.jpg'),
                   radius: 32,
-                  backgroundImage: AssetImage('assets/images/dog_profile.jpg'),
                 ),
               ),
               const SizedBox(height: 10),
@@ -292,80 +352,59 @@ class _SlideBarState extends State<SlideBar> {
         child: Padding(
           padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
           child: StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+            // ไม่กรอง cache เพื่อให้มีข้อมูลแสดงทันที
             stream: _firestore.collection('users').doc(user.uid).snapshots(),
             builder: (context, userSnap) {
-              if (userSnap.connectionState == ConnectionState.waiting) {
-                return _headerSkeleton();
-              }
+              final fallbackName = user.displayName ?? user.email ?? 'ผู้ใช้';
+
               if (!userSnap.hasData || !(userSnap.data?.exists ?? false)) {
-                return _avatarBlock(
-                  const AssetImage('assets/images/dog_profile.jpg'),
-                  user.displayName ?? user.email ?? 'ผู้ใช้',
-                  'ยังไม่ได้เลือกสุนัขตัวหลัก',
+                return _avatarBlockRaw(
+                  raw: '',
+                  title: fallbackName,
+                  subtitle: 'ยังไม่ได้เลือกสุนัขตัวหลัก',
                   onSwitch: _openSwitchDogSheet,
                 );
               }
 
-              final userData = userSnap.data!.data() ?? <String, dynamic>{};
-              final String? activeDogId = userData['activeDogId'] as String?;
+              final data = userSnap.data!.data() ?? <String, dynamic>{};
+              final String? activeDogId = (data['activeDogId'] as String?)?.trim();
 
-              // ยังไม่ได้ตั้ง activeDogId -> แสดงค่าเริ่มต้น
               if (activeDogId == null || activeDogId.isEmpty) {
-                return _avatarBlock(
-                  const AssetImage('assets/images/dog_profile.jpg'),
-                  user.displayName ?? user.email ?? 'ผู้ใช้',
-                  'ยังไม่ได้เลือกสุนัขตัวหลัก',
+                return _avatarBlockRaw(
+                  raw: '',
+                  title: fallbackName,
+                  subtitle: 'ยังไม่ได้เลือกสุนัขตัวหลัก',
                   onSwitch: _openSwitchDogSheet,
                 );
               }
 
-              // มี activeDogId -> โหลดข้อมูลสุนัขตัวนั้น
-              return FutureBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                future: _firestore
+              // ฟัง dogs/{activeDogId} realtime
+              return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
+                stream: _firestore
                     .collection('users')
                     .doc(user.uid)
                     .collection('dogs')
                     .doc(activeDogId)
-                    .get(),
+                    .snapshots(),
                 builder: (context, dogSnap) {
-                  if (dogSnap.connectionState == ConnectionState.waiting) {
-                    return _avatarBlock(
-                      const AssetImage('assets/images/dog_profile.jpg'),
-                      user.displayName ?? user.email ?? 'ผู้ใช้',
-                      'กำลังโหลดโปรไฟล์สุนัข…',
-                      onSwitch: _openSwitchDogSheet,
-                    );
-                  }
-                  if (!dogSnap.hasData || !(dogSnap.data?.exists ?? false)) {
-                    return _avatarBlock(
-                      const AssetImage('assets/images/dog_profile.jpg'),
-                      user.displayName ?? user.email ?? 'ผู้ใช้',
-                      'ไม่พบโปรไฟล์สุนัขที่เลือก',
-                      onSwitch: _openSwitchDogSheet,
-                    );
+                  String name = fallbackName;
+                  String subtitle = '🐶 โปรไฟล์ที่ใช้งานอยู่';
+                  String raw = '';
+
+                  if (dogSnap.hasData && (dogSnap.data?.exists ?? false)) {
+                    final d = dogSnap.data!.data() ?? <String, dynamic>{};
+                    name = (d['name'] ?? name).toString();
+                    raw = normalizeRaw(d['image'] as String?);
+                  } else if (dogSnap.connectionState == ConnectionState.waiting) {
+                    subtitle = 'กำลังโหลดโปรไฟล์สุนัข…';
+                  } else if (dogSnap.hasError) {
+                    subtitle = 'โหลดโปรไฟล์สุนัขไม่สำเร็จ';
                   }
 
-                  final dog = dogSnap.data!.data() ?? <String, dynamic>{};
-                  final name = (dog['name'] ?? 'ไม่ระบุ').toString();
-                  final imgRaw = (dog['image'] ?? '').toString();
-
-                  ImageProvider profileImage;
-                  if (imgRaw.isEmpty) {
-                    profileImage = const AssetImage('assets/images/dog_profile.jpg');
-                  } else if (imgRaw.startsWith('http')) {
-                    profileImage = NetworkImage(imgRaw);
-                  } else {
-                    try {
-                      profileImage = MemoryImage(base64Decode(imgRaw));
-                    } catch (_) {
-                      profileImage = const AssetImage('assets/images/dog_profile.jpg');
-                    }
-                  }
-
-                  return _avatarBlock(
-                    profileImage,
-                    name,
-                    '🐶 โปรไฟล์ที่ใช้งานอยู่',
+                  return _avatarBlockRaw(
+                    raw: raw,
+                    title: name,
+                    subtitle: subtitle,
                     onSwitch: _openSwitchDogSheet,
                   );
                 },
@@ -378,7 +417,6 @@ class _SlideBarState extends State<SlideBar> {
   }
 
   // ---------- Switch Dog BottomSheet ----------
-
   Future<void> _openSwitchDogSheet() async {
     final u = _auth.currentUser;
     if (u == null || u.isAnonymous) {
@@ -442,23 +480,16 @@ class _SlideBarState extends State<SlideBar> {
                     final image = d['image']!;
                     final isActive = (activeId != null && id == activeId);
 
-                    ImageProvider img;
-                    if (image.isNotEmpty) {
-                      if (image.startsWith('http')) {
-                        img = NetworkImage(image);
-                      } else {
-                        try {
-                          img = MemoryImage(base64Decode(image));
-                        } catch (_) {
-                          img = const AssetImage('assets/images/dog_profile.jpg');
-                        }
-                      }
-                    } else {
-                      img = const AssetImage('assets/images/dog_profile.jpg');
-                    }
-
                     return ListTile(
-                      leading: CircleAvatar(backgroundImage: img),
+                      leading: CircleAvatar(
+                        radius: 20,
+                        backgroundColor: surfaceColor,
+                        child: StableAvatar(
+                          raw: image, // URL / base64 / ''
+                          placeholder: const AssetImage('assets/images/dog_profile.jpg'),
+                          radius: 18,
+                        ),
+                      ),
                       title: Text(name, style: const TextStyle(fontWeight: FontWeight.w700)),
                       trailing: isActive
                           ? const Chip(
@@ -503,7 +534,6 @@ class _SlideBarState extends State<SlideBar> {
   }
 
   // ---------- Menu / Utils ----------
-
   Widget _buildSimpleMenuItem({
     required IconData icon,
     required IconData activeIcon,
@@ -789,7 +819,6 @@ class _SlideBarState extends State<SlideBar> {
   }
 
   // ---------- Small helpers ----------
-
   Widget _headerSkeleton() => Row(
         children: const [
           CircleAvatar(radius: 35, backgroundColor: Colors.white),
@@ -798,10 +827,11 @@ class _SlideBarState extends State<SlideBar> {
         ],
       );
 
-  Widget _avatarBlock(
-    ImageProvider img,
-    String title,
-    String subtitle, {
+  // เวอร์ชันใหม่: รับ raw string แล้วใช้ StableAvatar ภายใน
+  Widget _avatarBlockRaw({
+    required String raw,
+    required String title,
+    required String subtitle,
     required VoidCallback onSwitch,
   }) {
     return Column(
@@ -811,7 +841,11 @@ class _SlideBarState extends State<SlideBar> {
         CircleAvatar(
           radius: 35,
           backgroundColor: surfaceColor,
-          child: CircleAvatar(radius: 32, backgroundImage: img),
+          child: StableAvatar(
+            raw: raw,
+            placeholder: const AssetImage('assets/images/dog_profile.jpg'),
+            radius: 32,
+          ),
         ),
         const SizedBox(height: 10),
         Text(

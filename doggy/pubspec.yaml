@@ -19,24 +19,23 @@ dependencies:
   firebase_messaging: ^15.2.0
   webview_flutter: ^4.4.4
   webview_flutter_web: ^0.2.2
-  youtube_player_flutter: ^9.1.1
   audioplayers: ^6.4.0
   flutter_sound: ^9.28.0
   cupertino_icons: ^1.0.8
-  
- 
+  youtube_player_iframe: ^5.1.2
+
   http: ^1.1.0
   provider: ^6.1.1
   shared_preferences: ^2.2.2
   flutter_markdown: ^0.6.18
   intl: ^0.18.1
 
-  # ⭐ เพิ่มใหม่สำหรับ Cloudinary Community System
+  
   cached_network_image: ^3.3.1    # สำหรับ cache รูปภาพจาก Cloudinary
   crypto: ^3.0.3                  # สำหรับ generate signature สำหรับ Cloudinary
   flutter_cache_manager: ^3.3.1   # ช่วยจัดการ cache
   
-  # ⭐ เพิ่มเติมสำหรับ UI/UX ที่ดีขึ้น (แนะนำ)
+  
   shimmer: ^3.0.0                 # Loading animation สวยๆ
   pull_to_refresh: ^2.0.0         # Pull to refresh
   flutter_staggered_grid_view: ^0.7.0  # Grid layout สำหรับแสดงรูป
@@ -46,13 +45,13 @@ dependencies:
   path_provider: ^2.1.1      # สำหรับ temporary directory
   path: ^1.8.3         
   
-  # ⭐ เพิ่มเติมสำหรับ Video (แนะนำ)
+  
   chewie: ^1.7.5                  # Video player ที่ดีกว่า video_player
   
-  # ⭐ เพิ่มเติมสำหรับ Notifications (แนะนำ)
+  
   flutter_local_notifications: ^17.2.1  # Local notifications
   
-  # ⭐ เพิ่มเติมสำหรับ Permissions (แนะนำ)
+  
   permission_handler: ^11.3.1     # จัดการ permissions
 
 dev_dependencies:
