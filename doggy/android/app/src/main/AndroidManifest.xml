@@ -1,13 +1,16 @@
 <?xml version="1.0" encoding="utf-8"?>
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <!-- ต้องมีเพื่อให้โหลด YouTube iframe / เรียก API ต่างๆ -->
+    <uses-permission android:name="android.permission.INTERNET" />
+
     <application
         android:label="doggy"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
 
         <activity
-            android:name="com.example.doggy.MainActivity"
+            android:name=".MainActivity"
             android:exported="true"
             android:launchMode="singleTop"
             android:theme="@style/LaunchTheme"
@@ -15,23 +18,24 @@
             android:windowSoftInputMode="adjustResize"
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|smallestScreenSize|locale|layoutDirection|fontScale|screenLayout|density|uiMode">
 
+            <!-- ธีมเริ่มต้นก่อน Flutter วาด UI -->
             <meta-data
                 android:name="io.flutter.embedding.android.NormalTheme"
                 android:resource="@style/NormalTheme" />
 
             <intent-filter>
-                <action android:name="android.intent.action.MAIN" />
-                <category android:name="android.intent.category.LAUNCHER" />
+                <action android:name="android.intent.action.MAIN"/>
+                <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
 
-        <!-- ใช้ Flutter embedding v2 -->
+        <!-- อย่าลบ: Flutter embedding v2 -->
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
     </application>
 
-    <!-- package-visibility ให้ ProcessText ของ Flutter -->
+    <!-- package-visibility สำหรับ ProcessText ที่ Flutter engine ใช้ -->
     <queries>
         <intent>
             <action android:name="android.intent.action.PROCESS_TEXT" />

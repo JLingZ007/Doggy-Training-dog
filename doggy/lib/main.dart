@@ -9,31 +9,22 @@ import 'services/chat_provider.dart';
 import 'providers/community_provider.dart';
 
 /// === Palette ให้เหมือนหน้า Login/Register ===
-const kBgColor = Color(0xFFF7EFE7);     // พื้นหลังครีมอ่อน
-const kSurfaceCream = Color(0xFFEFE2D3); // สีปุ่ม/การ์ดอ่อน
-const kFieldCream = Color(0xFFEAD8C8);   // สีฟิลด์ (เผื่อใช้ในหน้าฟอร์มอื่น)
-const kCancelColor = Color(0xFF7C5959);  // โทนม่วงน้ำตาล (ปุ่มยกเลิก)
+const kBgColor = Color(0xFFF7EFE7);
+const kSurfaceCream = Color(0xFFEFE2D3);
+const kFieldCream = Color(0xFFEAD8C8);
+const kCancelColor = Color(0xFF7C5959);
 const kBorder = Colors.black87;
 
-void main() async {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-
-  // Sign in anonymously สำหรับการใช้งาน Firebase
-  try {
-    await FirebaseAuth.instance.signInAnonymously();
-    // print('Signed in anonymously to Firebase');
-  } catch (e) {
-    // print('Error signing in anonymously: $e');
-  }
-
-  runApp(MyApp());
+  runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {
+  const MyApp({super.key});
   @override
   Widget build(BuildContext context) {
     return MultiProvider(
@@ -48,24 +39,18 @@ class MyApp extends StatelessWidget {
           useMaterial3: false,
           scaffoldBackgroundColor: kBgColor,
           fontFamily: 'Roboto',
-
-          // โทนสีหลักให้ใกล้กับหน้า Login/Register
           colorScheme: ColorScheme.fromSeed(
             seedColor: const Color(0xFFB08968),
             background: kBgColor,
             primary: Colors.brown,
           ),
-
           appBarTheme: const AppBarTheme(
             elevation: 0,
             centerTitle: true,
             backgroundColor: Colors.transparent,
             foregroundColor: Colors.brown,
           ),
-
           cardColor: Colors.white,
-
-          // ปุ่มหลักสไตล์เดียวกับหน้า Login/Register
           elevatedButtonTheme: ElevatedButtonThemeData(
             style: ElevatedButton.styleFrom(
               backgroundColor: kSurfaceCream,
@@ -79,8 +64,6 @@ class MyApp extends StatelessWidget {
               textStyle: const TextStyle(fontWeight: FontWeight.bold),
             ),
           ),
-
-          // ปุ่มขอบ (ใช้กับปุ่มยกเลิกได้ ถ้าต้องการ)
           outlinedButtonTheme: OutlinedButtonThemeData(
             style: OutlinedButton.styleFrom(
               backgroundColor: kCancelColor,
@@ -94,9 +77,53 @@ class MyApp extends StatelessWidget {
             ),
           ),
         ),
-        initialRoute: AppRoutes.mainPage,
+        home: const AuthGate(),
         onGenerateRoute: AppNavigator.onGenerateRoute,
       ),
+    );
+  }
+}
+
+class AuthGate extends StatefulWidget {
+  const AuthGate({super.key});
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  void _safeNavigate(String route) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      Navigator.pushNamedAndRemoveUntil(context, route, (_) => false);
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return StreamBuilder<User?>(
+      stream: FirebaseAuth.instance.authStateChanges(),
+      builder: (context, snap) {
+        if (snap.connectionState == ConnectionState.waiting) {
+          return const _Splash();
+        }
+        if (snap.hasData) {
+          _safeNavigate(AppRoutes.home);
+        } else {
+          _safeNavigate(AppRoutes.mainPage);
+        }
+        return const _Splash();
+      },
+    );
+  }
+}
+
+class _Splash extends StatelessWidget {
+  const _Splash();
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      body: Center(child: CircularProgressIndicator()),
+      backgroundColor: kBgColor,
     );
   }
 }
@@ -104,48 +131,39 @@ class MyApp extends StatelessWidget {
 class MainPage extends StatelessWidget {
   const MainPage({super.key});
 
+  Future<void> _enterAsGuest(BuildContext context) async {
+    try {
+      if (FirebaseAuth.instance.currentUser == null) {
+        await FirebaseAuth.instance.signInAnonymously();
+      }
+      // ignore: use_build_context_synchronously
+      Navigator.pushNamedAndRemoveUntil(context, AppRoutes.home, (_) => false);
+    } catch (e) {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ไม่สามารถเข้าแบบ Guest ได้')),
+      );
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      // สีพื้นหลังจะมาจาก Theme (kBgColor)
-      appBar: AppBar(
-        automaticallyImplyLeading: false,
-        title: const Text(''),
-      ),
+      appBar: AppBar(automaticallyImplyLeading: false, title: const Text('')),
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            // โลโก้
-            Image.asset(
-              'assets/images/doggy_logo.png',
-              width: 300,
-              height: 300,
-              fit: BoxFit.cover,
-            ),
+            Image.asset('assets/images/doggy_logo.png', width: 300, height: 300, fit: BoxFit.cover),
             const SizedBox(height: 20),
-
-            // ปุ่ม "เริ่มต้นใช้งาน" (สไตล์เดียวกับหน้า Login/Register จาก Theme)
             ElevatedButton(
-              onPressed: () {
-                Navigator.pushNamed(context, AppRoutes.home);
-              },
-              child: const Text(
-                'เริ่มต้นใช้งาน !',
-                style: TextStyle(fontSize: 18),
-              ),
+              onPressed: () => _enterAsGuest(context),
+              child: const Text('เริ่มต้นใช้งาน !', style: TextStyle(fontSize: 18)),
             ),
             const SizedBox(height: 15),
-
-            // ปุ่ม "เข้าสู่ระบบ"
             ElevatedButton(
-              onPressed: () {
-                Navigator.pushNamed(context, AppRoutes.login);
-              },
-              child: const Text(
-                'เข้าสู่ระบบ',
-                style: TextStyle(fontSize: 18),
-              ),
+              onPressed: () => Navigator.pushNamed(context, AppRoutes.login),
+              child: const Text('เข้าสู่ระบบ', style: TextStyle(fontSize: 18)),
             ),
           ],
         ),
