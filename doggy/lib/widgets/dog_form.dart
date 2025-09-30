@@ -1,0 +1,309 @@
+import 'dart:convert';
+import 'dart:io';
+
+import 'package:flutter/material.dart';
+import 'package:image_picker/image_picker.dart';
+
+class AppColors {
+  static const primary = Color(0xFFD2B48C); 
+  static const surface = Color(0xFFF7F3EF);
+  static const card = Colors.white;
+  static const text = Color(0xFF4A3C31);     
+  static const subtext = Color(0xFF7D6E65);   
+  static const border = Color(0xFFE5DED8);      
+  static const accent = Color(0xFF6D9C6D);      
+}
+
+
+class DogFormData {
+  final String name;
+  final int age; // ปี
+  final String gender;
+  final String breed;
+  final String? base64Image; // อาจเป็น null ถ้าไม่ได้เลือกรูป
+
+  DogFormData({
+    required this.name,
+    required this.age,
+    required this.gender,
+    required this.breed,
+    this.base64Image,
+  });
+}
+
+class DogForm extends StatefulWidget {
+  final String? initialName;
+  final int? initialAge;
+  final String? initialGender;
+  final String? initialBreed;
+  final String? initialBase64Image;
+
+  const DogForm({
+    super.key,
+    this.initialName,
+    this.initialAge,
+    this.initialGender,
+    this.initialBreed,
+    this.initialBase64Image,
+  });
+
+  @override
+  State<DogForm> createState() => DogFormState();
+}
+
+class DogFormState extends State<DogForm> {
+  final _formKey = GlobalKey<FormState>();
+  final _nameCtrl = TextEditingController();
+
+  int? _age; // 1..15
+  String? _gender; // เพศผู้/เพศเมีย
+  String? _breed;
+  String? _base64Image;
+  bool _showImageLoading = false;
+
+  final _picker = ImagePicker();
+
+  final List<int> _ages = List.generate(15, (i) => i + 1);
+  final List<String> _genders = const ['เพศผู้', 'เพศเมีย'];
+  final List<String> _breeds = const [
+    'ปอมเมอเรเนียน',
+    'ชิวาวา',
+    'โกลเด้น',
+    'ลาบราดอร์',
+  ];
+
+  @override
+  void initState() {
+    super.initState();
+    _nameCtrl.text = widget.initialName ?? '';
+    _age = widget.initialAge ?? 1;
+    _gender = _genders.contains(widget.initialGender) ? widget.initialGender : null;
+    _breed = _breeds.contains(widget.initialBreed) ? widget.initialBreed : null;
+    _base64Image = (widget.initialBase64Image ?? '').isNotEmpty ? widget.initialBase64Image : null;
+  }
+
+  @override
+  void dispose() {
+    _nameCtrl.dispose();
+    super.dispose();
+  }
+
+  bool validate() => _formKey.currentState?.validate() ?? false;
+
+  DogFormData getData() {
+    return DogFormData(
+      name: _nameCtrl.text.trim(),
+      age: _age ?? 1,
+      gender: _gender ?? '',
+      breed: _breed ?? '',
+      base64Image: _base64Image,
+    );
+  }
+
+  Future<void> _pickImage(ImageSource source) async {
+    setState(() => _showImageLoading = true);
+    try {
+      final picked = await _picker.pickImage(source: source, imageQuality: 80);
+      if (picked != null) {
+        final bytes = await File(picked.path).readAsBytes();
+        setState(() => _base64Image = base64Encode(bytes));
+      }
+    } finally {
+      if (mounted) setState(() => _showImageLoading = false);
+    }
+  }
+
+  void _showImagePickerSheet() {
+    showModalBottomSheet(
+      context: context,
+      showDragHandle: true,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => SafeArea(
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              ListTile(
+                leading: const Icon(Icons.photo_camera),
+                title: const Text('ถ่ายรูปด้วยกล้อง'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.camera);
+                },
+              ),
+              ListTile(
+                leading: const Icon(Icons.photo_library),
+                title: const Text('เลือกรูปจากแกลเลอรี'),
+                onTap: () {
+                  Navigator.pop(context);
+                  _pickImage(ImageSource.gallery);
+                },
+              ),
+              if (_base64Image != null)
+                ListTile(
+                  leading: const Icon(Icons.delete_outline),
+                  title: const Text('ลบรูปภาพ'),
+                  textColor: Colors.red,
+                  iconColor: Colors.red,
+                  onTap: () {
+                    Navigator.pop(context);
+                    setState(() => _base64Image = null);
+                  },
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  InputDecoration _decoration(String label, {String? hint}) {
+    return InputDecoration(
+      labelText: label,
+      hintText: hint,
+      filled: true,
+      fillColor: AppColors.card,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      enabledBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: AppColors.border),
+      ),
+      focusedBorder: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: const BorderSide(color: AppColors.primary, width: 2),
+      ),
+    );
+  }
+
+  Widget _imagePreview() {
+    Widget avatarChild;
+    if (_showImageLoading) {
+      avatarChild = const Center(child: CircularProgressIndicator());
+    } else if (_base64Image != null && _base64Image!.isNotEmpty) {
+      avatarChild = ClipRRect(
+        borderRadius: BorderRadius.circular(64),
+        child: Image.memory(
+          base64Decode(_base64Image!),
+          width: 128,
+          height: 128,
+          fit: BoxFit.cover,
+        ),
+      );
+    } else {
+      avatarChild = const Icon(Icons.pets, size: 56, color: AppColors.subtext);
+    }
+
+    return Stack(
+      children: [
+        Container(
+          width: 128,
+          height: 128,
+          decoration: const BoxDecoration(
+            color: AppColors.surface,
+            shape: BoxShape.circle,
+          ),
+          alignment: Alignment.center,
+          child: avatarChild,
+        ),
+        Positioned(
+          bottom: 0,
+          right: 0,
+          child: Material(
+            color: AppColors.primary,
+            shape: const CircleBorder(),
+            child: InkWell(
+              customBorder: const CircleBorder(),
+              onTap: _showImagePickerSheet,
+              child: const Padding(
+                padding: EdgeInsets.all(10),
+                child: Icon(Icons.edit, color: Colors.white, size: 20),
+              ),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final labelStyle = Theme.of(context).textTheme.titleMedium?.copyWith(
+          color: AppColors.text,
+          fontWeight: FontWeight.w600,
+        );
+
+    return Form(
+      key: _formKey,
+      child: Column(
+        children: [
+          const SizedBox(height: 8),
+          _imagePreview(),
+          const SizedBox(height: 20),
+
+          // ชื่อ
+          Align(alignment: Alignment.centerLeft, child: Text('ชื่อสุนัข', style: labelStyle)),
+          const SizedBox(height: 8),
+          TextFormField(
+            controller: _nameCtrl,
+            textInputAction: TextInputAction.next,
+            decoration: _decoration('ชื่อสุนัข', hint: 'เช่น โบโบ้'),
+            validator: (v) => (v == null || v.trim().isEmpty) ? 'กรุณากรอกชื่อสุนัข' : null,
+          ),
+          const SizedBox(height: 16),
+
+          // อายุ
+          Align(alignment: Alignment.centerLeft, child: Text('อายุ', style: labelStyle)),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<int>(
+            value: _age,
+            isExpanded: true,
+            items: _ages
+                .map((y) => DropdownMenuItem(value: y, child: Text('$y ปี')))
+                .toList(),
+            onChanged: (v) => setState(() => _age = v),
+            decoration: _decoration('อายุ'),
+          ),
+          const SizedBox(height: 16),
+
+          // เพศ
+          Align(alignment: Alignment.centerLeft, child: Text('เพศ', style: labelStyle)),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            value: _gender,
+            isExpanded: true,
+            items: _genders
+                .map((g) => DropdownMenuItem(value: g, child: Text(g)))
+                .toList(),
+            onChanged: (v) => setState(() => _gender = v),
+            decoration: _decoration('เพศ'),
+            validator: (v) => (v == null || v.isEmpty) ? 'กรุณาเลือกเพศ' : null,
+          ),
+          const SizedBox(height: 16),
+
+          // สายพันธุ์
+          Align(alignment: Alignment.centerLeft, child: Text('สายพันธุ์', style: labelStyle)),
+          const SizedBox(height: 8),
+          DropdownButtonFormField<String>(
+            value: _breed,
+            isExpanded: true,
+            items: _breeds
+                .map((b) => DropdownMenuItem(value: b, child: Text(b)))
+                .toList(),
+            onChanged: (v) => setState(() => _breed = v),
+            decoration: _decoration('สายพันธุ์'),
+            validator: (v) => (v == null || v.isEmpty) ? 'กรุณาเลือกสายพันธุ์' : null,
+          ),
+          const SizedBox(height: 8),
+        ],
+      ),
+    );
+  }
+}
