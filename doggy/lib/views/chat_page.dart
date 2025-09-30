@@ -40,10 +40,18 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
     super.dispose();
   }
 
+  // ⬇️ ครอบคลุม: คำสั่งปิดคีย์บอร์ด
+  void _closeKeyboard() {
+    FocusScope.of(context).unfocus();
+    // เผื่อบางรุ่นที่ดื้อ ๆ
+    FocusManager.instance.primaryFocus?.unfocus();
+  }
+
   void _sendMessage() async {
     final message = _messageController.text.trim();
     if (message.isEmpty) return;
 
+    _closeKeyboard();             // ⬅️ ปิดคีย์บอร์ดทันทีที่กดส่ง
     _messageController.clear();
 
     final chatProvider = context.read<ChatProvider>();
@@ -67,7 +75,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF3F6F8), // สีพื้นหลังเทาอ่อน
+      backgroundColor: const Color(0xFFF3F6F8),
       appBar: AppBar(
         title: Row(
           children: [
@@ -114,12 +122,8 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
             ),
           ],
         ),
-        backgroundColor: const Color(0xFFD2B48C), // สีน้ำตาล
+        backgroundColor: const Color(0xFFD2B48C),
         elevation: 0,
-        // leading: IconButton(
-        //   icon: const Icon(Icons.arrow_back, color: Colors.black),
-        //   onPressed: () => Navigator.pop(context),
-        // ),
         actions: [
           Consumer<ChatProvider>(
             builder: (context, chatProvider, child) {
@@ -142,8 +146,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                     value: 'new_session',
                     child: Row(
                       children: [
-                        Icon(Icons.add,
-                            size: 18, color: const Color(0xFF8B4513)),
+                        Icon(Icons.add, size: 18, color: const Color(0xFF8B4513)),
                         SizedBox(width: 8),
                         Text('สร้างการสนทนาใหม่',
                             style: TextStyle(color: const Color(0xFF8B4513))),
@@ -166,8 +169,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                       value: 'refresh',
                       child: Row(
                         children: [
-                          Icon(Icons.sync,
-                              size: 18, color: const Color(0xFF8B4513)),
+                          Icon(Icons.sync, size: 18, color: const Color(0xFF8B4513)),
                           SizedBox(width: 8),
                           Text('ลองเชื่อมต่อใหม่',
                               style: TextStyle(color: const Color(0xFF8B4513))),
@@ -181,82 +183,87 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
           ),
         ],
       ),
-      body: Column(
-        children: [
-          // แสดง error banner ถ้ามี
-          Consumer<ChatProvider>(
-            builder: (context, chatProvider, child) {
-              if (chatProvider.error != null) {
-                return Container(
-                  width: double.infinity,
-                  padding: EdgeInsets.all(12),
-                  color: Colors.red[50],
-                  child: Row(
-                    children: [
-                      Icon(Icons.error, color: Colors.red, size: 20),
-                      SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          chatProvider.error!,
-                          style:
-                              TextStyle(color: Colors.red[700], fontSize: 14),
-                        ),
-                      ),
-                      IconButton(
-                        icon: Icon(Icons.close, color: Colors.red, size: 18),
-                        onPressed: () => chatProvider.clearError(),
-                        padding: EdgeInsets.zero,
-                        constraints: BoxConstraints(),
-                      ),
-                    ],
-                  ),
-                );
-              }
-              return SizedBox.shrink();
-            },
-          ),
-
-          Expanded(
-            child: Consumer<ChatProvider>(
+      // ⬇️ ครอบ Column ด้วย GestureDetector เพื่อแตะที่ว่างแล้วปิดคีย์บอร์ด
+      body: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: _closeKeyboard,
+        child: Column(
+          children: [
+            // แสดง error banner ถ้ามี
+            Consumer<ChatProvider>(
               builder: (context, chatProvider, child) {
-                if (chatProvider.messages.isEmpty) {
-                  return _buildEmptyState();
+                if (chatProvider.error != null) {
+                  return Container(
+                    width: double.infinity,
+                    padding: EdgeInsets.all(12),
+                    color: Colors.red[50],
+                    child: Row(
+                      children: [
+                        Icon(Icons.error, color: Colors.red, size: 20),
+                        SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            chatProvider.error!,
+                            style: TextStyle(color: Colors.red[700], fontSize: 14),
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(Icons.close, color: Colors.red, size: 18),
+                          onPressed: () => chatProvider.clearError(),
+                          padding: EdgeInsets.zero,
+                          constraints: BoxConstraints(),
+                        ),
+                      ],
+                    ),
+                  );
                 }
-
-                return ListView.builder(
-                  controller: _scrollController,
-                  padding: EdgeInsets.all(16),
-                  itemCount: chatProvider.messages.length +
-                      (chatProvider.isLoading ? 1 : 0),
-                  itemBuilder: (context, index) {
-                    if (index == chatProvider.messages.length &&
-                        chatProvider.isLoading) {
-                      return _buildTypingIndicator();
-                    }
-
-                    final message = chatProvider.messages[index];
-                    return _buildMessageBubble(message);
-                  },
-                );
+                return SizedBox.shrink();
               },
             ),
-          ),
 
-          // Suggested questions
-          Consumer<ChatProvider>(
-            builder: (context, chatProvider, child) {
-              if (chatProvider.messages.length <= 1) {
-                return _buildSuggestedQuestions();
-              }
-              return SizedBox.shrink();
-            },
-          ),
+            Expanded(
+              child: Consumer<ChatProvider>(
+                builder: (context, chatProvider, child) {
+                  if (chatProvider.messages.isEmpty) {
+                    return _buildEmptyState();
+                  }
 
-          _buildMessageInput(),
-        ],
+                  return ListView.builder(
+                    controller: _scrollController,
+                    padding: EdgeInsets.all(16),
+                    keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag, // ⬅️ ลากเลื่อนแล้วคีย์บอร์ดหาย
+                    itemCount: chatProvider.messages.length +
+                        (chatProvider.isLoading ? 1 : 0),
+                    itemBuilder: (context, index) {
+                      if (index == chatProvider.messages.length &&
+                          chatProvider.isLoading) {
+                        return _buildTypingIndicator();
+                      }
+
+                      final message = chatProvider.messages[index];
+                      return _buildMessageBubble(message);
+                    },
+                  );
+                },
+              ),
+            ),
+
+            // Suggested questions
+            Consumer<ChatProvider>(
+              builder: (context, chatProvider, child) {
+                if (chatProvider.messages.length <= 1) {
+                  return _buildSuggestedQuestions();
+                }
+                return SizedBox.shrink();
+              },
+            ),
+
+            _buildMessageInput(),
+          ],
+        ),
       ),
       bottomNavigationBar: BottomNavBar(
-        currentIndex: 0, // หน้าหลัก
+        currentIndex: 0,
       ),
     );
   }
@@ -376,9 +383,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                           ),
                         ),
                 ),
-
                 SizedBox(height: 4),
-
                 Text(
                   DateFormat('HH:mm').format(message.timestamp),
                   style: TextStyle(
@@ -386,8 +391,6 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                     color: Colors.grey[500],
                   ),
                 ),
-
-                // Error indicator
                 if (message.status == MessageStatus.error)
                   Padding(
                     padding: EdgeInsets.only(top: 4),
@@ -502,6 +505,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
               ),
               onPressed: () {
                 _messageController.text = suggestions[index];
+                _closeKeyboard();   // ⬅️ ปิดคีย์บอร์ดด้วยเวลาใช้ชิป
                 _sendMessage();
               },
               backgroundColor: const Color(0xFFD2B48C).withOpacity(0.3),
@@ -529,7 +533,8 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                   color: const Color(0xFFF3F6F8),
                   borderRadius: BorderRadius.circular(25),
                   border: Border.all(
-                      color: const Color(0xFFD2B48C).withOpacity(0.3)),
+                    color: const Color(0xFFD2B48C).withOpacity(0.3),
+                  ),
                 ),
                 child: TextField(
                   controller: _messageController,
@@ -542,6 +547,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                     ),
                     hintStyle: TextStyle(color: Colors.grey[500]),
                   ),
+                  textInputAction: TextInputAction.send, // ⬅️ ปุ่ม Enter = ส่ง
                   onSubmitted: (_) => _sendMessage(),
                   maxLines: null,
                   textCapitalization: TextCapitalization.sentences,
@@ -559,9 +565,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                   child: IconButton(
                     onPressed: chatProvider.isLoading ? null : _sendMessage,
                     icon: Icon(
-                      chatProvider.isLoading
-                          ? Icons.hourglass_empty
-                          : Icons.send,
+                      chatProvider.isLoading ? Icons.hourglass_empty : Icons.send,
                       color: Colors.black,
                     ),
                   ),

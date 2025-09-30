@@ -72,7 +72,7 @@ class StepCard extends StatelessWidget {
           elevation: 0,
         ),
         child: Text(
-          saving ? 'กำลังบันทึก...' : 'ทำสำเร็จแล้ว',
+          saving ? 'กำลังบันทึก...' : 'บันทึกการฝึก',
           style: const TextStyle(fontWeight: FontWeight.bold),
         ),
       );
