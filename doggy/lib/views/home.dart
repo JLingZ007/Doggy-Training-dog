@@ -9,8 +9,7 @@ import '../widgets/slidebar.dart';
 import '../widgets/bottom_navbar.dart';
 import '../routes/app_routes.dart';
 import '../services/home_service.dart';
-import '../widgets/app_header.dart'; 
-
+import '../widgets/app_header.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -66,16 +65,15 @@ class _HomePageState extends State<HomePage> {
     final futures = <Future>[];
 
     if (user != null) {
-      futures.add(_withTimeout(_service.fetchDogProfileImage(user.uid), ms: 1200)
-          .then((v) => _dogImageRaw = v));
-      futures
-          .add(_withTimeout(_service.fetchContinueCourse(user.uid), ms: 1500)
-              .then((v) => _continueCourse = v));
+      futures.add(
+          _withTimeout(_service.fetchDogProfileImage(user.uid), ms: 1200)
+              .then((v) => _dogImageRaw = v));
+      futures.add(_withTimeout(_service.fetchContinueCourse(user.uid), ms: 1500)
+          .then((v) => _continueCourse = v));
     }
 
-    futures
-        .add(_withTimeout(_service.fetchFeaturedQuick(limit: 8), ms: 1800)
-            .then((v) => _featured = (v ?? [])));
+    futures.add(_withTimeout(_service.fetchFeaturedQuick(limit: 8), ms: 1800)
+        .then((v) => _featured = (v ?? [])));
 
     await Future.wait(futures);
 
@@ -87,7 +85,8 @@ class _HomePageState extends State<HomePage> {
 
     // 3) Lazy-load หมวดหมู่ภายหลัง (ลดแรงโหลดช่วงแรก)
     Future.delayed(const Duration(milliseconds: 500), () async {
-      final cats = await _withTimeout(_service.fetchCategoriesFast(limit: 6), ms: 1500);
+      final cats =
+          await _withTimeout(_service.fetchCategoriesFast(limit: 6), ms: 1500);
       if (!mounted) return;
       if (cats != null) {
         setState(() => _categories = cats);
@@ -129,12 +128,12 @@ class _HomePageState extends State<HomePage> {
     final user = _auth.currentUser;
 
     return Scaffold(
-  backgroundColor: const Color(0xFFFDF9F4),
-  appBar: AppHeader(
-    title: 'หน้าหลัก',   // ตั้งชื่อหัวข้อได้
-    backgroundColor: const Color(0xFFD2B48C),
-  ),
-      drawer: SlideBar(),
+      backgroundColor: const Color(0xFFFDF9F4),
+      appBar: AppHeader(
+        title: 'หน้าหลัก',
+        backgroundColor: Color(0xFFD2B48C),
+      ),
+      drawer: const SlideBar(),
       body: _loading
           ? const _HomeSkeleton()
           : RefreshIndicator(
@@ -145,11 +144,10 @@ class _HomePageState extends State<HomePage> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    // Greeting + Search
+                    // Greeting (เอาค้นหาออกแล้ว)
                     _GreetingRow(
                       userName: user?.displayName ?? 'นักฝึกสุนัข',
-                      onSearchTap: () =>
-                          Navigator.pushNamed(context, AppRoutes.courses),
+                      avatar: _dogAvatarImage(),
                     ),
                     const SizedBox(height: 14),
 
@@ -160,7 +158,8 @@ class _HomePageState extends State<HomePage> {
                           child: _QuickAction(
                             icon: Icons.play_circle_fill,
                             label: 'คอร์สของฉัน',
-                            onTap: () => Navigator.pushNamed(context, AppRoutes.myCourses),
+                            onTap: () => Navigator.pushNamed(
+                                context, AppRoutes.myCourses),
                           ),
                         ),
                         const SizedBox(width: 10),
@@ -168,7 +167,8 @@ class _HomePageState extends State<HomePage> {
                           child: _QuickAction(
                             icon: Icons.menu_book_rounded,
                             label: 'คอร์สทั้งหมด',
-                            onTap: () => Navigator.pushNamed(context, AppRoutes.courses),
+                            onTap: () =>
+                                Navigator.pushNamed(context, AppRoutes.courses),
                           ),
                         ),
                       ],
@@ -185,10 +185,14 @@ class _HomePageState extends State<HomePage> {
                         name: _continueCourse!['name'] ?? '',
                         image: _continueCourse!['image'] ?? '',
                         percent: (_continueCourse!['percent'] ?? 0) as int,
-                        currentStep: (_continueCourse!['currentStep'] ?? 1) as int,
-                        totalSteps: (_continueCourse!['totalSteps'] ?? 0) as int,
+                        currentStep:
+                            (_continueCourse!['currentStep'] ?? 1) as int,
+                        totalSteps:
+                            (_continueCourse!['totalSteps'] ?? 0) as int,
                         onResume: () {
-                          if ((_continueCourse!['categoryId'] ?? '').toString().isEmpty) return;
+                          if ((_continueCourse!['categoryId'] ?? '')
+                              .toString()
+                              .isEmpty) return;
                           Navigator.pushNamed(
                             context,
                             AppRoutes.trainingDetails,
@@ -202,7 +206,7 @@ class _HomePageState extends State<HomePage> {
                       const SizedBox(height: 18),
                     ],
 
-                    // Banner carousel (มีโอกาสมาเร็วสุด)
+                    // Banner carousel
                     if (_featured.isNotEmpty) ...[
                       _SectionTitle('คอร์สแนะนำสำหรับคุณ', onSeeAll: () {
                         Navigator.pushNamed(context, AppRoutes.courses);
@@ -213,7 +217,8 @@ class _HomePageState extends State<HomePage> {
                         child: PageView.builder(
                           controller: _pageController,
                           itemCount: _featured.length,
-                          onPageChanged: (i) => setState(() => _currentBanner = i),
+                          onPageChanged: (i) =>
+                              setState(() => _currentBanner = i),
                           itemBuilder: (_, i) {
                             final item = _featured[i];
                             return _BannerCard(
@@ -222,7 +227,9 @@ class _HomePageState extends State<HomePage> {
                               subtitle:
                                   'ความยาก: ${item['difficulty'] ?? '-'} • ${item['duration'] ?? '-'} นาที',
                               onTap: () {
-                                if ((item['categoryId'] ?? '').toString().isEmpty) return;
+                                if ((item['categoryId'] ?? '')
+                                    .toString()
+                                    .isEmpty) return;
                                 Navigator.pushNamed(
                                   context,
                                   AppRoutes.trainingDetails,
@@ -257,7 +264,8 @@ class _HomePageState extends State<HomePage> {
                         child: ListView.separated(
                           scrollDirection: Axis.horizontal,
                           itemCount: _categories.length,
-                          separatorBuilder: (_, __) => const SizedBox(width: 10),
+                          separatorBuilder: (_, __) =>
+                              const SizedBox(width: 10),
                           itemBuilder: (_, i) {
                             final c = _categories[i];
                             return _CategoryChip(
@@ -287,45 +295,38 @@ class _HomePageState extends State<HomePage> {
   }
 }
 
-// ===================== WIDGETS (เหมือนเดิม, เบา) =====================
+// ===================== WIDGETS =====================
 
 class _GreetingRow extends StatelessWidget {
   final String userName;
-  final VoidCallback onSearchTap;
+  final ImageProvider avatar;
   const _GreetingRow({
     required this.userName,
-    required this.onSearchTap,
+    required this.avatar,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        Text('สวัสดี, $userName 👋',
-            style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w800)),
-        const SizedBox(height: 6),
-        const Text('พร้อมฝึกน้องหมาวันนี้หรือยัง?', style: TextStyle(color: Colors.black54)),
-        const SizedBox(height: 12),
-        GestureDetector(
-          onTap: onSearchTap,
-          child: Container(
-            decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: const Color(0xFFE6D6C2)),
-            ),
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-            child: Row(
-              children: const [
-                Icon(Icons.search, color: Colors.black54),
-                SizedBox(width: 8),
-                Expanded(
-                  child: Text('ค้นหาคอร์ส เช่น นั่งคอย, เดินตาม',
-                      style: TextStyle(color: Colors.black54)),
-                ),
-              ],
-            ),
+        CircleAvatar(
+          radius: 26,
+          backgroundImage: avatar,
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text('สวัสดี, $userName 👋',
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                      fontSize: 20, fontWeight: FontWeight.w800)),
+              const SizedBox(height: 4),
+              const Text('พร้อมฝึกน้องหมาวันนี้หรือยัง?',
+                  style: TextStyle(color: Colors.black54)),
+            ],
           ),
         ),
       ],
@@ -337,7 +338,8 @@ class _QuickAction extends StatelessWidget {
   final IconData icon;
   final String label;
   final VoidCallback onTap;
-  const _QuickAction({required this.icon, required this.label, required this.onTap});
+  const _QuickAction(
+      {required this.icon, required this.label, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -427,7 +429,8 @@ class _ContinueCard extends StatelessWidget {
                   ),
                 ),
                 const SizedBox(height: 6),
-                Text('ความคืบหน้า $percent% • ขั้นที่ $currentStep / $totalSteps',
+                Text(
+                    'ความคืบหน้า $percent% • ขั้นที่ $currentStep / $totalSteps',
                     style: const TextStyle(fontSize: 12)),
               ],
             ),
@@ -439,9 +442,11 @@ class _ContinueCard extends StatelessWidget {
               backgroundColor: const Color(0xFFA4D6A7),
               foregroundColor: Colors.black,
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+              shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(12)),
             ),
-            child: const Text('เรียนต่อ', style: TextStyle(fontWeight: FontWeight.bold)),
+            child: const Text('เรียนต่อ',
+                style: TextStyle(fontWeight: FontWeight.bold)),
           ),
         ],
       ),
@@ -461,7 +466,8 @@ class _CategoryChip extends StatelessWidget {
   final String name;
   final String image;
   final VoidCallback onTap;
-  const _CategoryChip({required this.name, required this.image, required this.onTap});
+  const _CategoryChip(
+      {required this.name, required this.image, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -554,7 +560,8 @@ class _BannerCard extends StatelessWidget {
                   ? Image.network(
                       image,
                       fit: BoxFit.cover,
-                      errorBuilder: (_, __, ___) => Container(color: const Color(0xFFEFEFEF)),
+                      errorBuilder: (_, __, ___) =>
+                          Container(color: const Color(0xFFEFEFEF)),
                     )
                   : Container(color: const Color(0xFFEFEFEF)),
               Positioned(
@@ -641,8 +648,9 @@ class _SectionTitle extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 4.0),
       child: Row(
-        mainAxisAlignment:
-            hasSeeAll ? MainAxisAlignment.spaceBetween : MainAxisAlignment.start,
+        mainAxisAlignment: hasSeeAll
+            ? MainAxisAlignment.spaceBetween
+            : MainAxisAlignment.start,
         children: [
           Text(
             title,
@@ -670,7 +678,7 @@ class _SectionTitle extends StatelessWidget {
   }
 }
 
-// =============== Skeleton (คงไว้) ===============
+// =============== Skeleton (เอาแถบค้นหาออกแล้ว) ===============
 
 class _HomeSkeleton extends StatelessWidget {
   const _HomeSkeleton();
@@ -694,14 +702,6 @@ class _HomeSkeleton extends StatelessWidget {
           bar(h: 22, w: 180),
           const SizedBox(height: 10),
           bar(w: 220),
-          const SizedBox(height: 12),
-          Container(
-            height: 44,
-            decoration: BoxDecoration(
-              color: const Color(0xFFEFEFEF),
-              borderRadius: BorderRadius.circular(12),
-            ),
-          ),
           const SizedBox(height: 16),
           Row(
             children: [
