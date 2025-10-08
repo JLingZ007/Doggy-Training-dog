@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+// ** Import ที่เพิ่มเข้ามา **
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+
 import 'routes/app_navigator.dart';
 import 'routes/app_routes.dart';
 import 'firebase_options.dart';
-import 'package:firebase_core/firebase_core.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+
 import 'services/chat_provider.dart';
 import 'providers/community_provider.dart';
+
 
 /// === Palette ให้เหมือนหน้า Login/Register ===
 const kBgColor = Color(0xFFF7EFE7);
@@ -17,6 +22,12 @@ const kBorder = Colors.black87;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  // ==========================================================
+  // ** เพิ่ม: โหลดไฟล์ .env ก่อนการใช้งาน Firebase **
+  // ==========================================================
+  await dotenv.load(fileName: ".env");
+
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );

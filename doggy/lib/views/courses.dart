@@ -24,7 +24,7 @@ class CoursesPage extends StatelessWidget {
       docs.sort((a, b) => (a['order'] ?? 999).compareTo(b['order'] ?? 999));
       return docs;
     } catch (e) {
-      throw Exception('Failed to fetch categories: $e');
+      throw Exception('Failed to fetch categories: $e'); 
     }
   }
 
@@ -59,7 +59,8 @@ class CoursesPage extends StatelessWidget {
 
           // เรียงแบบ 1 แถวต่อการ์ด (compact horizontal card)
           return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+            // แก้ไขปัญหา Overflow #1: เพิ่ม padding ด้านล่างเป็น 80.0
+            padding: const EdgeInsets.fromLTRB(12, 12, 12, 80), 
             itemCount: categories.length,
             separatorBuilder: (_, __) => const SizedBox(height: 10),
             itemBuilder: (context, i) {
@@ -86,7 +87,9 @@ class CoursesPage extends StatelessWidget {
   }
 }
 
+// ===================================================================
 // =============== Compact Horizontal Card (1 แถว/การ์ด) ===============
+// ===================================================================
 
 class _CategoryRowCard extends StatelessWidget {
   final String id;
@@ -115,7 +118,8 @@ class _CategoryRowCard extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(14),
         child: Container(
-          height: 110, // กะทัดรัดลง
+          // **แก้ไข Overflow #2: เพิ่มความสูงจาก 110 เป็น 114 เพื่อแก้ปัญหา RenderFlex overflow ใน Column ภายใน**
+          height: 114, 
           decoration: BoxDecoration(
             border: Border.all(color: tan.withOpacity(0.35), width: 1),
             borderRadius: BorderRadius.circular(14),
@@ -253,7 +257,9 @@ class _CategoryRowCard extends StatelessWidget {
   }
 }
 
+// ===================================================================
 // =============== Skeleton แบบ List (โหลดครั้งแรก) ===============
+// ===================================================================
 
 class _ListSkeleton extends StatelessWidget {
   const _ListSkeleton();
@@ -261,7 +267,8 @@ class _ListSkeleton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return ListView.separated(
-      padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
+      // ใช้ padding 80 เหมือนกัน
+      padding: const EdgeInsets.fromLTRB(12, 12, 12, 80), 
       itemCount: 3,
       separatorBuilder: (_, __) => const SizedBox(height: 10),
       itemBuilder: (_, __) => _SkeletonRow(),
@@ -274,7 +281,8 @@ class _SkeletonRow extends StatelessWidget {
   Widget build(BuildContext context) {
     const tan = Color(0xFFD2B48C);
     return Container(
-      height: 110,
+      // **แก้ไข Overflow #2: ใช้ความสูง 114 เหมือน Card จริง**
+      height: 114, 
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(14),
