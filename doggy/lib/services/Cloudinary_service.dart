@@ -4,19 +4,18 @@ import 'dart:typed_data';
 import 'package:http/http.dart' as http;
 import 'package:image_picker/image_picker.dart';
 import 'package:crypto/crypto.dart';
-
-// Import Enhanced ImageHandler ที่เราสร้าง
 import 'enhanced_image_handler_service.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
 
 class CloudinaryService {
   // ค่าต่างๆ จาก Cloudinary Dashboard
-  static const String cloudName = 'duyhqyjjo';
-  static const String apiKey = '243279538533494';
-  static const String apiSecret = 'FZC1FO0pBpEwV7nFJSczRGfCJCs';
-  
-  static const String baseUrl = 'https://api.cloudinary.com/v1_1';
-  static const String imageUploadUrl = '$baseUrl/$cloudName/image/upload';
-  static const String videoUploadUrl = '$baseUrl/$cloudName/video/upload';
+  static String cloudName = dotenv.env['CLOUDINARY_CLOUD_NAME']!;
+  static String apiKey = dotenv.env['CLOUDINARY_API_KEY']!;
+  static String apiSecret = dotenv.env['CLOUDINARY_API_SECRET']!;
+
+  static String baseUrl = 'https://api.cloudinary.com/v1_1';
+  static String imageUploadUrl = '$baseUrl/$cloudName/image/upload';
+  static String videoUploadUrl = '$baseUrl/$cloudName/video/upload';
 
   /// อัปโหลดรูปภาพไป Cloudinary พร้อมการประมวลผล HEIC ขั้นสูง
   static Future<Map<String, dynamic>> uploadImage({
