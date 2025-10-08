@@ -2,7 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 
-import '../widgets/dog_form.dart'; // ใช้ AppColors + DogForm
+import '../widgets/dog_form.dart';
+
 
 class AddDogPage extends StatefulWidget {
   const AddDogPage({super.key});
@@ -12,6 +13,7 @@ class AddDogPage extends StatefulWidget {
 }
 
 class _AddDogPageState extends State<AddDogPage> {
+  // ใช้ GlobalKey ที่มี DogFormState เพื่อเรียกใช้ method ภายใน State นั้นได้
   final _formKey = GlobalKey<DogFormState>();
   final _auth = FirebaseAuth.instance;
   final _firestore = FirebaseFirestore.instance;
@@ -23,10 +25,12 @@ class _AddDogPageState extends State<AddDogPage> {
     if (form == null) return;
 
     FocusScope.of(context).unfocus();
+    // เรียกใช้ `validate` จาก DogFormState
     if (!form.validate()) return;
 
     setState(() => _saving = true);
     try {
+      // เรียกใช้ `getData` จาก DogFormState
       final data = form.getData();
       final user = _auth.currentUser;
       if (user == null) {
@@ -40,7 +44,7 @@ class _AddDogPageState extends State<AddDogPage> {
           .collection('dogs')
           .add({
         'name': data.name,
-        'age': data.age, // เก็บเป็น int
+        'age': data.age,
         'gender': data.gender,
         'breed': data.breed,
         'image': data.base64Image ?? '',
@@ -71,6 +75,7 @@ class _AddDogPageState extends State<AddDogPage> {
   }
 
   void _showSnack(String msg) {
+    if (!mounted) return;
     ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
   }
 
@@ -79,7 +84,7 @@ class _AddDogPageState extends State<AddDogPage> {
       title: const Text('เพิ่มข้อมูลสุนัข'),
       centerTitle: true,
       elevation: 0,
-      backgroundColor: AppColors.primary, // น้ำตาลหลัก
+      backgroundColor: AppColors.primary,
       foregroundColor: Colors.white,
     );
   }
@@ -88,21 +93,22 @@ class _AddDogPageState extends State<AddDogPage> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: _appBar(),
-      backgroundColor: AppColors.surface, // ครีมอ่อน
+      backgroundColor: AppColors.surface,
       body: SafeArea(
         child: ListView(
           padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
           children: [
             Card(
-              color: AppColors.card, // ขาว
+              color: AppColors.card,
               elevation: 0,
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(20),
                 side: BorderSide(color: AppColors.border),
               ),
-              child: const Padding(
-                padding: EdgeInsets.all(16),
-                child: DogForm(),
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                // ใช้ DogForm widget และส่ง key เข้าไป
+                child: DogForm(key: _formKey),
               ),
             ),
             const SizedBox(height: 16),
@@ -126,8 +132,7 @@ class _AddDogPageState extends State<AddDogPage> {
                     )
                   : const Text(
                       'บันทึกข้อมูล',
-                      style:
-                          TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+                      style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                     ),
             ),
           ],

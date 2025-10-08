@@ -1,5 +1,4 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -8,8 +7,10 @@ import 'add_dog.dart';
 import 'edit_dog_profile.dart';
 
 class DogProfilesPage extends StatefulWidget {
+  const DogProfilesPage({super.key});
+
   @override
-  _DogProfilesPageState createState() => _DogProfilesPageState();
+  State<DogProfilesPage> createState() => _DogProfilesPageState();
 }
 
 class _DogProfilesPageState extends State<DogProfilesPage> {
@@ -17,23 +18,60 @@ class _DogProfilesPageState extends State<DogProfilesPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final UserService _userService = UserService();
 
+  // แสดง Modal เพื่อยืนยันการลบ
+  Future<void> _showDeleteConfirmationDialog(String docId, String dogName) async {
+    final bool? confirmed = await showDialog<bool>(
+      context: context,
+      builder: (BuildContext context) {
+        return AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+          title: const Text('ยืนยันการลบ'),
+          content: Text('คุณต้องการลบโปรไฟล์ของ "$dogName" ใช่หรือไม่?\nการกระทำนี้ไม่สามารถย้อนกลับได้'),
+          actions: <Widget>[
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false), // ตอบกลับว่าไม่ยืนยัน
+              child: const Text('ยกเลิก'),
+            ),
+            TextButton(
+              style: TextButton.styleFrom(foregroundColor: Colors.red),
+              onPressed: () => Navigator.of(context).pop(true), // ตอบกลับว่ายืนยัน
+              child: const Text('ลบ'),
+            ),
+          ],
+        );
+      },
+    );
+
+    // ถ้าผู้ใช้กดยืนยัน (confirmed == true) ให้ทำการลบ
+    if (confirmed == true) {
+      await _deleteDogProfile(docId);
+    }
+  }
+
   // ลบโปรไฟล์สุนัข (ถ้าตัวที่ลบเป็นตัว active ให้เคลียร์ activeDogId)
   Future<void> _deleteDogProfile(String docId) async {
     final user = _auth.currentUser;
     if (user == null) return;
 
-    await _firestore
-        .collection('users')
-        .doc(user.uid)
-        .collection('dogs')
-        .doc(docId)
-        .delete();
+    try {
+      await _firestore
+          .collection('users')
+          .doc(user.uid)
+          .collection('dogs')
+          .doc(docId)
+          .delete();
 
-    await _userService.clearActiveDogIfDeleted(docId);
-    if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('ลบโปรไฟล์สุนัขแล้ว')),
-    );
+      await _userService.clearActiveDogIfDeleted(docId);
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('ลบโปรไฟล์สุนัขแล้ว')),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('เกิดข้อผิดพลาด: $e')),
+      );
+    }
   }
 
   // แปลงข้อมูล image เป็น ImageProvider
@@ -176,7 +214,9 @@ class _DogProfilesPageState extends State<DogProfilesPage> {
                                             ),
                                           );
                                         } else if (val == 'delete') {
-                                          await _deleteDogProfile(dogId);
+                                          // เปลี่ยนจากการลบตรงๆ เป็นการเรียก Modal
+                                          final dogName = data['name'] ?? 'สุนัขตัวนี้';
+                                          await _showDeleteConfirmationDialog(dogId, dogName);
                                         }
                                       },
                                       itemBuilder: (context) => [
@@ -199,7 +239,7 @@ class _DogProfilesPageState extends State<DogProfilesPage> {
                                           value: 'delete',
                                           child: ListTile(
                                             leading: Icon(Icons.delete, color: Colors.red),
-                                            title: Text('ลบ'),
+                                            title: Text('ลบ', style: TextStyle(color: Colors.red)),
                                           ),
                                         ),
                                       ],
@@ -224,7 +264,7 @@ class _DogProfilesPageState extends State<DogProfilesPage> {
                     onPressed: () {
                       Navigator.push(
                         context,
-                        MaterialPageRoute(builder: (context) => AddDogPage()),
+                        MaterialPageRoute(builder: (context) => const AddDogPage()),
                       );
                     },
                     style: ElevatedButton.styleFrom(

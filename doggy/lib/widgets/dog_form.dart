@@ -1,26 +1,26 @@
 import 'dart:convert';
 import 'dart:io';
-
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 
+// สีถูกย้ายมารวมในไฟล์นี้
 class AppColors {
-  static const primary = Color(0xFFD2B48C); 
-  static const surface = Color(0xFFF7F3EF);
-  static const card = Colors.white;
-  static const text = Color(0xFF4A3C31);     
-  static const subtext = Color(0xFF7D6E65);   
-  static const border = Color(0xFFE5DED8);      
-  static const accent = Color(0xFF6D9C6D);      
+  static const Color primary = Color(0xFFD2B48C); // Tan
+  static const Color surface = Color(0xFFF7F3EF);
+  static const Color card = Colors.white;
+  static const Color text = Color(0xFF4A3C31);
+  static const Color subtext = Color(0xFF7D6E65);
+  static const Color border = Color(0xFFE5DED8);
+  static const Color accent = Color(0xFF6D9C6D);
 }
 
-
+// Data class สำหรับเก็บข้อมูลจากฟอร์ม
 class DogFormData {
   final String name;
-  final int age; // ปี
+  final int age;
   final String gender;
   final String breed;
-  final String? base64Image; // อาจเป็น null ถ้าไม่ได้เลือกรูป
+  final String? base64Image;
 
   DogFormData({
     required this.name,
@@ -32,6 +32,7 @@ class DogFormData {
 }
 
 class DogForm extends StatefulWidget {
+  // เพิ่ม initial values สำหรับการแก้ไขข้อมูล
   final String? initialName;
   final int? initialAge;
   final String? initialGender;
@@ -48,28 +49,33 @@ class DogForm extends StatefulWidget {
   });
 
   @override
-  State<DogForm> createState() => DogFormState();
+  // ทำให้ State เป็น public เพื่อให้ page ภายนอกเข้าถึงได้
+  DogFormState createState() => DogFormState();
 }
 
 class DogFormState extends State<DogForm> {
   final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
+  final _customBreedCtrl = TextEditingController();
 
-  int? _age; // 1..15
-  String? _gender; // เพศผู้/เพศเมีย
+  int? _age;
+  String? _gender;
   String? _breed;
   String? _base64Image;
   bool _showImageLoading = false;
+  bool _showCustomBreedField = false;
 
   final _picker = ImagePicker();
 
-  final List<int> _ages = List.generate(15, (i) => i + 1);
+  final List<int> _ages = List.generate(20, (i) => i + 1); // อายุ 1-20 ปี
   final List<String> _genders = const ['เพศผู้', 'เพศเมีย'];
-  final List<String> _breeds = const [
-    'ปอมเมอเรเนียน',
-    'ชิวาวา',
-    'โกลเด้น',
-    'ลาบราดอร์',
+  // รายการสายพันธุ์สุนัขที่นิยมในไทย (จากเวอร์ชันก่อนหน้า)
+  final List<String> _dogBreeds = const [
+    'ไทยบางแก้ว', 'ไทยหลังอาน', 'ปอมเมอเรเนียน', 'ชิวาวา', 'ไซบีเรียน ฮัสกี้',
+    'โกลเด้น รีทรีฟเวอร์', 'พุดเดิ้ล', 'ชิสุ', 'บีเกิ้ล', 'คอร์กี้',
+    'เฟรนช์ บูลด็อก', 'ปั๊ก', 'เยอรมันเชพเพิร์ด', 'ลาบราดอร์ รีทรีฟเวอร์',
+    'แจ็ค รัสเซลล์ เทอร์เรีย', 'ยอร์คเชียร์ เทอร์เรีย', 'มอลทีส', 'ซามอยด์',
+    'พันธุ์ผสม / พันทาง', 'อื่นๆ (ระบุเอง)',
   ];
 
   @override
@@ -78,32 +84,51 @@ class DogFormState extends State<DogForm> {
     _nameCtrl.text = widget.initialName ?? '';
     _age = widget.initialAge ?? 1;
     _gender = _genders.contains(widget.initialGender) ? widget.initialGender : null;
-    _breed = _breeds.contains(widget.initialBreed) ? widget.initialBreed : null;
     _base64Image = (widget.initialBase64Image ?? '').isNotEmpty ? widget.initialBase64Image : null;
+
+    // ตั้งค่าสายพันธุ์เริ่มต้น
+    if (widget.initialBreed != null) {
+      if (_dogBreeds.contains(widget.initialBreed)) {
+        _breed = widget.initialBreed;
+        if (_breed == 'อื่นๆ (ระบุเอง)') {
+          _showCustomBreedField = true;
+          // ในกรณีแก้ไข ควรมีค่า custom breed มาด้วย แต่โค้ดนี้ไม่ได้ส่งมา
+        }
+      } else {
+        // ถ้าสายพันธุ์ที่เคยบันทึกไว้ไม่อยู่ใน list ให้ตั้งเป็น "อื่นๆ"
+        _breed = 'อื่นๆ (ระบุเอง)';
+        _showCustomBreedField = true;
+        _customBreedCtrl.text = widget.initialBreed!;
+      }
+    }
   }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _customBreedCtrl.dispose();
     super.dispose();
   }
 
+  // --- Public methods ---
   bool validate() => _formKey.currentState?.validate() ?? false;
 
   DogFormData getData() {
+    final breedValue = _showCustomBreedField ? _customBreedCtrl.text.trim() : _breed;
     return DogFormData(
       name: _nameCtrl.text.trim(),
       age: _age ?? 1,
       gender: _gender ?? '',
-      breed: _breed ?? '',
+      breed: breedValue ?? '',
       base64Image: _base64Image,
     );
   }
+  // --------------------
 
   Future<void> _pickImage(ImageSource source) async {
     setState(() => _showImageLoading = true);
     try {
-      final picked = await _picker.pickImage(source: source, imageQuality: 80);
+      final picked = await _picker.pickImage(source: source, imageQuality: 80, maxWidth: 800);
       if (picked != null) {
         final bytes = await File(picked.path).readAsBytes();
         setState(() => _base64Image = base64Encode(bytes));
@@ -294,14 +319,38 @@ class DogFormState extends State<DogForm> {
           DropdownButtonFormField<String>(
             value: _breed,
             isExpanded: true,
-            items: _breeds
-                .map((b) => DropdownMenuItem(value: b, child: Text(b)))
+            items: _dogBreeds
+                .map((b) => DropdownMenuItem(value: b, child: Text(b, overflow: TextOverflow.ellipsis)))
                 .toList(),
-            onChanged: (v) => setState(() => _breed = v),
+            onChanged: (v) {
+              setState(() {
+                _breed = v;
+                _showCustomBreedField = (v == 'อื่นๆ (ระบุเอง)');
+                if (!_showCustomBreedField) {
+                  _customBreedCtrl.clear();
+                }
+              });
+            },
             decoration: _decoration('สายพันธุ์'),
             validator: (v) => (v == null || v.isEmpty) ? 'กรุณาเลือกสายพันธุ์' : null,
           ),
           const SizedBox(height: 8),
+
+          // ช่องกรอกสายพันธุ์เอง
+          if (_showCustomBreedField) ...[
+            const SizedBox(height: 8),
+            TextFormField(
+              controller: _customBreedCtrl,
+              decoration: _decoration('ระบุสายพันธุ์'),
+              validator: (v) {
+                if (_showCustomBreedField && (v == null || v.trim().isEmpty)) {
+                  return 'กรุณาระบุสายพันธุ์';
+                }
+                return null;
+              },
+            ),
+            const SizedBox(height: 8),
+          ],
         ],
       ),
     );

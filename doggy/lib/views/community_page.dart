@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+
 import '../providers/community_provider.dart';
 import '../models/community_models.dart';
 import '../widgets/bottom_navbar.dart';
 import 'group_detail_page.dart';
 import '../widgets/community_widgets/community_widgets.dart';
+import '../widgets/community_widgets/edit_group_dialog.dart';
 
 class CommunityPage extends StatefulWidget {
   const CommunityPage({super.key});
@@ -17,7 +19,6 @@ class _CommunityPageState extends State<CommunityPage>
     with TickerProviderStateMixin {
   late TabController _tabController;
 
-  // โทนสีหลักของแอป
   static const Color _tan = Color(0xFFD2B48C);
   static const Color _brown = Color(0xFF8B4513);
 
@@ -26,7 +27,6 @@ class _CommunityPageState extends State<CommunityPage>
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
 
-    // เริ่มโหลดข้อมูลแบบ realtime
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final provider = context.read<CommunityProvider>();
       provider.loadAllGroups();
@@ -40,7 +40,6 @@ class _CommunityPageState extends State<CommunityPage>
     super.dispose();
   }
 
-  // ===================== Scaffold =====================
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -62,10 +61,7 @@ class _CommunityPageState extends State<CommunityPage>
             gradient: LinearGradient(
               begin: Alignment.topCenter,
               end: Alignment.bottomCenter,
-              colors: [
-                _tan,
-                _tan.withOpacity(0.9),
-              ],
+              colors: [_tan, _tan.withOpacity(0.9)],
             ),
           ),
         ),
@@ -74,8 +70,7 @@ class _CommunityPageState extends State<CommunityPage>
           child: Container(
             decoration: BoxDecoration(
               color: Colors.white,
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(20)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(20)),
               boxShadow: [
                 BoxShadow(
                   color: Colors.black.withOpacity(0.05),
@@ -91,19 +86,12 @@ class _CommunityPageState extends State<CommunityPage>
               indicatorColor: _brown,
               indicatorWeight: 3,
               indicatorSize: TabBarIndicatorSize.label,
-              labelStyle:
-                  const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+              labelStyle: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
               unselectedLabelStyle:
                   const TextStyle(fontWeight: FontWeight.w500, fontSize: 15),
               tabs: const [
-                Tab(
-                    child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Text('กลุ่มของฉัน'))),
-                Tab(
-                    child: Padding(
-                        padding: EdgeInsets.symmetric(vertical: 12),
-                        child: Text('ค้นพบกลุ่ม'))),
+                Tab(child: Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text('กลุ่มของฉัน'))),
+                Tab(child: Padding(padding: EdgeInsets.symmetric(vertical: 12), child: Text('ค้นพบกลุ่ม'))),
               ],
             ),
           ),
@@ -146,19 +134,16 @@ class _CommunityPageState extends State<CommunityPage>
     );
   }
 
-  // ===================== Tabs =====================
-
+  // ---------------- Tabs ----------------
   Widget _buildUserGroupsTab() {
     return Consumer<CommunityProvider>(
       builder: (context, provider, _) {
         if (provider.isLoading && provider.userGroups.isEmpty) {
-          return _LoadingState(text: 'กำลังโหลดกลุ่มของคุณ...');
+          return const _LoadingState(text: 'กำลังโหลดกลุ่มของคุณ...');
         }
-
         if (provider.userGroups.isEmpty && !provider.isLoading) {
           return _buildEmptyUserGroups();
         }
-
         return RefreshIndicator(
           onRefresh: () async => provider.refreshAll(),
           color: _tan,
@@ -179,9 +164,8 @@ class _CommunityPageState extends State<CommunityPage>
     return Consumer<CommunityProvider>(
       builder: (context, provider, _) {
         if (provider.isLoading && provider.allGroups.isEmpty) {
-          return _LoadingState(text: 'กำลังโหลดกลุ่มทั้งหมด...');
+          return const _LoadingState(text: 'กำลังโหลดกลุ่มทั้งหมด...');
         }
-
         if (provider.allGroups.isEmpty && !provider.isLoading) {
           return Center(
             child: Padding(
@@ -189,20 +173,16 @@ class _CommunityPageState extends State<CommunityPage>
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.groups_outlined,
-                      size: 80, color: Colors.grey[400]),
+                  Icon(Icons.groups_outlined, size: 80, color: Colors.grey[400]),
                   const SizedBox(height: 16),
-                  Text('ยังไม่มีกลุ่มในระบบ',
-                      style: TextStyle(fontSize: 18, color: Colors.grey[600])),
+                  Text('ยังไม่มีกลุ่มในระบบ', style: TextStyle(fontSize: 18, color: Colors.grey[600])),
                   const SizedBox(height: 8),
-                  Text('เป็นคนแรกที่สร้างกลุ่ม!',
-                      style: TextStyle(color: Colors.grey[500])),
+                  Text('เป็นคนแรกที่สร้างกลุ่ม!', style: TextStyle(color: Colors.grey[500])),
                 ],
               ),
             ),
           );
         }
-
         return RefreshIndicator(
           onRefresh: () async => provider.refreshAll(),
           color: _tan,
@@ -220,8 +200,7 @@ class _CommunityPageState extends State<CommunityPage>
     );
   }
 
-  // ===================== Group Card =====================
-
+  // ---------------- Group Card ----------------
   Widget _buildGroupCard(CommunityGroup group, {required bool isJoined}) {
     return Container(
       margin: const EdgeInsets.only(bottom: 14),
@@ -245,23 +224,21 @@ class _CommunityPageState extends State<CommunityPage>
           children: [
             // Cover
             ClipRRect(
-              borderRadius:
-                  const BorderRadius.vertical(top: Radius.circular(16)),
+              borderRadius: const BorderRadius.vertical(top: Radius.circular(16)),
               child: Stack(
                 children: [
                   SizedBox(
                     height: 160,
                     width: double.infinity,
-                    child: (group.coverImage != null &&
-                            group.coverImage!.isNotEmpty)
+                    child: (group.coverImageUrl != null && group.coverImageUrl!.isNotEmpty)
                         ? Image.network(
-                            group.coverImage!,
+                            group.coverImageUrl!,
                             fit: BoxFit.cover,
                             errorBuilder: (_, __, ___) => _buildDefaultCover(),
                           )
                         : _buildDefaultCover(),
                   ),
-                  // Gradient ด้านล่าง
+                  // gradient bottom
                   Positioned.fill(
                     child: IgnorePointer(
                       child: DecoratedBox(
@@ -269,16 +246,13 @@ class _CommunityPageState extends State<CommunityPage>
                           gradient: LinearGradient(
                             begin: Alignment.bottomCenter,
                             end: Alignment.center,
-                            colors: [
-                              Colors.black.withOpacity(0.55),
-                              Colors.transparent
-                            ],
+                            colors: [Colors.black.withOpacity(0.55), Colors.transparent],
                           ),
                         ),
                       ),
                     ),
                   ),
-                  // ชื่อกลุ่ม + สมาชิก + badge
+                  // title + members + badge + owner menu
                   Positioned(
                     left: 12,
                     right: 12,
@@ -286,8 +260,7 @@ class _CommunityPageState extends State<CommunityPage>
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
-                        _InitialAvatar(
-                            text: group.name, size: 36, bg: _tan, fg: _brown),
+                        _InitialAvatar(text: group.name, size: 36, bg: _tan, fg: _brown),
                         const SizedBox(width: 10),
                         Expanded(
                           child: Column(
@@ -307,8 +280,7 @@ class _CommunityPageState extends State<CommunityPage>
                               const SizedBox(height: 2),
                               Row(
                                 children: [
-                                  const Icon(Icons.people,
-                                      size: 14, color: Colors.white70),
+                                  const Icon(Icons.people, size: 14, color: Colors.white70),
                                   const SizedBox(width: 4),
                                   Text(
                                     '${group.memberCount} สมาชิก',
@@ -323,6 +295,49 @@ class _CommunityPageState extends State<CommunityPage>
                             ],
                           ),
                         ),
+
+                        // Owner menu
+                        Consumer<CommunityProvider>(
+                          builder: (context, provider, _) {
+                            final currentUserId = provider.communityService.currentUserId;
+                            final isOwner = (currentUserId != null && group.createdBy == currentUserId);
+                            if (!isOwner) return const SizedBox.shrink();
+
+                            return PopupMenuButton<_OwnerAction>(
+                              tooltip: 'ตัวเลือกเจ้าของกลุ่ม',
+                              icon: const Icon(Icons.more_vert, color: Colors.white),
+                              onSelected: (action) {
+                                switch (action) {
+                                  case _OwnerAction.edit:
+                                    _editGroup(group);
+                                    break;
+                                  case _OwnerAction.delete:
+                                    _deleteGroup(group);
+                                    break;
+                                }
+                              },
+                              itemBuilder: (ctx) => const [
+                                PopupMenuItem(
+                                  value: _OwnerAction.edit,
+                                  child: ListTile(
+                                    dense: true,
+                                    leading: Icon(Icons.edit),
+                                    title: Text('แก้ไขกลุ่ม'),
+                                  ),
+                                ),
+                                PopupMenuItem(
+                                  value: _OwnerAction.delete,
+                                  child: ListTile(
+                                    dense: true,
+                                    leading: Icon(Icons.delete, color: Colors.red),
+                                    title: Text('ลบกลุ่ม', style: TextStyle(color: Colors.red)),
+                                  ),
+                                ),
+                              ],
+                            );
+                          },
+                        ),
+
                         if (isJoined)
                           _GlassBadge(
                             text: 'เข้าร่วมแล้ว',
@@ -336,7 +351,7 @@ class _CommunityPageState extends State<CommunityPage>
               ),
             ),
 
-            // เนื้อหา
+            // Body
             Padding(
               padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
               child: Column(
@@ -366,13 +381,9 @@ class _CommunityPageState extends State<CommunityPage>
                   if (group.tags.isNotEmpty) const SizedBox(height: 12),
                   Row(
                     children: [
-                      _StatChip(
-                          icon: Icons.article,
-                          label: '${group.postCount} โพสต์'),
+                      _StatChip(icon: Icons.article, label: '${group.postCount} โพสต์'),
                       const SizedBox(width: 10),
-                      _StatChip(
-                          icon: Icons.people_alt,
-                          label: '${group.memberCount} คน'),
+                      _StatChip(icon: Icons.people_alt, label: '${group.memberCount} คน'),
                       const Spacer(),
                       _JoinLeaveButton(
                         isJoined: isJoined,
@@ -391,8 +402,7 @@ class _CommunityPageState extends State<CommunityPage>
     );
   }
 
-  // ===================== Fallback / Empty =====================
-
+  // ---------------- Fallback/Empty ----------------
   Widget _buildDefaultCover() {
     return Container(
       width: double.infinity,
@@ -426,15 +436,13 @@ class _CommunityPageState extends State<CommunityPage>
             const SizedBox(height: 32),
             const Text(
               'ยังไม่ได้เข้าร่วมกลุ่มใดเลย',
-              style: TextStyle(
-                  fontSize: 22, fontWeight: FontWeight.bold, color: _brown),
+              style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: _brown),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 12),
             Text(
               'ค้นหาและเข้าร่วมกลุ่มที่คุณสนใจ\nหรือสร้างกลุ่มใหม่ของคุณเอง',
-              style:
-                  TextStyle(fontSize: 16, color: Colors.grey[600], height: 1.4),
+              style: TextStyle(fontSize: 16, color: Colors.grey, height: 1.4),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 40),
@@ -445,14 +453,11 @@ class _CommunityPageState extends State<CommunityPage>
                   onPressed: () => _tabController.animateTo(1),
                   icon: const Icon(Icons.search, color: Colors.black),
                   label: const Text('ค้นหากลุ่ม',
-                      style: TextStyle(
-                          color: Colors.black, fontWeight: FontWeight.bold)),
+                      style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _tan,
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25)),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
                     elevation: 3,
                   ),
                 ),
@@ -461,14 +466,11 @@ class _CommunityPageState extends State<CommunityPage>
                   onPressed: _showCreateGroupDialog,
                   icon: const Icon(Icons.add, color: _brown),
                   label: const Text('สร้างกลุ่ม',
-                      style: TextStyle(
-                          color: _brown, fontWeight: FontWeight.bold)),
+                      style: TextStyle(color: _brown, fontWeight: FontWeight.bold)),
                   style: OutlinedButton.styleFrom(
                     side: const BorderSide(color: _tan, width: 2),
-                    padding: const EdgeInsets.symmetric(
-                        horizontal: 20, vertical: 12),
-                    shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(25)),
+                    padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(25)),
                   ),
                 ),
               ],
@@ -479,8 +481,7 @@ class _CommunityPageState extends State<CommunityPage>
     );
   }
 
-  // ===================== Actions =====================
-
+  // ---------------- Actions ----------------
   void _openGroup(CommunityGroup group) {
     Navigator.push(
       context,
@@ -503,8 +504,7 @@ class _CommunityPageState extends State<CommunityPage>
           ]),
           backgroundColor: Colors.green[600],
           behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
     } else {
@@ -517,8 +517,7 @@ class _CommunityPageState extends State<CommunityPage>
           ]),
           backgroundColor: Colors.red[600],
           behavior: SnackBarBehavior.floating,
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
         ),
       );
     }
@@ -541,14 +540,11 @@ class _CommunityPageState extends State<CommunityPage>
           style: TextStyle(height: 1.4),
         ),
         actions: [
-          TextButton(
-              onPressed: () => Navigator.pop(context, false),
-              child: const Text('ยกเลิก')),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('ยกเลิก')),
           ElevatedButton(
             onPressed: () => Navigator.pop(context, true),
             style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.orange[600],
-              foregroundColor: Colors.white,
+              backgroundColor: Colors.orange[600], foregroundColor: Colors.white,
             ),
             child: const Text('ออกจากกลุ่ม'),
           ),
@@ -565,28 +561,89 @@ class _CommunityPageState extends State<CommunityPage>
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(children: const [
-              Icon(Icons.info, color: Colors.white),
-              SizedBox(width: 8),
+              Icon(Icons.info, color: Colors.white), SizedBox(width: 8),
               Text('ออกจากกลุ่มเรียบร้อยแล้ว'),
             ]),
             backgroundColor: Colors.orange[600],
             behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Row(children: [
-              const Icon(Icons.error, color: Colors.white),
-              const SizedBox(width: 8),
+              const Icon(Icons.error, color: Colors.white), const SizedBox(width: 8),
               Text(provider.error ?? 'ไม่สามารถออกจากกลุ่มได้'),
             ]),
             backgroundColor: Colors.red[600],
             behavior: SnackBarBehavior.floating,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+      }
+    }
+  }
+
+  void _editGroup(CommunityGroup group) {
+    showDialog(context: context, builder: (_) => EditGroupDialog(group: group));
+  }
+
+  Future<void> _deleteGroup(CommunityGroup group) async {
+    final confirmed = await showDialog<bool>(
+      context: context,
+      builder: (_) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: Row(
+          children: [
+            Icon(Icons.warning_amber_rounded, color: Colors.red[600]),
+            const SizedBox(width: 8),
+            const Text('ลบกลุ่ม'),
+          ],
+        ),
+        content: const Text(
+          'การลบกลุ่มจะลบเนื้อหา/โพสต์ทั้งหมดภายในกลุ่มนี้\nดำเนินการต่อหรือไม่?',
+          style: TextStyle(height: 1.4),
+        ),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('ยกเลิก')),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(context, true),
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red[600], foregroundColor: Colors.white),
+            child: const Text('ลบกลุ่ม'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true) {
+      final provider = context.read<CommunityProvider>();
+      final ok = await provider.deleteGroup(group.id);
+      if (!mounted) return;
+
+      if (ok) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(children: const [
+              Icon(Icons.delete_forever, color: Colors.white), SizedBox(width: 8),
+              Text('ลบกลุ่มเรียบร้อยแล้ว'),
+            ]),
+            backgroundColor: Colors.red[600],
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
+          ),
+        );
+        provider.refreshAll();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Row(children: [
+              const Icon(Icons.error, color: Colors.white), const SizedBox(width: 8),
+              Text(provider.error ?? 'ไม่สามารถลบกลุ่มได้'),
+            ]),
+            backgroundColor: Colors.red[700],
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           ),
         );
       }
@@ -602,8 +659,7 @@ class _CommunityPageState extends State<CommunityPage>
   }
 }
 
-// ===================== Small Reusable Widgets =====================
-
+// ---------------- Small Reusable ----------------
 class _LoadingState extends StatelessWidget {
   final String text;
   const _LoadingState({required this.text});
@@ -612,7 +668,7 @@ class _LoadingState extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
       child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [
-        CircularProgressIndicator(color: const Color(0xFFD2B48C)),
+        const CircularProgressIndicator(color: Color(0xFFD2B48C)),
         const SizedBox(height: 16),
         Text(text),
       ]),
@@ -634,8 +690,7 @@ class _InitialAvatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String initial =
-        text.trim().isEmpty ? 'G' : text.trim()[0].toUpperCase();
+    final String initial = text.trim().isEmpty ? 'G' : text.trim()[0].toUpperCase();
     return CircleAvatar(
       radius: size / 2,
       backgroundColor: bg,
@@ -702,7 +757,7 @@ class _StatChip extends StatelessWidget {
       height: 32,
       padding: const EdgeInsets.symmetric(horizontal: 10),
       decoration: BoxDecoration(
-        color: Color(0xFFF3F6F8),
+        color: const Color(0xFFF3F6F8),
         borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
@@ -798,23 +853,17 @@ class _JoinLeaveButtonState extends State<_JoinLeaveButton> {
             backgroundColor: joined ? Colors.grey[200] : widget.tan,
             foregroundColor: Colors.black,
             elevation: joined ? 0 : 2,
-            shape:
-                RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
             padding: const EdgeInsets.symmetric(horizontal: 16),
           ),
           child: _busy
-              ? const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(strokeWidth: 2),
-                )
-              : Text(
-                  joined ? 'ออก' : 'เข้าร่วม',
-                  style: const TextStyle(
-                      fontWeight: FontWeight.bold, fontSize: 13),
-                ),
+              ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+              : Text(joined ? 'ออก' : 'เข้าร่วม',
+                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
         ),
       ),
     );
   }
 }
+
+enum _OwnerAction { edit, delete }

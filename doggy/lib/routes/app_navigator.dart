@@ -1,4 +1,3 @@
-// routes/app_navigator.dart
 import 'package:dog_training_app/views/program.dart';
 import 'package:flutter/material.dart';
 import '../views/home.dart' as views_home;
@@ -18,6 +17,7 @@ import '../views/group_detail_page.dart';
 import '../models/community_models.dart';
 import 'app_routes.dart';
 import '../views/login_page.dart';
+import '../views/register_page.dart';
 
 class AppNavigator {
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
@@ -33,6 +33,12 @@ class AppNavigator {
       case AppRoutes.login:
         return MaterialPageRoute(
           builder: (_) => LoginPage(),
+          settings: settings,
+        );
+      
+      case AppRoutes.register:
+        return MaterialPageRoute(
+          builder: (_) =>  RegisterPage(),
           settings: settings,
         );
         

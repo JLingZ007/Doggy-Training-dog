@@ -3,6 +3,7 @@ class AppRoutes {
   // Landing และ Authentication routes
   static const String mainPage = '/main';
   static const String login = '/login';
+  static const register = '/register';
   
   // Main app routes
   static const String home = '/home';

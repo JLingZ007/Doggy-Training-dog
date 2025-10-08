@@ -1,4 +1,3 @@
-// widgets/community_widgets/group_members_sheet.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../../providers/community_provider.dart';
@@ -246,59 +245,17 @@ class GroupMembersSheet extends StatelessWidget {
             ),
           ),
           
-          // Actions
-          PopupMenuButton<String>(
-            onSelected: (value) {
-              switch (value) {
-                case 'profile':
-                  _viewProfile(member);
-                  break;
-                case 'message':
-                  _sendMessage(member);
-                  break;
-              }
-            },
-            itemBuilder: (context) => [
-              PopupMenuItem(
-                value: 'profile',
-                child: Row(
-                  children: [
-                    Icon(Icons.person, size: 18),
-                    SizedBox(width: 8),
-                    Text('ดูโปรไฟล์'),
-                  ],
-                ),
-              ),
-              PopupMenuItem(
-                value: 'message',
-                child: Row(
-                  children: [
-                    Icon(Icons.message, size: 18),
-                    SizedBox(width: 8),
-                    Text('ส่งข้อความ'),
-                  ],
-                ),
-              ),
-            ],
-            child: Icon(
-              Icons.more_vert,
-              color: Colors.grey[600],
-            ),
-          ),
+          // **********************************************
+          // ** ลบส่วนของ Actions/PopupMenuButton ออกแล้ว **
+          // **********************************************
         ],
       ),
     );
   }
 
-  void _viewProfile(GroupMember member) {
-    // TODO: Implement view profile
-    print('View profile for ${member.userName}');
-  }
-
-  void _sendMessage(GroupMember member) {
-    // TODO: Implement send message
-    print('Send message to ${member.userName}');
-  }
+  // ******************************************************
+  // ** ลบเมธอด _viewProfile และ _sendMessage ออกแล้ว **
+  // ******************************************************
 
   String _formatDate(DateTime date) {
     final now = DateTime.now();
