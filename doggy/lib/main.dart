@@ -1,9 +1,11 @@
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-// ** Import ที่เพิ่มเข้ามา **
 import 'package:flutter_dotenv/flutter_dotenv.dart';
+// 1. เพิ่ม Import ของ App Check
+import 'package:firebase_app_check/firebase_app_check.dart'; 
 
 import 'routes/app_navigator.dart';
 import 'routes/app_routes.dart';
@@ -11,7 +13,6 @@ import 'firebase_options.dart';
 
 import 'services/chat_provider.dart';
 import 'providers/community_provider.dart';
-
 
 /// === Palette ให้เหมือนหน้า Login/Register ===
 const kBgColor = Color(0xFFF7EFE7);
@@ -22,7 +23,7 @@ const kBorder = Colors.black87;
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  
+
   // ==========================================================
   // ** เพิ่ม: โหลดไฟล์ .env ก่อนการใช้งาน Firebase **
   // ==========================================================
@@ -31,6 +32,26 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+
+  // ==========================================================
+  // 2. ** เพิ่ม: เปิดใช้งาน Firebase App Check **
+  // ==========================================================
+  try {
+    await FirebaseAppCheck.instance.activate(
+      // ใช้ .debug สำหรับการทดสอบใน Emulator/อุปกรณ์จริง
+      // เมื่อจะปล่อยแอปจริง ค่อยเปลี่ยนเป็น .playIntegrity
+      androidProvider: AndroidProvider.debug, 
+      
+      // สำหรับ iOS (ถ้ามี)
+      // appleProvider: AppleProvider.debug,
+    );
+    print('Firebase App Check Activated (Debug Mode)');
+  } catch (e) {
+    print('Error activating App Check: $e');
+  }
+  // ==========================================================
+
+
   runApp(const MyApp());
 }
 
@@ -132,9 +153,17 @@ class _Splash extends StatelessWidget {
   const _Splash();
   @override
   Widget build(BuildContext context) {
+    // ** เปลี่ยนเป็น Stack เพื่อวางอนิเมชันพื้นหลัง **
     return const Scaffold(
-      body: Center(child: CircularProgressIndicator()),
       backgroundColor: kBgColor,
+      body: Stack(
+        children: [
+          // Widget อนิเมชันพื้นหลัง
+          _AnimatedBackground(),
+          // ตัวโหลดข้อมูล
+          Center(child: CircularProgressIndicator()),
+        ],
+      ),
     );
   }
 }
@@ -160,87 +189,199 @@ class MainPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 24.0),
-          child: Column(
-            children: [
-              const Spacer(),
-              // โลโก้
-              Image.asset(
-                'assets/images/doggy_logo.png',
-                width: 220,
-                height: 220,
-                fit: BoxFit.contain,
-              ),
-              const SizedBox(height: 48),
-
-              // ปุ่มเริ่มต้นใช้งาน (Guest)
-              ElevatedButton(
-                onPressed: () => _enterAsGuest(context),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 52),
-                ),
-                child: const Text(
-                  'เริ่มต้นใช้งาน !',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // ปุ่มเข้าสู่ระบบ
-              ElevatedButton(
-                onPressed: () => Navigator.pushNamed(context, AppRoutes.login),
-                style: ElevatedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 52),
-                  backgroundColor: kSurfaceCream,
-                  foregroundColor: Colors.black,
-                ),
-                child: const Text(
-                  'เข้าสู่ระบบ',
-                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                ),
-              ),
-              const SizedBox(height: 16),
-
-              // ปุ่มสมัครสมาชิก
-              OutlinedButton(
-                onPressed: () => Navigator.pushNamed(
-                  context,
-                  AppRoutes.register, // << แก้ไขตรงนี้
-                ),
-                style: OutlinedButton.styleFrom(
-                  minimumSize: const Size(double.infinity, 52),
-                  backgroundColor: Colors.white,
-                  foregroundColor: const Color(0xFF8B4513),
-                  side: const BorderSide(color: Color(0xFF8B4513), width: 1.6),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(28),
+        // ** เปลี่ยน body เป็น Stack เพื่อเพิ่มอนิเมชัน **
+        body: Stack(
+      children: [
+        // Widget อนิเมชันพื้นหลัง
+        const _AnimatedBackground(),
+        // UI เดิมของหน้า
+        SafeArea(
+          child: Center(
+            child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32.0),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  // โลโก้
+                  Image.asset(
+                    'assets/images/doggy_logo.png',
+                    width: 250,
+                    height: 250,
+                    fit: BoxFit.contain,
                   ),
-                  textStyle: const TextStyle(fontWeight: FontWeight.bold),
-                ),
-                child: const Text(
-                  'สมัครสมาชิก',
-                  style: TextStyle(fontSize: 18),
-                ),
-              ),
-              const Spacer(flex: 2),
+                  const SizedBox(height: 50),
 
-              // คำบรรยายเล็กๆ
-              Text(
-                'Doggy Training App\nฝึกสุนัขของคุณได้ง่าย ๆ ผ่านคอร์สเรียน',
-                textAlign: TextAlign.center,
-                style: TextStyle(
-                  color: Colors.grey[700],
-                  fontSize: 14,
-                  height: 1.4,
-                ),
+                  // ปุ่มเริ่มต้นใช้งาน (Guest)
+                  ElevatedButton(
+                    onPressed: () => _enterAsGuest(context),
+                    child: const Text('เริ่มต้นใช้งาน !'),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // ปุ่มเข้าสู่ระบบ
+                  ElevatedButton(
+                    onPressed: () =>
+                        Navigator.pushNamed(context, AppRoutes.login),
+                    child: const Text('เข้าสู่ระบบ'),
+                  ),
+                  const SizedBox(height: 24),
+
+                  // ปุ่มสมัครสมาชิก (TextButton)
+                  TextButton(
+                    onPressed: () =>
+                        Navigator.pushNamed(context, AppRoutes.register),
+                    style: TextButton.styleFrom(
+                      foregroundColor: Colors.brown.shade700,
+                      textStyle: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        decoration: TextDecoration.underline,
+                      ),
+                    ),
+                    child: const Text('สมัครสมาชิกที่นี่'),
+                  ),
+                ],
               ),
-              const SizedBox(height: 20), // เพิ่มระยะห่างด้านล่าง
-            ],
+            ),
           ),
         ),
-      ),
+      ],
+    ));
+  }
+}
+
+
+
+/// Model สำหรับเก็บข้อมูลของไอคอนอุ้งเท้าแต่ละอัน
+class _Paw {
+  final Animation<Offset> animation;
+  final double size;
+  final Color color;
+  final IconData icon;
+
+  _Paw(this.animation, this.size, this.color, this.icon);
+}
+
+/// Widget หลักที่จัดการสถานะและสร้างอนิเมชัน
+class _AnimatedBackground extends StatefulWidget {
+  const _AnimatedBackground();
+
+  @override
+  State<_AnimatedBackground> createState() => _AnimatedBackgroundState();
+}
+
+class _AnimatedBackgroundState extends State<_AnimatedBackground>
+    with TickerProviderStateMixin {
+  late List<_Paw> _paws;
+  late List<AnimationController> _controllers;
+
+  @override
+  void initState() {
+    super.initState();
+    _controllers = [];
+    _paws = [];
+    // เราจะเริ่มสร้างไอคอนหลังจากที่ widget ถูกสร้างขึ้นแล้ว
+    // เพื่อให้เราสามารถเข้าถึงขนาดของหน้าจอได้
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) {
+        _initPaws(15); // จำนวนไอคอนที่ต้องการ
+        setState(() {});
+      }
+    });
+  }
+
+  void _initPaws(int count) {
+    final random = Random();
+    final screenSize = MediaQuery.of(context).size;
+
+    for (int i = 0; i < count; i++) {
+      // สร้าง AnimationController สำหรับแต่ละไอคอน
+      final controller = AnimationController(
+        duration: Duration(seconds: random.nextInt(5) + 3), // สุ่มความเร็ว (3-8 วินาที)
+        vsync: this,
+      )..repeat(reverse: true); // ให้เล่นวนไปกลับ
+      _controllers.add(controller);
+
+      // สุ่มตำแหน่งเริ่มต้นและสิ้นสุด
+      final startOffset = Offset(
+        random.nextDouble() * screenSize.width,
+        random.nextDouble() * screenSize.height,
+      );
+      final endOffset = Offset(
+        random.nextDouble() * screenSize.width,
+        random.nextDouble() * screenSize.height,
+      );
+
+      // สร้าง Animation ที่เปลี่ยนค่าตำแหน่ง (Offset)
+      final animation = Tween<Offset>(
+        begin: startOffset,
+        end: endOffset,
+      ).animate(CurvedAnimation(parent: controller, curve: Curves.easeInOut));
+
+      // สุ่มขนาดและสี
+      final size = random.nextDouble() * 60 + 30; // ปรับขนาดไอคอน
+      final color = kFieldCream.withOpacity(random.nextDouble() * 0.4 + 0.1);
+
+      _paws.add(_Paw(animation, size, color, Icons.pets));
+    }
+  }
+
+  @override
+  void dispose() {
+    // ต้อง dispose controller ทั้งหมดเพื่อป้องกัน memory leak
+    for (var controller in _controllers) {
+      controller.dispose();
+    }
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    // ถ้ายังไม่มีไอคอน ให้แสดง Container ว่างๆ ไปก่อน
+    if (_paws.isEmpty) {
+      return Container();
+    }
+    // ใช้ CustomPaint เพื่อวาดไอคอนตามอนิเมชัน
+    return CustomPaint(
+      painter: _PawPainter(_paws),
+      child: Container(),
     );
   }
+}
+
+/// Class ที่ทำหน้าที่วาดไอคอนอุ้งเท้าลงบน Canvas
+class _PawPainter extends CustomPainter {
+  final List<_Paw> paws;
+
+  _PawPainter(this.paws);
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    for (final paw in paws) {
+      final textSpan = TextSpan(
+        text: String.fromCharCode(paw.icon.codePoint),
+        style: TextStyle(
+          fontSize: paw.size,
+          fontFamily: paw.icon.fontFamily,
+          color: paw.color,
+        ),
+      );
+      final textPainter = TextPainter(
+        text: textSpan,
+        textAlign: TextAlign.center,
+        textDirection: TextDirection.ltr,
+      );
+      textPainter.layout();
+      // จัดตำแหน่งให้ไอคอนอยู่ตรงกลางของจุด offset
+      final offset = Offset(
+        paw.animation.value.dx - textPainter.width / 2,
+        paw.animation.value.dy - textPainter.height / 2,
+      );
+      textPainter.paint(canvas, offset);
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => true;
 }

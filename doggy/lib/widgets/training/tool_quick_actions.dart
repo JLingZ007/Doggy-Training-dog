@@ -8,14 +8,14 @@ class ToolQuickActions extends StatefulWidget {
   final bool showClicker;
   final bool showWhistle;
 
-  /// ตั้งค่าเริ่มต้นความถี่ของนกหวีด (Hz) ถ้าไม่กำหนดจะใช้ 4000 Hz
+
   final double initialWhistleHz;
 
   const ToolQuickActions({
     super.key,
     this.showClicker = false,
     this.showWhistle = false,
-    this.initialWhistleHz = 4000.0,
+    this.initialWhistleHz = 18000.0, 
   });
 
   @override
@@ -27,7 +27,6 @@ class _ToolQuickActionsState extends State<ToolQuickActions> {
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   Future<void> _playClickerSound() async {
-    // ต้องมีไฟล์ assets/sounds/clicker_sound.mp3 ใน pubspec.yaml
     await _audioPlayer.play(AssetSource('sounds/clicker_sound.mp3'));
   }
 
@@ -36,10 +35,10 @@ class _ToolQuickActionsState extends State<ToolQuickActions> {
   bool _whistleReady = false;
   bool _whistlePlaying = false;
 
-  // ช่วงความถี่ที่แนะนำ (ปรับได้ตามต้องการ)
-  static const double _minHz = 3000.0;
-  static const double _maxHz = 12000.0;
-  double _frequency = 4000.0; // default
+  // 1. ปรับช่วงความถี่ให้เหมาะกับการฝึกสุนัข (inaudible to most humans)
+  static const double _minHz = 15000.0;
+  static const double _maxHz = 22000.0;
+  double _frequency = 18000.0; // default initial value
 
   @override
   void initState() {
@@ -67,12 +66,10 @@ class _ToolQuickActionsState extends State<ToolQuickActions> {
     final int sampleCount = (sampleRate * durationMs / 1000).round();
     final Float64List samples = Float64List(sampleCount);
 
-    // sine wave
     for (int i = 0; i < sampleCount; i++) {
       samples[i] = sin(2 * pi * frequency * i / sampleRate);
     }
 
-    // 16-bit PCM LE
     final Uint8List pcm = Uint8List(sampleCount * 2);
     final byteData = ByteData.view(pcm.buffer);
     for (int i = 0; i < sampleCount; i++) {
@@ -91,7 +88,6 @@ class _ToolQuickActionsState extends State<ToolQuickActions> {
   Future<void> _playWhistleChunkAndLoop() async {
     if (!_whistlePlaying) return;
 
-    // เล่นเป็นช่วงๆ แล้ววน (เช่น 1200ms) เพื่อให้เปลี่ยนความถี่ระหว่างเล่นได้
     final buffer = await _generateSineWaveBuffer(_frequency, 1200);
     await _whistlePlayer.startPlayer(
       fromDataBuffer: buffer,
@@ -116,7 +112,6 @@ class _ToolQuickActionsState extends State<ToolQuickActions> {
     final v = value.clamp(_minHz, _maxHz);
     setState(() => _frequency = v);
 
-    // ถ้ากำลังเล่นอยู่ ให้รีสตาร์ตชิ้นเสียงด้วยความถี่ใหม่เพื่อให้ได้ยินผลทันที
     if (_whistlePlaying) {
       await _whistlePlayer.stopPlayer();
       await _playWhistleChunkAndLoop();
@@ -125,8 +120,12 @@ class _ToolQuickActionsState extends State<ToolQuickActions> {
 
   @override
   Widget build(BuildContext context) {
-    if (!widget.showClicker && !widget.showWhistle)
+    if (!widget.showClicker && !widget.showWhistle) {
       return const SizedBox.shrink();
+    }
+      
+    // 3. เตรียมข้อความแสดงผลเป็น kHz
+    final String frequencyLabel = '${(_frequency / 1000).toStringAsFixed(1)} kHz';
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -153,12 +152,11 @@ class _ToolQuickActionsState extends State<ToolQuickActions> {
           ],
         ),
 
-        // แสดงตัวเลื่อนความถี่เมื่อเปิดใช้ "นกหวีด"
         if (widget.showWhistle) ...[
           const SizedBox(height: 10),
           Row(
             children: [
-              const Text('ความถี่คลื่นเสียงนกหวีด'),
+              const Text('ความถี่คลื่นเสียง'),
               const SizedBox(width: 8),
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
@@ -166,7 +164,8 @@ class _ToolQuickActionsState extends State<ToolQuickActions> {
                   color: Colors.black.withOpacity(0.06),
                   borderRadius: BorderRadius.circular(6),
                 ),
-                child: Text('${_frequency.toStringAsFixed(0)} Hz'),
+                // แสดงผลเป็น kHz
+                child: Text(frequencyLabel),
               ),
             ],
           ),
@@ -174,8 +173,9 @@ class _ToolQuickActionsState extends State<ToolQuickActions> {
             value: _frequency,
             min: _minHz,
             max: _maxHz,
-            divisions: 90,
-            label: '${_frequency.toStringAsFixed(0)} Hz',
+            // 4. ปรับ divisions ให้สอดคล้องกับช่วงใหม่ (7000 Hz / step 100 Hz = 70)
+            divisions: 70,
+            label: frequencyLabel,
             onChanged:
                 !_whistleReady ? null : (v) => _handleWhistleFreqChanged(v),
           ),

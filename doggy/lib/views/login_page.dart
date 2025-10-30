@@ -26,6 +26,24 @@ class _LoginPageState extends State<LoginPage> {
     super.dispose();
   }
 
+  // --- ฟังก์ชันแปลงข้อความ Error เป็นภาษาไทย ---
+  String _translateAuthException(FirebaseAuthException e) {
+    switch (e.code) {
+      case 'invalid-credential':
+      case 'user-not-found':
+      case 'wrong-password':
+        return 'อีเมลหรือรหัสผ่านไม่ถูกต้อง กรุณาลองใหม่อีกครั้ง';
+      case 'invalid-email':
+        return 'รูปแบบอีเมลไม่ถูกต้อง';
+      case 'user-disabled':
+        return 'บัญชีผู้ใช้นี้ถูกระงับการใช้งาน';
+      case 'too-many-requests':
+        return 'คุณพยายามเข้าสู่ระบบบ่อยเกินไป โปรดรอสักครู่';
+      default:
+        return 'เกิดข้อผิดพลาดในการเข้าสู่ระบบ';
+    }
+  }
+
   Future<void> _signInWithEmailAndPassword() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -43,7 +61,8 @@ class _LoginPageState extends State<LoginPage> {
         Navigator.pushNamedAndRemoveUntil(context, AppRoutes.home, (_) => false);
       }
     } on FirebaseAuthException catch (e) {
-      setState(() => _errorMessage = e.message ?? 'เกิดข้อผิดพลาด');
+      // --- เรียกใช้ฟังก์ชันแปลงข้อความ Error ---
+      setState(() => _errorMessage = _translateAuthException(e));
     } finally {
       if (mounted) {
         setState(() => _isLoading = false);
@@ -122,7 +141,7 @@ class _LoginPageState extends State<LoginPage> {
                           decoration: _pillInput(label: 'อีเมล', prefix: Icons.email),
                           validator: (v) {
                             if (v == null || v.isEmpty) return 'กรุณากรอกอีเมล';
-                            if (!v.contains('@')) return 'กรุณากรอกอีเมลให้ถูกต้อง';
+                            if (!v.contains('@') || !v.contains('.')) return 'กรุณากรอกอีเมลให้ถูกต้อง';
                             return null;
                           },
                         ),
@@ -145,8 +164,12 @@ class _LoginPageState extends State<LoginPage> {
                           },
                         ),
                         if (_errorMessage != null) ...[
-                          const SizedBox(height: 6),
-                          Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
+                          const SizedBox(height: 12),
+                          Text(
+                            _errorMessage!,
+                            style: const TextStyle(color: Colors.red, fontSize: 14),
+                            textAlign: TextAlign.center,
+                          ),
                         ],
                         const SizedBox(height: 22),
                         ElevatedButton(
@@ -165,7 +188,7 @@ class _LoginPageState extends State<LoginPage> {
                               ? const SizedBox(
                                   height: 20,
                                   width: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
+                                  child: CircularProgressIndicator(strokeWidth: 2, color: Colors.brown),
                                 )
                               : const Text(
                                   'เข้าสู่ระบบ',
@@ -176,7 +199,7 @@ class _LoginPageState extends State<LoginPage> {
                         TextButton(
                           onPressed: () => Navigator.pushNamed(context, AppRoutes.register),
                           child: const Text(
-                            'ยังไม่มีบัญชี ?  ลงทะเบียน',
+                            'ยังไม่มีบัญชี ?  ลงทะเบียน',
                             style: TextStyle(color: Colors.blue),
                           ),
                         ),
