@@ -2,16 +2,17 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:youtube_player_iframe/youtube_player_iframe.dart';
+// import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 import '../services/training_service.dart';
 import '../services/user_service.dart';
 import '../routes/app_routes.dart';
+import '../services/youtube_service.dart';
 
 import '../models/step_item.dart';
 import '../widgets/training/progress_bar.dart';
 import '../widgets/training/error_view.dart';
-import '../widgets/training/video_header.dart';
+// import '../widgets/training/video_header.dart';
 import '../widgets/training/lesson_meta.dart';
 import '../widgets/training/need_dog_callout.dart';
 import '../widgets/training/step_navigator.dart';
@@ -38,11 +39,11 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
   final _service = TrainingService(firestore: FirebaseFirestore.instance);
   final _userService = UserService();
 
-  // Youtube (iframe)
-  YoutubePlayerController? _yt;
-  StreamSubscription<Duration>? _posSub;
-  StreamSubscription<YoutubePlayerValue>? _valSub;
-  int _lastSeconds = 0;
+  // // Youtube (iframe)
+  // YoutubePlayerController? _yt;
+  // StreamSubscription<Duration>? _posSub;
+  // StreamSubscription<YoutubePlayerValue>? _valSub;
+  // int _lastSeconds = 0;
 
   // state
   bool _isLoading = true;
@@ -59,8 +60,6 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
 
   // intro gating
   bool _introWatched = false;
-  int _introWatchSec = 0;
-  static const int _INTRO_MIN_SEC = 20;
 
   // UI helpers
   final ScrollController _scroll = ScrollController();
@@ -77,9 +76,9 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
   @override
   void dispose() {
     try {
-      _posSub?.cancel();
-      _valSub?.cancel();
-      _yt?.close();
+      // _posSub?.cancel();
+      // _valSub?.cancel();
+      // _yt?.close();
     } catch (_) {}
     _scroll.dispose();
     super.dispose();
@@ -96,65 +95,71 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
         documentId: widget.documentId,
       );
 
-      if (data != null) {
-        final id = _service.extractYoutubeId((data['video'] ?? '').toString());
-        if (id.isNotEmpty) {
-          _yt = YoutubePlayerController.fromVideoId(
-            videoId: id,
-            autoPlay: false,
-            params: const YoutubePlayerParams(
-              showControls: true,
-              showFullscreenButton: true,
-              enableCaption: true,
-              strictRelatedVideos: true,
-              playsInline: true,
-            ),
-          );
+      // videoId จาก firebase
+      final videoId = (data?['video'] ?? '').toString();
 
-          // track time
-          _posSub?.cancel();
-          _posSub = _yt!.getCurrentPositionStream().listen((dur) async {
-            final sec = dur.inSeconds;
-            if (sec > _lastSeconds) {
-              _lastSeconds = sec;
-              _introWatchSec = sec;
-              if (!_introWatched &&
-                  _introWatchSec >= _INTRO_MIN_SEC &&
-                  _user != null &&
-                  _dogId != null) {
-                _introWatched = true;
-                await _service.updateIntroWatch(
-                  userId: _user!.uid,
-                  dogId: _dogId!,
-                  documentId: widget.documentId,
-                  watched: true,
-                  watchSec: _introWatchSec,
-                );
-                if (mounted) setState(() {});
-              }
-            }
-          });
+      // ถ้ามีวิดีโอ ถือว่า intro ยังไม่ดู
 
-          // track ended state
-          _valSub?.cancel();
-          _valSub = _yt!.stream.listen((value) async {
-            if (!_introWatched &&
-                value.playerState == PlayerState.ended &&
-                _user != null &&
-                _dogId != null) {
-              _introWatched = true;
-              await _service.updateIntroWatch(
-                userId: _user!.uid,
-                dogId: _dogId!,
-                documentId: widget.documentId,
-                watched: true,
-                watchSec: _introWatchSec,
-              );
-              if (mounted) setState(() {});
-            }
-          });
-        }
-      }
+      // if (data != null) {
+      //   final id = _service.extractYoutubeId((data['video'] ?? '').toString());
+
+      //   if (id.isNotEmpty) {
+      //     _yt = YoutubePlayerController.fromVideoId(
+      //       videoId: id,
+      //       autoPlay: false,
+      //       params: const YoutubePlayerParams(
+      //         showControls: true,
+      //         showFullscreenButton: true,
+      //         enableCaption: true,
+      //         strictRelatedVideos: true,
+      //         playsInline: true,
+      //       ),
+      //     );
+
+      //     // track time
+      //     _posSub?.cancel();
+      //     _posSub = _yt!.getCurrentPositionStream().listen((dur) async {
+      //       final sec = dur.inSeconds;
+      //       if (sec > _lastSeconds) {
+      //         _lastSeconds = sec;
+      //         _introWatchSec = sec;
+      //         if (!_introWatched &&
+      //             _introWatchSec >= _INTRO_MIN_SEC &&
+      //             _user != null &&
+      //             _dogId != null) {
+      //           _introWatched = true;
+      //           await _service.updateIntroWatch(
+      //             userId: _user!.uid,
+      //             dogId: _dogId!,
+      //             documentId: widget.documentId,
+      //             watched: true,
+      //             watchSec: _introWatchSec,
+      //           );
+      //           if (mounted) setState(() {});
+      //         }
+      //       }
+      //     });
+
+      //     // track ended state
+      //     _valSub?.cancel();
+      //     _valSub = _yt!.stream.listen((value) async {
+      //       if (!_introWatched &&
+      //           value.playerState == PlayerState.ended &&
+      //           _user != null &&
+      //           _dogId != null) {
+      //         _introWatched = true;
+      //         await _service.updateIntroWatch(
+      //           userId: _user!.uid,
+      //           dogId: _dogId!,
+      //           documentId: widget.documentId,
+      //           watched: true,
+      //           watchSec: _introWatchSec,
+      //         );
+      //         if (mounted) setState(() {});
+      //       }
+      //     });
+      //   }
+      // }
 
       // 2) โหลด progress
       if (_user != null && _dogId != null) {
@@ -169,7 +174,6 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
         _completed = p.completed;
         _totalSteps = p.totalSteps;
         _introWatched = p.introWatched;
-        _introWatchSec = p.introWatchSec;
       } else {
         _totalSteps =
             ((data?['step'] is List) ? (data?['step'] as List) : const [])
@@ -256,7 +260,7 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
         context,
         () => _scroll.animateTo(
           0,
-          duration: const Duration(milliseconds: 400),
+          duration: const Duration(milliseconds: 00),
           curve: Curves.easeInOut,
         ),
       );
@@ -351,14 +355,25 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
                           actions: [
                             TextButton(
                               onPressed: () {
-                                if (!_introWatched) {
-                                  _scroll.animateTo(
-                                    0,
-                                    duration: const Duration(milliseconds: 400),
-                                    curve: Curves.easeInOut,
-                                  );
-                                } else {
-                                  _scrollToCurrentStep();
+                                final videoId =
+                                    (lesson?['video'] ?? '').toString();
+                                if (videoId.isNotEmpty) {
+                                  YoutubeService.openVideo(videoId);
+                                  // ✅ เพิ่มตรงนี้
+                                  setState(() {
+                                    _introWatched = true;
+                                  });
+
+                                  // ✅ เพิ่มบันทึก
+                                  if (_user != null && _dogId != null) {
+                                    _service.updateIntroWatch(
+                                      userId: _user!.uid,
+                                      dogId: _dogId!,
+                                      documentId: widget.documentId,
+                                      watched: true,
+                                      watchSec: 0, // ไม่ใช้เวลาแล้ว
+                                    );
+                                  }
                                 }
                               },
                               child: Text(
@@ -392,9 +407,43 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
 
                         // ===== วิดีโอหัวบท / ภาพสำรอง =====
                         SliverToBoxAdapter(
-                          child: VideoHeader(
-                            controller: _yt,
-                            imageUrlFallback: (data['image'] ?? '').toString(),
+                          child: GestureDetector(
+                            onTap: () {
+                              final videoId = (data['video'] ?? '').toString();
+                              if (videoId.isNotEmpty) {
+                                YoutubeService.openVideo(videoId);
+                                setState(() {
+                                  _introWatched = true;
+                                });
+
+                                // ✅ เพิ่มบันทึก
+                                if (_user != null && _dogId != null) {
+                                  _service.updateIntroWatch(
+                                    userId: _user!.uid,
+                                    dogId: _dogId!,
+                                    documentId: widget.documentId,
+                                    watched: true,
+                                    watchSec: 0, // ไม่ใช้เวลาแล้ว
+                                  );
+                                }
+                              }
+                            },
+                            child: Stack(
+                              alignment: Alignment.center,
+                              children: [
+                                Image.network(
+                                  'https://img.youtube.com/vi/${data['video']}/hqdefault.jpg',
+                                  fit: BoxFit.cover,
+                                  width: double.infinity,
+                                  height: 220,
+                                ),
+                                const Icon(
+                                  Icons.play_circle_fill,
+                                  size: 64,
+                                  color: Colors.red,
+                                ),
+                              ],
+                            ),
                           ),
                         ),
 
@@ -495,10 +544,20 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
                                   onPressed: () {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                       const SnackBar(
-                                        content:
-                                            Text('เยี่ยมมาก! จบบทเรียนนี้แล้ว'),
+                                        content: Text(
+                                            '🎉 เยี่ยมมาก! จบบทเรียนนี้แล้ว'),
+                                        duration: Duration(seconds: 1),
                                       ),
                                     );
+
+                                    Future.delayed(
+                                        const Duration(milliseconds: 900), () {
+                                      Navigator.pushNamedAndRemoveUntil(
+                                        context,
+                                        AppRoutes.myCourses,
+                                        (route) => route.isFirst,
+                                      );
+                                    });
                                   },
                                   style: ElevatedButton.styleFrom(
                                     backgroundColor: const Color(0xFF34C759),

@@ -290,6 +290,7 @@ class DogFormState extends State<DogForm> {
           DropdownButtonFormField<int>(
             value: _age,
             isExpanded: true,
+            menuMaxHeight: 300, // เพิ่มความสูงสูงสุดของเมนู
             items: _ages
                 .map((y) => DropdownMenuItem(value: y, child: Text('$y ปี')))
                 .toList(),
@@ -304,6 +305,7 @@ class DogFormState extends State<DogForm> {
           DropdownButtonFormField<String>(
             value: _gender,
             isExpanded: true,
+            menuMaxHeight: 200, // เพิ่มความสูงสูงสุดของเมนู
             items: _genders
                 .map((g) => DropdownMenuItem(value: g, child: Text(g)))
                 .toList(),
@@ -319,8 +321,12 @@ class DogFormState extends State<DogForm> {
           DropdownButtonFormField<String>(
             value: _breed,
             isExpanded: true,
+            menuMaxHeight: 400, // เพิ่มความสูงสูงสุดของเมนู สำหรับรายการที่ยาว
             items: _dogBreeds
-                .map((b) => DropdownMenuItem(value: b, child: Text(b, overflow: TextOverflow.ellipsis)))
+                .map((b) => DropdownMenuItem(
+                      value: b,
+                      child: Text(b, overflow: TextOverflow.ellipsis),
+                    ))
                 .toList(),
             onChanged: (v) {
               setState(() {

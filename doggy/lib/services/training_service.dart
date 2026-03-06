@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 class TrainingService {
   final FirebaseFirestore _firestore;
@@ -16,22 +17,90 @@ class TrainingService {
         .collection('programs')
         .doc(documentId)
         .get();
-
+    
     if (!doc.exists) return null;
     return doc.data() as Map<String, dynamic>?;
   }
 
   /// แปลง URL YouTube -> videoId
+  // String extractYoutubeId(String url) {
+  //   if (url.isEmpty) return '';
+  //   if (url.contains('watch?v=')) {
+  //     return url.split('watch?v=').last.split('&').first;
+  //   } else if (url.contains('youtu.be/')) {
+  //     return url.split('youtu.be/').last.split('?').first;
+  //   } else if (url.contains('embed/')) {
+  //     return url.split('embed/').last.split('?').first;
+  //   }
+  //   return '';
+  // }
+
   String extractYoutubeId(String url) {
     if (url.isEmpty) return '';
-    if (url.contains('watch?v=')) {
-      return url.split('watch?v=').last.split('&').first;
-    } else if (url.contains('youtu.be/')) {
-      return url.split('youtu.be/').last.split('?').first;
-    } else if (url.contains('embed/')) {
-      return url.split('embed/').last.split('?').first;
+
+    try {
+      // ลบช่องว่างและ trim
+      url = url.trim();
+
+      // ถ้าเป็น Video ID อยู่แล้ว (11 ตัวอักษร)
+      if (url.length == 11 && !url.contains('/') && !url.contains('?')) {
+        return url;
+      }
+
+      // รูปแบบต่างๆ ของ YouTube URL
+      final patterns = [
+        // Standard watch URL: https://www.youtube.com/watch?v=VIDEO_ID
+        RegExp(r'(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})'),
+        
+        // Short URL: https://youtu.be/VIDEO_ID
+        RegExp(r'(?:youtu\.be\/)([a-zA-Z0-9_-]{11})'),
+        
+        // Embed URL: https://www.youtube.com/embed/VIDEO_ID
+        RegExp(r'(?:youtube\.com\/embed\/)([a-zA-Z0-9_-]{11})'),
+        
+        // Mobile URL: https://m.youtube.com/watch?v=VIDEO_ID
+        RegExp(r'(?:m\.youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})'),
+        
+        // URL with timestamp: https://www.youtube.com/watch?v=VIDEO_ID&t=123s
+        RegExp(r'(?:youtube\.com\/watch\?v=)([a-zA-Z0-9_-]{11})(?:&|$)'),
+        
+        // User URL: https://www.youtube.com/user/.../watch?v=VIDEO_ID
+        RegExp(r'(?:youtube\.com\/(?:user\/)?.*\/watch\?v=)([a-zA-Z0-9_-]{11})'),
+        
+        // General pattern (fallback)
+        RegExp(r'(?:v=|\/v\/|youtu\.be\/|\/embed\/)([a-zA-Z0-9_-]{11})'),
+      ];
+
+      // ลองจับคู่กับแต่ละ pattern
+      for (final pattern in patterns) {
+        final match = pattern.firstMatch(url);
+        if (match != null && match.group(1) != null) {
+          final videoId = match.group(1)!;
+          
+          // ตรวจสอบว่าเป็น Video ID ที่ถูกต้อง (11 ตัวอักษร)
+          if (videoId.length == 11) {
+            print('✅ YouTube Video ID extracted: $videoId');
+            return videoId;
+          }
+        }
+      }
+
+      print('❌ Could not extract YouTube Video ID from: $url');
+      return '';
+      
+    } catch (e) {
+      print('❌ Error extracting YouTube ID: $e');
+      return '';
     }
-    return '';
+  }
+
+// ฟังก์ชันเสริม: ตรวจสอบว่า Video ID ถูกต้องหรือไม่
+  bool isValidYoutubeId(String id) {
+    if (id.isEmpty || id.length != 11) return false;
+    
+    // ตรวจสอบว่ามีเฉพาะตัวอักษรที่ YouTube ใช้
+    final validPattern = RegExp(r'^[a-zA-Z0-9_-]{11}$');
+    return validPattern.hasMatch(id);
   }
 
   /// document reference ของ progress ต่อ "ตัวสุนัข"

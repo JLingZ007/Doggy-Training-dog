@@ -5,6 +5,7 @@ class TrainingProgram {
   final String difficulty;
   final int duration;
   final List<String> steps;
+  final String video; // 👈 เพิ่ม
 
   TrainingProgram({
     required this.id,
@@ -13,6 +14,7 @@ class TrainingProgram {
     required this.difficulty,
     required this.duration,
     required this.steps,
+    required this.video, // 👈 เพิ่ม
   });
 
   // Factory สำหรับแปลงข้อมูลจาก Firebase
@@ -24,6 +26,7 @@ class TrainingProgram {
       difficulty: json['difficulty'],
       duration: json['duration'],
       steps: List<String>.from(json['steps']),
+      video: json['video'] ?? '', // 👈 เพิ่ม (กัน error)
     );
   }
 
@@ -36,6 +39,7 @@ class TrainingProgram {
       'difficulty': difficulty,
       'duration': duration,
       'steps': steps,
+      'video': video, // 👈 เพิ่ม
     };
   }
 }

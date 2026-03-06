@@ -27,7 +27,7 @@ class _ToolQuickActionsState extends State<ToolQuickActions> {
   final AudioPlayer _audioPlayer = AudioPlayer();
 
   Future<void> _playClickerSound() async {
-    await _audioPlayer.play(AssetSource('sounds/clicker_sound.mp3'));
+    await _audioPlayer.play(AssetSource('sounds/clicker_sound.wav'));
   }
 
   // --- Whistle ---
