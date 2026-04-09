@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../models/chat_models.dart';
 import '../services/chat_provider.dart';
 import '../services/firebase_chat_service.dart';
 import '../routes/app_routes.dart';
@@ -30,7 +31,7 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
     try {
       // ตรวจสอบการ login ก่อน
       final user = FirebaseAuth.instance.currentUser;
-      
+
       if (user == null) {
         // ถ้ายังไม่ได้ login ให้ login แบบ anonymous
         await FirebaseAuth.instance.signInAnonymously();
@@ -43,7 +44,6 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
       setState(() {
         _isLoading = false;
       });
-
     } catch (e) {
       print('Error initializing page: $e');
       setState(() {
@@ -58,26 +58,41 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
     return Scaffold(
       backgroundColor: const Color(0xFFF3F6F8),
       appBar: AppBar(
-        title: Text(
+        title: const Text(
           'ประวัติการสนทนา',
-          style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold),
+          style: TextStyle(
+            fontWeight: FontWeight.bold,
+            fontSize: 20,
+            color: Colors.black87,
+          ),
         ),
-        backgroundColor: const Color(0xFFD2B48C),
+        centerTitle: false,
+        backgroundColor: Colors.transparent,
         elevation: 0,
+        flexibleSpace: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              colors: [
+                Color(0xFFE6C79C),
+                Color(0xFFD2B48C),
+              ],
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+            ),
+          ),
+        ),
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
+          icon: const Icon(Icons.arrow_back_ios_new, color: Colors.black87),
           onPressed: () => Navigator.pop(context),
         ),
         actions: [
           IconButton(
-            icon: Icon(Icons.add, color: Colors.black),
-            onPressed: () => _startNewChat(),
-            tooltip: 'เริ่มการสนทนาใหม่',
+            icon: const Icon(Icons.add_circle_outline),
+            onPressed: _startNewChat,
           ),
           IconButton(
-            icon: Icon(Icons.refresh, color: Colors.black),
-            onPressed: () => _initializePage(),
-            tooltip: 'รีเฟรช',
+            icon: const Icon(Icons.refresh),
+            onPressed: _initializePage,
           ),
         ],
       ),
@@ -99,7 +114,8 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             CircularProgressIndicator(
-              valueColor: AlwaysStoppedAnimation<Color>(const Color(0xFFD2B48C)),
+              valueColor:
+                  AlwaysStoppedAnimation<Color>(const Color(0xFFD2B48C)),
             ),
             SizedBox(height: 16),
             Text(
@@ -124,10 +140,10 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
           children: [
             // แสดงสถานะ Firebase
             _buildFirebaseStatusIndicator(chatProvider),
-            
+
             // สถิติการใช้งาน
             _buildStatisticsCard(chatProvider),
-            
+
             // รายการ sessions
             Expanded(
               child: _buildSessionsList(chatProvider),
@@ -187,29 +203,29 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
   Widget _buildFirebaseStatusIndicator(ChatProvider chatProvider) {
     final user = FirebaseAuth.instance.currentUser;
     final isConnected = user != null;
-    
+
     return Container(
       width: double.infinity,
       padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      color: chatProvider.error != null 
-        ? Colors.red[50] 
-        : isConnected 
-          ? Colors.green[50] 
-          : Colors.orange[50],
+      color: chatProvider.error != null
+          ? Colors.red[50]
+          : isConnected
+              ? Colors.green[50]
+              : Colors.orange[50],
       child: Row(
         children: [
           Icon(
-            chatProvider.error != null 
-              ? Icons.cloud_off 
-              : isConnected 
-                ? Icons.cloud_done 
-                : Icons.cloud_queue,
+            chatProvider.error != null
+                ? Icons.cloud_off
+                : isConnected
+                    ? Icons.cloud_done
+                    : Icons.cloud_queue,
             size: 16,
-            color: chatProvider.error != null 
-              ? Colors.red 
-              : isConnected 
-                ? Colors.green 
-                : Colors.orange,
+            color: chatProvider.error != null
+                ? Colors.red
+                : isConnected
+                    ? Colors.green
+                    : Colors.orange,
           ),
           SizedBox(width: 8),
           if (chatProvider.error != null)
@@ -241,17 +257,19 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
 
   Widget _buildSessionCard(ChatSession session, ChatProvider chatProvider) {
     final isCurrentSession = session.id == chatProvider.currentSessionId;
-    
+
     return Card(
       elevation: 3,
       margin: EdgeInsets.only(bottom: 16),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
-        side: isCurrentSession 
-          ? BorderSide(color: const Color(0xFFD2B48C), width: 2)
-          : BorderSide.none,
+        side: isCurrentSession
+            ? BorderSide(color: const Color(0xFFD2B48C), width: 2)
+            : BorderSide.none,
       ),
-      color: isCurrentSession ? const Color(0xFFD2B48C).withOpacity(0.1) : Colors.white,
+      color: isCurrentSession
+          ? const Color(0xFFD2B48C).withOpacity(0.1)
+          : Colors.white,
       child: InkWell(
         onTap: () => _openSession(session.id),
         borderRadius: BorderRadius.circular(12),
@@ -268,7 +286,9 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: isCurrentSession ? const Color(0xFF8B4513) : Colors.black87,
+                        color: isCurrentSession
+                            ? const Color(0xFF8B4513)
+                            : Colors.black87,
                       ),
                     ),
                   ),
@@ -290,15 +310,19 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                     ),
                   SizedBox(width: 8),
                   PopupMenuButton<String>(
-                    onSelected: (value) => _handleSessionAction(value, session, chatProvider),
+                    onSelected: (value) =>
+                        _handleSessionAction(value, session, chatProvider),
                     itemBuilder: (context) => [
                       PopupMenuItem(
                         value: 'rename',
                         child: Row(
                           children: [
-                            Icon(Icons.edit, size: 18, color: const Color(0xFF8B4513)),
+                            Icon(Icons.edit,
+                                size: 18, color: const Color(0xFF8B4513)),
                             SizedBox(width: 8),
-                            Text('เปลี่ยนชื่อ', style: TextStyle(color: const Color(0xFF8B4513))),
+                            Text('เปลี่ยนชื่อ',
+                                style:
+                                    TextStyle(color: const Color(0xFF8B4513))),
                           ],
                         ),
                       ),
@@ -316,7 +340,6 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                   ),
                 ],
               ),
-              
               if (session.lastMessage != null) ...[
                 SizedBox(height: 8),
                 Text(
@@ -329,9 +352,7 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
                   overflow: TextOverflow.ellipsis,
                 ),
               ],
-              
               SizedBox(height: 12),
-              
               Row(
                 children: [
                   Icon(Icons.schedule, size: 16, color: Colors.grey[500]),
@@ -395,7 +416,8 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
           ElevatedButton.icon(
             onPressed: () => _startNewChat(),
             icon: Icon(Icons.add, color: Colors.black),
-            label: Text('เริ่มการสนทนาใหม่', style: TextStyle(color: Colors.black)),
+            label: Text('เริ่มการสนทนาใหม่',
+                style: TextStyle(color: Colors.black)),
             style: ElevatedButton.styleFrom(
               backgroundColor: const Color(0xFFD2B48C),
               padding: EdgeInsets.symmetric(horizontal: 24, vertical: 12),
@@ -439,19 +461,24 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
             return Row(
               mainAxisAlignment: MainAxisAlignment.spaceAround,
               children: [
-                _buildStatItem('การสนทนา', '${stats.totalSessions}', Icons.chat),
-                _buildStatItem('ข้อความ', '${stats.totalMessages}', Icons.message),
+                _buildStatItem(
+                    'การสนทนา', '${stats.totalSessions}', Icons.chat),
+                _buildStatItem(
+                    'ข้อความ', '${stats.totalMessages}', Icons.message),
                 _buildStatItem('คำถาม', '${stats.userMessages}', Icons.help),
-                _buildStatItem('คำตอบ', '${stats.botMessages}', Icons.smart_toy),
+                _buildStatItem(
+                    'คำตอบ', '${stats.botMessages}', Icons.smart_toy),
               ],
             );
           }
-          
+
           return Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
-              _buildStatItem('การสนทนา', '${chatProvider.chatSessions.length}', Icons.chat),
-              _buildStatItem('ข้อความ', '${chatProvider.messages.length}', Icons.message),
+              _buildStatItem('การสนทนา', '${chatProvider.chatSessions.length}',
+                  Icons.chat),
+              _buildStatItem(
+                  'ข้อความ', '${chatProvider.messages.length}', Icons.message),
               _buildStatItem('คำถาม', '0', Icons.help),
               _buildStatItem('คำตอบ', '0', Icons.smart_toy),
             ],
@@ -530,7 +557,8 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
     }
   }
 
-  void _handleSessionAction(String action, ChatSession session, ChatProvider chatProvider) {
+  void _handleSessionAction(
+      String action, ChatSession session, ChatProvider chatProvider) {
     switch (action) {
       case 'rename':
         _showRenameDialog(session, chatProvider);
@@ -543,11 +571,12 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
 
   void _showRenameDialog(ChatSession session, ChatProvider chatProvider) {
     final controller = TextEditingController(text: session.title);
-    
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('เปลี่ยนชื่อการสนทนา', style: TextStyle(color: const Color(0xFF8B4513))),
+        title: Text('เปลี่ยนชื่อการสนทนา',
+            style: TextStyle(color: const Color(0xFF8B4513))),
         content: TextField(
           controller: controller,
           decoration: InputDecoration(
@@ -567,9 +596,10 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
           ElevatedButton(
             onPressed: () async {
               if (controller.text.trim().isNotEmpty) {
-                await chatProvider.updateSessionTitle(session.id, controller.text.trim());
+                await chatProvider.updateSessionTitle(
+                    session.id, controller.text.trim());
                 Navigator.pop(context);
-                
+
                 if (chatProvider.error == null) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
@@ -591,12 +621,15 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
     );
   }
 
-  void _showDeleteConfirmDialog(ChatSession session, ChatProvider chatProvider) {
+  void _showDeleteConfirmDialog(
+      ChatSession session, ChatProvider chatProvider) {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: Text('ลบการสนทนา', style: TextStyle(color: const Color(0xFF8B4513))),
-        content: Text('คุณต้องการลบการสนทนา "${session.title}" หรือไม่?\n\nการกระทำนี้ไม่สามารถย้อนกลับได้'),
+        title: Text('ลบการสนทนา',
+            style: TextStyle(color: const Color(0xFF8B4513))),
+        content: Text(
+            'คุณต้องการลบการสนทนา "${session.title}" หรือไม่?\n\nการกระทำนี้ไม่สามารถย้อนกลับได้'),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
@@ -606,7 +639,7 @@ class _ChatHistoryPageState extends State<ChatHistoryPage> {
             onPressed: () async {
               await chatProvider.deleteSession(session.id);
               Navigator.pop(context);
-              
+
               if (chatProvider.error == null) {
                 ScaffoldMessenger.of(context).showSnackBar(
                   SnackBar(

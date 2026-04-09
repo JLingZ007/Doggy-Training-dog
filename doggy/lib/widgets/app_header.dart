@@ -4,6 +4,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../routes/app_routes.dart';
 
+// ─── Design Tokens ────────────────────────────────────────────────────────────
+const _kBgColor      = Color(0xFFF7EFE7);
+const _kSurfaceCream = Color(0xFFEFE2D3);
+const _kLightPaw     = Color(0xFFE8D5C0);
+const _kPrimaryBrown = Color(0xFFB08968);
+const _kDarkBrown    = Color(0xFF6D4C41);
+
 /// แปลงสตริงรูปให้เป็นรูปแบบที่พร้อมใช้งาน
 String normalizeRaw(String? raw) {
   final r = (raw ?? '').trim();
@@ -11,14 +18,14 @@ String normalizeRaw(String? raw) {
   return r;
 }
 
-/// Avatar แบบเสถียร: แปลง raw → ImageProvider เฉพาะตอน raw เปลี่ยนจริง ๆ
+// ─── StableAvatar (ไม่เปลี่ยน logic) ────────────────────────────────────────
 class StableAvatar extends StatefulWidget {
   const StableAvatar({
-    Key? key,
-    required this.raw, // url / base64 / data-url / '' (ว่าง = ไม่มีรูปจริง)
+    super.key,
+    required this.raw,
     required this.placeholder,
     this.radius = 18,
-  }) : super(key: key);
+  });
 
   final String raw;
   final ImageProvider placeholder;
@@ -29,7 +36,7 @@ class StableAvatar extends StatefulWidget {
 }
 
 class _StableAvatarState extends State<StableAvatar> {
-  ImageProvider? _fg; // real image (memoized)
+  ImageProvider? _fg;
   String _lastEffectiveRaw = '';
 
   @override
@@ -41,21 +48,15 @@ class _StableAvatarState extends State<StableAvatar> {
   @override
   void didUpdateWidget(covariant StableAvatar oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (oldWidget.raw != widget.raw) {
-      _updateIfNeeded(widget.raw);
-    }
+    if (oldWidget.raw != widget.raw) _updateIfNeeded(widget.raw);
   }
 
   void _updateIfNeeded(String rawIn) {
     String raw = normalizeRaw(rawIn);
-
-    // รองรับ data URL
     if (raw.startsWith('data:image')) {
       final comma = raw.indexOf(',');
-      if (comma != -1) raw = raw.substring(comma + 1); // เอาเฉพาะส่วน base64
+      if (comma != -1) raw = raw.substring(comma + 1);
     }
-
-    // ถ้าเหมือนเดิมไม่ต้องทำอะไร
     if (_lastEffectiveRaw == raw) return;
     _lastEffectiveRaw = raw;
 
@@ -64,17 +65,13 @@ class _StableAvatarState extends State<StableAvatar> {
       setState(() {});
       return;
     }
-
     if (raw.startsWith('http://') || raw.startsWith('https://')) {
       _fg = NetworkImage(raw);
       setState(() {});
       return;
     }
-
-    // base64 (ยอมรับทุกความยาว)
     try {
-      final bytes = base64Decode(raw);
-      _fg = MemoryImage(bytes);
+      _fg = MemoryImage(base64Decode(raw));
     } catch (_) {
       _fg = null;
     }
@@ -85,35 +82,48 @@ class _StableAvatarState extends State<StableAvatar> {
   Widget build(BuildContext context) {
     return CircleAvatar(
       radius: widget.radius,
-      backgroundImage: widget.placeholder, // โชว์ก่อน
-      foregroundImage: _fg,                // โหลดเสร็จทับ
+      backgroundImage: widget.placeholder,
+      foregroundImage: _fg,
     );
   }
 }
 
+// ─── AppHeader ────────────────────────────────────────────────────────────────
 class AppHeader extends StatelessWidget implements PreferredSizeWidget {
-  AppHeader({
+  const AppHeader({
     super.key,
     this.title = 'หน้าหลัก',
-    this.backgroundColor = const Color(0xFFD2B48C),
+    this.backgroundColor = _kSurfaceCream,
     this.elevation = 0,
-    this.titleColor = Colors.black,
+    this.titleColor = _kDarkBrown,
+    this.onDogChanged,
   });
 
   final String title;
   final Color backgroundColor;
   final double elevation;
   final Color titleColor;
+  final VoidCallback? onDogChanged;
 
-  final _auth = FirebaseAuth.instance;
-  final _firestore = FirebaseFirestore.instance;
+  // ✅ ลบ field _auth และ _firestore ออกจากตรงนี้
 
   @override
   Size get preferredSize => const Size.fromHeight(kToolbarHeight);
 
+  Future<void> _goToDogProfiles(BuildContext context) async {
+    final changed =
+        await Navigator.pushNamed(context, AppRoutes.dogProfiles);
+    if (changed == true && onDogChanged != null) {
+      onDogChanged!();
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    final user = _auth.currentUser;
+    // ✅ ย้ายมาประกาศใน build() แทน
+    final auth      = FirebaseAuth.instance;
+    final firestore = FirebaseFirestore.instance;
+    final user      = auth.currentUser;
 
     return AppBar(
       backgroundColor: backgroundColor,
@@ -122,94 +132,137 @@ class AppHeader extends StatelessWidget implements PreferredSizeWidget {
       title: Row(
         children: [
           const SizedBox(width: 8),
-          Text(title, style: TextStyle(color: titleColor)),
+          Text(
+            title,
+            style: TextStyle(
+              color: titleColor,
+              fontWeight: FontWeight.w800,
+              fontSize: 16,
+              letterSpacing: -0.2,
+            ),
+          ),
         ],
       ),
       leading: Builder(
         builder: (ctx) => IconButton(
-          icon: const Icon(Icons.menu, color: Colors.black),
+          icon: Icon(Icons.menu_rounded, color: titleColor),
           onPressed: () => Scaffold.of(ctx).openDrawer(),
         ),
       ),
       actions: [
         if (user == null || user.isAnonymous)
-          GestureDetector(
+          _AvatarButton(
+            raw: '',
             onTap: () => Navigator.pushNamed(context, AppRoutes.login),
-            child: const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 12),
-              child: StableAvatar(
-                raw: '',
-                placeholder: AssetImage('assets/images/dog_profile.jpg'),
-                radius: 18,
-              ),
-            ),
           )
         else
-          // ฟัง users/{uid} (ไม่กรอง cache เพื่อให้มีค่าเสมอ)
           StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-            stream: _firestore.collection('users').doc(user.uid).snapshots(),
+            stream: firestore  // ✅ ใช้ local variable
+                .collection('users')
+                .doc(user.uid)
+                .snapshots(),
             builder: (context, userSnap) {
-              if (!userSnap.hasData || !(userSnap.data?.exists ?? false)) {
-                return GestureDetector(
-                  onTap: () => Navigator.pushNamed(context, AppRoutes.dogProfiles),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: StableAvatar(
-                      raw: '',
-                      placeholder: AssetImage('assets/images/dog_profile.jpg'),
-                      radius: 18,
-                    ),
-                  ),
+              if (!userSnap.hasData ||
+                  !(userSnap.data?.exists ?? false)) {
+                return _AvatarButton(
+                  raw: '',
+                  onTap: () => _goToDogProfiles(context),
                 );
               }
 
-              final userData = userSnap.data!.data();
-              final activeDogId = (userData?['activeDogId'] as String?)?.trim();
+              final userData    = userSnap.data!.data();
+              final activeDogId =
+                  (userData?['activeDogId'] as String?)?.trim();
 
               if (activeDogId == null || activeDogId.isEmpty) {
-                return GestureDetector(
-                  onTap: () => Navigator.pushNamed(context, AppRoutes.dogProfiles),
-                  child: const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 12),
-                    child: StableAvatar(
-                      raw: '',
-                      placeholder: AssetImage('assets/images/dog_profile.jpg'),
-                      radius: 18,
-                    ),
-                  ),
+                return _AvatarButton(
+                  raw: '',
+                  badge: true,
+                  onTap: () => _goToDogProfiles(context),
                 );
               }
 
-              // ฟัง dogs/{activeDogId} (ไม่กรอง cache)
               return StreamBuilder<DocumentSnapshot<Map<String, dynamic>>>(
-                stream: _firestore
+                stream: firestore  // ✅ ใช้ local variable
                     .collection('users')
                     .doc(user.uid)
                     .collection('dogs')
                     .doc(activeDogId)
                     .snapshots(),
                 builder: (context, dogSnap) {
-                  String raw = '';
-                  if (dogSnap.hasData && (dogSnap.data?.exists ?? false)) {
-                    raw = normalizeRaw(dogSnap.data!.data()?['image'] as String?);
-                  }
+                  final raw = dogSnap.hasData &&
+                          (dogSnap.data?.exists ?? false)
+                      ? normalizeRaw(
+                          dogSnap.data!.data()?['image'] as String?)
+                      : '';
 
-                  return GestureDetector(
-                    onTap: () => Navigator.pushNamed(context, AppRoutes.dogProfiles),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      child: StableAvatar(
-                        raw: raw,
-                        placeholder: const AssetImage('assets/images/dog_profile.jpg'),
-                        radius: 18,
-                      ),
-                    ),
+                  return _AvatarButton(
+                    raw: raw,
+                    onTap: () => _goToDogProfiles(context),
                   );
                 },
               );
             },
           ),
       ],
+    );
+  }
+}
+
+// ─── Avatar Button ────────────────────────────────────────────────────────────
+class _AvatarButton extends StatelessWidget {
+  final String raw;
+  final VoidCallback onTap;
+  final bool badge;
+
+  const _AvatarButton({
+    required this.raw,
+    required this.onTap,
+    this.badge = false,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Padding(
+        padding: const EdgeInsets.only(right: 12),
+        child: Stack(
+          clipBehavior: Clip.none,
+          children: [
+            // Avatar ring
+            Container(
+              padding: const EdgeInsets.all(2),
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: _kLightPaw, width: 1.5),
+              ),
+              child: StableAvatar(
+                raw: raw,
+                placeholder:
+                    const AssetImage('assets/images/dog_profiles.png'),
+                radius: 17,
+              ),
+            ),
+            // ✅ badge dot เมื่อยังไม่ได้เลือกสุนัข
+            if (badge)
+              Positioned(
+                right: -1,
+                top: -1,
+                child: Container(
+                  width: 9,
+                  height: 9,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE05252),
+                    shape: BoxShape.circle,
+                    border:
+                        Border.all(color: Colors.white, width: 1.5),
+                  ),
+                ),
+              ),
+          ],
+        ),
+      ),
     );
   }
 }

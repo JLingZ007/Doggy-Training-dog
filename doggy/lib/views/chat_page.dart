@@ -26,11 +26,14 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
 
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final chatProvider = context.read<ChatProvider>();
+
       if (chatProvider.currentSessionId == null) {
         chatProvider.addWelcomeMessage();
       }
     });
   }
+
+  
 
   @override
   void dispose() {
@@ -76,6 +79,11 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF3F6F8),
+      drawer: Consumer<ChatProvider>(
+      builder: (context, chatProvider, child) {
+        return _buildChatDrawer();
+      },
+      ),
       appBar: AppBar(
         title: Row(
           children: [
@@ -103,6 +111,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                     color: Colors.black,
                   ),
                 ),
+                
                 Consumer<ChatProvider>(
                   builder: (context, chatProvider, child) {
                     return Text(
@@ -343,23 +352,28 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                   constraints: BoxConstraints(
                     maxWidth: MediaQuery.of(context).size.width * 0.75,
                   ),
-                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+  horizontal: 16,
+  vertical: 14,
+),
                   decoration: BoxDecoration(
-                    color: isUser ? const Color(0xFFD2B48C) : Colors.white,
-                    borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(18),
-                      topRight: Radius.circular(18),
-                      bottomLeft: Radius.circular(isUser ? 18 : 4),
-                      bottomRight: Radius.circular(isUser ? 4 : 18),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.1),
-                        blurRadius: 4,
-                        offset: Offset(0, 2),
-                      ),
-                    ],
-                  ),
+  color: isUser
+      ? const Color(0xFFD2B48C)
+      : Colors.white,
+  borderRadius: BorderRadius.only(
+    topLeft: const Radius.circular(20),
+    topRight: const Radius.circular(20),
+    bottomLeft: Radius.circular(isUser ? 20 : 6),
+    bottomRight: Radius.circular(isUser ? 6 : 20),
+  ),
+  boxShadow: [
+    BoxShadow(
+      color: Colors.black.withOpacity(0.06),
+      blurRadius: 8,
+      offset: const Offset(0, 3),
+    )
+  ],
+),
                   child: isUser
                       ? Text(
                           message.content,
@@ -423,6 +437,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
           ],
         ],
       ),
+      
     );
   }
 
@@ -530,12 +545,15 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
             Expanded(
               child: Container(
                 decoration: BoxDecoration(
-                  color: const Color(0xFFF3F6F8),
-                  borderRadius: BorderRadius.circular(25),
-                  border: Border.all(
-                    color: const Color(0xFFD2B48C).withOpacity(0.3),
-                  ),
-                ),
+  color: const Color(0xFFF3F6F8),
+  borderRadius: BorderRadius.circular(30),
+  boxShadow: [
+    BoxShadow(
+      color: Colors.black.withOpacity(0.05),
+      blurRadius: 10,
+    )
+  ],
+),
                 child: TextField(
                   controller: _messageController,
                   decoration: InputDecoration(
@@ -565,7 +583,7 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
                   child: IconButton(
                     onPressed: chatProvider.isLoading ? null : _sendMessage,
                     icon: Icon(
-                      chatProvider.isLoading ? Icons.hourglass_empty : Icons.send,
+                      chatProvider.isLoading ? Icons.hourglass_empty : Icons.arrow_upward,
                       color: Colors.black,
                     ),
                   ),
@@ -608,4 +626,283 @@ class _ChatPageState extends State<ChatPage> with TickerProviderStateMixin {
       },
     );
   }
+
+  void _showSessionOptions(ChatSession session) {
+  showModalBottomSheet(
+    context: context,
+    builder: (context) {
+      return Wrap(
+        children: [
+
+          ListTile(
+            leading: Icon(Icons.edit),
+            title: Text("เปลี่ยนชื่อ"),
+            onTap: () {
+              Navigator.pop(context);
+              _renameSession(session);
+            },
+          ),
+
+          ListTile(
+            leading: Icon(Icons.delete, color: Colors.red),
+            title: Text("ลบการสนทนา"),
+            onTap: () {
+              Navigator.pop(context);
+              context.read<ChatProvider>().deleteSession(session.id);
+            },
+          ),
+
+        ],
+      );
+    },
+  );
+}
+
+void _renameSession(ChatSession session) {
+
+  TextEditingController controller =
+      TextEditingController(text: session.title);
+
+  showDialog(
+    context: context,
+    builder: (context) {
+
+      return AlertDialog(
+        title: Text("เปลี่ยนชื่อการสนทนา"),
+        content: TextField(
+          controller: controller,
+          decoration: InputDecoration(
+            hintText: "ชื่อใหม่",
+          ),
+        ),
+        actions: [
+
+          TextButton(
+            child: Text("ยกเลิก"),
+            onPressed: () => Navigator.pop(context),
+          ),
+
+          TextButton(
+            child: Text("บันทึก"),
+            onPressed: () {
+
+              context.read<ChatProvider>().updateSessionTitle(
+                    session.id,
+                    controller.text,
+                  );
+
+              Navigator.pop(context);
+            },
+          ),
+
+        ],
+      );
+    },
+  );
+}
+
+
+  Widget _buildChatDrawer() {
+  return Drawer(
+    child: SafeArea(
+      child: Column(
+        children: [
+
+          /// HEADER
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
+            decoration: const BoxDecoration(
+              gradient: LinearGradient(
+                colors: [
+                  Color(0xFFE8C9A0),
+                  Color(0xFFD2B48C),
+                ],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(8),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                  child: const Icon(
+                    Icons.history,
+                    color: Color(0xFF8B4513),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                const Text(
+                  "ประวัติการสนทนา",
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
+                )
+              ],
+            ),
+          ),
+
+          /// NEW CHAT BUTTON
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () async {
+                  final chatProvider = context.read<ChatProvider>();
+                  await chatProvider.startNewSession();
+                  Navigator.pop(context);
+                },
+                icon: const Icon(Icons.add),
+                label: const Text("เริ่มแชทใหม่"),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  backgroundColor: const Color(0xFFD2B48C),
+                  foregroundColor: Colors.black,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ),
+          ),
+
+          const Divider(height: 1),
+
+          /// CHAT LIST
+          Expanded(
+            child: Consumer<ChatProvider>(
+              builder: (context, chatProvider, child) {
+
+                if (chatProvider.chatSessions.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      "ยังไม่มีประวัติการสนทนา",
+                      style: TextStyle(color: Colors.grey),
+                    ),
+                  );
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.symmetric(vertical: 10),
+                  itemCount: chatProvider.chatSessions.length,
+                  itemBuilder: (context, index) {
+
+                    final session = chatProvider.chatSessions[index];
+
+                    final isCurrent =
+                        session.id == chatProvider.currentSessionId;
+
+                    return GestureDetector(
+                      onTap: () async {
+                        final chatProvider =
+                            context.read<ChatProvider>();
+
+                        await chatProvider.loadSession(session.id);
+
+                        Navigator.pop(context);
+                      },
+                      onLongPress: () {
+                        _showSessionOptions(session);
+                      },
+                      child: Container(
+                        margin: const EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 6,
+                        ),
+                        padding: const EdgeInsets.all(12),
+                        decoration: BoxDecoration(
+                          color: isCurrent
+                              ? const Color(0xFFD2B48C).withOpacity(0.2)
+                              : Colors.white,
+                          borderRadius: BorderRadius.circular(14),
+                          border: isCurrent
+                              ? Border.all(
+                                  color: const Color(0xFFD2B48C),
+                                  width: 1.5,
+                                )
+                              : null,
+                          boxShadow: [
+                            BoxShadow(
+                              color: Colors.black.withOpacity(0.05),
+                              blurRadius: 6,
+                              offset: const Offset(0, 2),
+                            )
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+
+                            /// CHAT ICON
+                            Container(
+                              padding: const EdgeInsets.all(8),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFD2B48C)
+                                    .withOpacity(0.3),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.chat_bubble_outline,
+                                color: Color(0xFF8B4513),
+                                size: 18,
+                              ),
+                            ),
+
+                            const SizedBox(width: 10),
+
+                            /// CHAT TITLE
+                            Expanded(
+                              child: Column(
+                                crossAxisAlignment:
+                                    CrossAxisAlignment.start,
+                                children: [
+
+                                  Text(
+                                    session.title,
+                                    maxLines: 1,
+                                    overflow: TextOverflow.ellipsis,
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w600,
+                                      fontSize: 14,
+                                    ),
+                                  ),
+
+                                  const SizedBox(height: 2),
+
+                                  Text(
+                                    "${session.messageCount} ข้อความ",
+                                    style: TextStyle(
+                                      fontSize: 12,
+                                      color: Colors.grey[600],
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+
+                            /// MENU
+                            const Icon(
+                              Icons.more_vert,
+                              size: 18,
+                              color: Colors.grey,
+                            )
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
+}
 }

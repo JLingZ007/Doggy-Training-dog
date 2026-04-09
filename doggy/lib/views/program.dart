@@ -1,9 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
-import '../widgets/slidebar.dart'; // สมมติว่า path นี้ถูกต้อง
-import '../routes/app_routes.dart'; // สมมติว่า path นี้ถูกต้อง
+import '../widgets/slidebar.dart';
+import '../routes/app_routes.dart';
 
-// แปลงเป็น StatefulWidget เพื่อดึงข้อมูลและอัปเดต title
 class TrainingProgramsPage extends StatefulWidget {
   final String categoryId;
 
@@ -15,8 +14,11 @@ class TrainingProgramsPage extends StatefulWidget {
 
 class _TrainingProgramsPageState extends State<TrainingProgramsPage> {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
   String _categoryName = 'กำลังโหลด...';
   late Future<List<Map<String, dynamic>>> _programsFuture;
+
+  static const Color tan = Color(0xFFD2B48C);
 
   @override
   void initState() {
@@ -24,7 +26,6 @@ class _TrainingProgramsPageState extends State<TrainingProgramsPage> {
     _programsFuture = _fetchData();
   }
 
-  // ดึงทั้งชื่อหมวดหมู่ (เพื่ออัปเดต state) และรายการโปรแกรม
   Future<List<Map<String, dynamic>>> _fetchData() async {
     try {
       final categoryDoc = await _firestore
@@ -50,79 +51,72 @@ class _TrainingProgramsPageState extends State<TrainingProgramsPage> {
         .doc(widget.categoryId)
         .collection('programs')
         .get();
-    return snapshot.docs.map((doc) => {'id': doc.id, ...doc.data()}).toList();
+
+    return snapshot.docs
+        .map((doc) => {'id': doc.id, ...doc.data()})
+        .toList();
   }
 
   @override
   Widget build(BuildContext context) {
-    // สี tan ตามที่ต้องการ
-    const Color tan = Color(0xFFD2B48C);
-
     return Scaffold(
+      backgroundColor: const Color(0xFFF5EFE6),
+      drawer: const SlideBar(),
       appBar: AppBar(
-        // ** ปรับแก้ AppBar ตามที่ร้องขอ **
-        title: Text('บทเรียน: $_categoryName',
-            style: const TextStyle(
-                color: Colors.black, fontWeight: FontWeight.w700)),
+        title: Text(
+          'บทเรียน: $_categoryName',
+          style: const TextStyle(
+              fontWeight: FontWeight.w800, fontSize: 18, color: Colors.black),
+        ),
+        centerTitle: true,
         backgroundColor: tan,
         elevation: 0,
-        centerTitle: true,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back, color: Colors.black),
-          onPressed: () => Navigator.pop(context),
-        ),
+        iconTheme: const IconThemeData(color: Colors.black),
       ),
-      drawer: const SlideBar(), // สมมติว่า SlideBar เป็น widget ที่ถูกต้อง
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _programsFuture,
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());
           }
+
           if (snapshot.hasError) {
             return Center(child: Text('เกิดข้อผิดพลาด: ${snapshot.error}'));
           }
+
           final programs = snapshot.data ?? [];
+
           if (programs.isEmpty) {
             return const Center(child: Text('ไม่มีบทเรียนในหมวดหมู่นี้'));
           }
 
           return LayoutBuilder(
             builder: (context, constraints) {
-              final maxW = constraints.maxWidth;
-              // จำนวนคอลัมน์ที่ปรับตามขนาดหน้าจอ
-              final crossAxisCount = (maxW >= 900)
-                  ? 4
-                  : (maxW >= 600)
-                      ? 3
-                      : 2;
+              int crossAxisCount = 2;
+
+              if (constraints.maxWidth > 900) {
+                crossAxisCount = 4;
+              } else if (constraints.maxWidth > 600) {
+                crossAxisCount = 3;
+              }
 
               return GridView.builder(
-                padding: const EdgeInsets.all(16.0),
+                padding: const EdgeInsets.fromLTRB(16, 16, 16, 40),
                 gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: crossAxisCount,
-                  // ** ปรับแก้: เพิ่มค่าเพื่อให้การ์ดสั้นลง (ดูเล็กลง) **
-                  childAspectRatio: 0.9,
-                  // เพิ่มระยะห่างระหว่างการ์ด
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
+                  mainAxisSpacing: 18,
+                  crossAxisSpacing: 18,
+                  childAspectRatio: 0.82,
                 ),
                 itemCount: programs.length,
                 itemBuilder: (context, index) {
                   final program = programs[index];
+
                   return _ProgramCard(
-                    name: program['name'] ?? 'ไม่มีชื่อโปรแกรม',
+                    id: program['id'],
+                    name: program['name'] ?? '',
                     imageUrl: program['image'] ?? '',
-                    onTap: () {
-                      Navigator.pushNamed(
-                        context,
-                        AppRoutes.trainingDetails,
-                        arguments: {
-                          'documentId': program['id'],
-                          'categoryId': widget.categoryId,
-                        },
-                      );
-                    },
+                    categoryId: widget.categoryId,
                   );
                 },
               );
@@ -134,71 +128,150 @@ class _TrainingProgramsPageState extends State<TrainingProgramsPage> {
   }
 }
 
-// การ์ดโปรแกรมที่ออกแบบใหม่ให้ดูทันสมัยขึ้น
-class _ProgramCard extends StatelessWidget {
+class _ProgramCard extends StatefulWidget {
+  final String id;
   final String name;
   final String imageUrl;
-  final VoidCallback onTap;
+  final String categoryId;
 
   const _ProgramCard({
+    required this.id,
     required this.name,
     required this.imageUrl,
-    required this.onTap,
+    required this.categoryId,
   });
 
   @override
+  State<_ProgramCard> createState() => _ProgramCardState();
+}
+
+class _ProgramCardState extends State<_ProgramCard> {
+  double scale = 1;
+
+  void _tapDown(TapDownDetails d) {
+    setState(() => scale = 0.95);
+  }
+
+  void _tapUp(TapUpDetails d) {
+    setState(() => scale = 1);
+  }
+
+  void _tapCancel() {
+    setState(() => scale = 1);
+  }
+
+  @override
   Widget build(BuildContext context) {
+    const brown = Color(0xFF6B3F1D);
+
     return GestureDetector(
-      onTap: onTap,
-      child: Card(
-        elevation: 4,
-        shadowColor: Colors.black.withOpacity(0.1),
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        clipBehavior: Clip.antiAlias,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            // ใช้ Expanded เพื่อให้รูปภาพขยายเต็มพื้นที่ที่เหลือ
-            // ทำให้รูปภาพทุกใบมีขนาดเท่ากันและสมส่วนกับการ์ด
-            Expanded(
-              child: (imageUrl.isNotEmpty)
-                  ? Image.network(
-                      imageUrl,
-                      fit: BoxFit.cover,
-                      loadingBuilder: (context, child, loadingProgress) {
-                        if (loadingProgress == null) return child;
-                        return const Center(child: CircularProgressIndicator());
-                      },
-                      errorBuilder: (_, __, ___) => _errorBox(),
-                    )
-                  : _errorBox(),
-            ),
-            // ส่วนข้อความที่ออกแบบใหม่
-            Padding(
-              padding: const EdgeInsets.fromLTRB(12, 12, 12, 16),
-              child: Text(
-                name,
-                textAlign: TextAlign.left, // จัดข้อความชิดซ้าย
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-                style: const TextStyle(
-                  fontSize: 15,
-                  fontWeight: FontWeight.bold,
-                  color: Colors.black87,
+      onTapDown: _tapDown,
+      onTapUp: _tapUp,
+      onTapCancel: _tapCancel,
+      onTap: () {
+        Navigator.pushNamed(
+          context,
+          AppRoutes.trainingDetails,
+          arguments: {
+            'documentId': widget.id,
+            'categoryId': widget.categoryId,
+          },
+        );
+      },
+      child: AnimatedScale(
+        scale: scale,
+        duration: const Duration(milliseconds: 120),
+        child: Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(18),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.08),
+                blurRadius: 14,
+                offset: const Offset(0, 6),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+
+              /// IMAGE
+              Hero(
+                tag: widget.id,
+                child: ClipRRect(
+                  borderRadius:
+                      const BorderRadius.vertical(top: Radius.circular(18)),
+                  child: SizedBox(
+                    height: 150,
+                    width: double.infinity,
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        widget.imageUrl.isNotEmpty
+                            ? Image.network(
+                                widget.imageUrl,
+                                fit: BoxFit.cover,
+                                errorBuilder: (_, __, ___) => _errorBox(),
+                              )
+                            : _errorBox(),
+
+                        /// gradient overlay
+                        Positioned(
+                          bottom: 0,
+                          left: 0,
+                          right: 0,
+                          child: Container(
+                            height: 60,
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                begin: Alignment.bottomCenter,
+                                end: Alignment.topCenter,
+                                colors: [
+                                  Colors.black.withOpacity(0.35),
+                                  Colors.transparent
+                                ],
+                              ),
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-            ),
-          ],
+
+              /// TEXT
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(12, 12, 12, 14),
+                  child: Text(
+                    widget.name,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.w800,
+                      height: 1.3,
+                      color: brown,
+                    ),
+                  ),
+                ),
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 
-  // Placeholder สำหรับรูปภาพที่โหลดไม่ได้หรือไม่พบ
-  Widget _errorBox() => Container(
-        color: Colors.grey.shade200,
-        alignment: Alignment.center,
-        child: Icon(Icons.pets_rounded, size: 40, color: Colors.grey.shade400),
-      );
+  Widget _errorBox() {
+    return Container(
+      color: const Color(0xFFEDE7E0),
+      child: const Center(
+        child: Icon(Icons.pets, size: 40, color: Colors.grey),
+      ),
+    );
+  }
 }
-

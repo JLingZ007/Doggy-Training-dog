@@ -221,28 +221,7 @@ class FirebaseChatService {
   }
 }
 
-// Model สำหรับ Chat Session
-class ChatSession {
-  final String id;
-  final String userId;
-  final String title;
-  final int messageCount;
-  final String? lastMessage;
-  final DateTime createdAt;
-  final DateTime updatedAt;
-  final bool isActive;
 
-  ChatSession({
-    required this.id,
-    required this.userId,
-    required this.title,
-    required this.messageCount,
-    this.lastMessage,
-    required this.createdAt,
-    required this.updatedAt,
-    required this.isActive,
-  });
-}
 
 // Model สำหรับสถิติ
 class ChatStatistics {

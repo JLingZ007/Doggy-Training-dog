@@ -32,37 +32,89 @@ class _RegisterPageState extends State<RegisterPage> {
   }
 
   Future<void> _createAccount() async {
-    if (!_formKey.currentState!.validate()) return;
 
-    if (_passwordController.text != _confirmController.text) {
-      setState(() => _errorMessage = 'รหัสผ่านและยืนยันรหัสผ่านไม่ตรงกัน');
-      return;
+  /// ตรวจสอบก่อนว่ากรอกครบหรือยัง
+  if (_usernameController.text.trim().isEmpty ||
+      _emailController.text.trim().isEmpty ||
+      _passwordController.text.isEmpty ||
+      _confirmController.text.isEmpty) {
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("กรุณากรอกข้อมูลให้ครบทุกช่อง"),
+        backgroundColor: Colors.red,
+      ),
+    );
+
+    return;
+  }
+
+  /// ตรวจสอบ email
+  if (!_emailController.text.contains("@")) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("รูปแบบอีเมลไม่ถูกต้อง"),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
+
+  /// ตรวจสอบ password
+  if (_passwordController.text.length < 6) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร"),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
+
+  /// ตรวจสอบ confirm password
+  if (_passwordController.text != _confirmController.text) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text("รหัสผ่านไม่ตรงกัน"),
+        backgroundColor: Colors.red,
+      ),
+    );
+    return;
+  }
+
+  setState(() {
+    _isLoading = true;
+  });
+
+  try {
+    final credential = await _auth.createUserWithEmailAndPassword(
+      email: _emailController.text.trim(),
+      password: _passwordController.text,
+    );
+
+    await credential.user
+        ?.updateDisplayName(_usernameController.text.trim());
+
+    if (mounted) {
+      Navigator.pushNamedAndRemoveUntil(
+          context, AppRoutes.home, (_) => false);
     }
 
-    setState(() {
-      _isLoading = true;
-      _errorMessage = null;
-    });
+  } on FirebaseAuthException catch (e) {
 
-    try {
-      final credential = await _auth.createUserWithEmailAndPassword(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(e.message ?? "เกิดข้อผิดพลาด"),
+        backgroundColor: Colors.red,
+      ),
+    );
 
-      await credential.user?.updateDisplayName(_usernameController.text.trim());
-
-      if (mounted) {
-        Navigator.pushNamedAndRemoveUntil(context, AppRoutes.home, (_) => false);
-      }
-    } on FirebaseAuthException catch (e) {
-      setState(() => _errorMessage = e.message ?? 'เกิดข้อผิดพลาด');
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
+  } finally {
+    if (mounted) {
+      setState(() => _isLoading = false);
     }
   }
+}
 
   InputDecoration _pillInput({
     required String label,
@@ -91,148 +143,249 @@ class _RegisterPageState extends State<RegisterPage> {
     );
   }
 
+  InputDecoration _modernInput({
+    required String label,
+    required IconData icon,
+    Widget? suffix,
+  }) {
+    return InputDecoration(
+      labelText: label,
+      prefixIcon: Icon(icon),
+      suffixIcon: suffix,
+      filled: true,
+      fillColor: Colors.white,
+      border: OutlineInputBorder(
+        borderRadius: BorderRadius.circular(16),
+        borderSide: BorderSide.none,
+      ),
+      contentPadding: const EdgeInsets.symmetric(vertical: 18),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: const Color(0xFFF7EFE7),
-      body: Center(
+      body: SafeArea(
         child: SingleChildScrollView(
-          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+          padding: const EdgeInsets.symmetric(horizontal: 24),
           child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
+            crossAxisAlignment: CrossAxisAlignment.center,
             children: [
+              const SizedBox(height: 40),
+
+              /// Logo
+              Image.asset(
+                'assets/images/doggy_logo.png',
+                height: 140,
+              ),
+
+              const SizedBox(height: 16),
+
               const Text(
-                'ลงทะเบียน',
+                "สร้างบัญชีใหม่",
                 style: TextStyle(
-                  fontSize: 28,
-                  fontWeight: FontWeight.w800,
+                  fontSize: 26,
+                  fontWeight: FontWeight.bold,
                   color: Colors.brown,
                 ),
               ),
-              const SizedBox(height: 16),
-              Card(
-                color: Colors.white,
-                elevation: 4,
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Padding(
-                  padding: const EdgeInsets.all(20),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      children: [
-                        TextFormField(
-                          controller: _usernameController,
-                          decoration: _pillInput(label: 'ชื่อผู้ใช้งาน'),
-                          validator: (v) {
-                            if (v == null || v.trim().isEmpty) return 'กรุณากรอกชื่อผู้ใช้งาน';
-                            if (v.trim().length < 3) return 'ชื่อผู้ใช้งานอย่างน้อย 3 ตัวอักษร';
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 18),
-                        TextFormField(
-                          controller: _emailController,
-                          keyboardType: TextInputType.emailAddress,
-                          decoration: _pillInput(label: 'อีเมล', prefix: Icons.email),
-                          validator: (v) {
-                            if (v == null || v.isEmpty) return 'กรุณากรอกอีเมล';
-                            if (!v.contains('@')) return 'กรุณากรอกอีเมลให้ถูกต้อง';
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 18),
-                        TextFormField(
-                          controller: _passwordController,
-                          obscureText: _obscurePwd,
-                          decoration: _pillInput(
-                            label: 'รหัสผ่าน',
-                            prefix: Icons.lock,
-                            suffix: IconButton(
-                              onPressed: () => setState(() => _obscurePwd = !_obscurePwd),
-                              icon: Icon(_obscurePwd ? Icons.visibility : Icons.visibility_off),
-                            ),
-                          ),
-                          validator: (v) {
-                            if (v == null || v.isEmpty) return 'กรุณากรอกรหัสผ่าน';
-                            if (v.length < 6) return 'รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร';
-                            return null;
-                          },
-                        ),
-                        const SizedBox(height: 18),
-                        TextFormField(
-                          controller: _confirmController,
-                          obscureText: _obscureConfirm,
-                          decoration: _pillInput(
-                            label: 'ยืนยันรหัสผ่าน',
-                            prefix: Icons.lock_outline,
-                            suffix: IconButton(
-                              onPressed: () => setState(() => _obscureConfirm = !_obscureConfirm),
-                              icon: Icon(_obscureConfirm ? Icons.visibility : Icons.visibility_off),
-                            ),
-                          ),
-                          validator: (v) {
-                            if (v == null || v.isEmpty) return 'กรุณากรอกยืนยันรหัสผ่าน';
-                            if (v != _passwordController.text) return 'รหัสผ่านไม่ตรงกัน';
-                            return null;
-                          },
-                        ),
-                        if (_errorMessage != null) ...[
-                          const SizedBox(height: 6),
-                          Text(_errorMessage!, style: const TextStyle(color: Colors.red)),
-                        ],
-                        const SizedBox(height: 22),
-                        ElevatedButton(
-                          onPressed: _isLoading ? null : _createAccount,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: const Color(0xFFEFE2D3),
-                            foregroundColor: Colors.black87,
-                            elevation: 3,
-                            padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(28),
-                              side: const BorderSide(color: Colors.black87, width: 1),
-                            ),
-                          ),
-                          child: _isLoading
-                              ? const SizedBox(
-                                  height: 20,
-                                  width: 20,
-                                  child: CircularProgressIndicator(strokeWidth: 2),
-                                )
-                              : const Text(
-                                  'ลงทะเบียน',
-                                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                                ),
-                        ),
-                        const SizedBox(height: 12),
-                        OutlinedButton(
-                          onPressed: () => Navigator.pop(context),
-                          style: OutlinedButton.styleFrom(
-                            foregroundColor: Colors.white,
-                            backgroundColor: const Color(0xFF7C5959),
-                            side: const BorderSide(color: Colors.black87, width: 1),
-                            padding: const EdgeInsets.symmetric(horizontal: 50, vertical: 14),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(28),
-                            ),
-                          ),
-                          child: const Text('ยกเลิก', style: TextStyle(fontWeight: FontWeight.bold)),
-                        ),
-                        const SizedBox(height: 16),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text(
-                            'มีบัญชีอยู่แล้ว ?  เข้าสู่ระบบ',
-                            style: TextStyle(color: Colors.blue),
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
+
+              const SizedBox(height: 6),
+
+              const Text(
+                "เริ่มต้นฝึกสุนัขของคุณได้ทันที",
+                style: TextStyle(
+                  color: Colors.black54,
                 ),
               ),
+
+              const SizedBox(height: 32),
+
+              Form(
+  key: _formKey,
+  child: Column(
+    crossAxisAlignment: CrossAxisAlignment.start,
+    children: [
+
+      /// USERNAME
+      TextFormField(
+        controller: _usernameController,
+        onChanged: (_) => setState(() {}),
+        decoration: _modernInput(
+          label: "ชื่อผู้ใช้งาน",
+          icon: Icons.person,
+        ),
+      ),
+
+      if (_usernameController.text.isNotEmpty &&
+          _usernameController.text.trim().length < 3)
+        const Padding(
+          padding: EdgeInsets.only(top: 6, left: 12),
+          child: Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.red, size: 18),
+              SizedBox(width: 6),
+              Text(
+                "ชื่อผู้ใช้งานต้องมีอย่างน้อย 3 ตัวอักษร",
+                style: TextStyle(color: Colors.red, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+
+      const SizedBox(height: 16),
+
+      /// EMAIL
+      TextFormField(
+        controller: _emailController,
+        keyboardType: TextInputType.emailAddress,
+        onChanged: (_) => setState(() {}),
+        decoration: _modernInput(
+          label: "อีเมล",
+          icon: Icons.email,
+        ),
+      ),
+
+      if (_emailController.text.isNotEmpty &&
+          !_emailController.text.contains("@"))
+        const Padding(
+          padding: EdgeInsets.only(top: 6, left: 12),
+          child: Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.red, size: 18),
+              SizedBox(width: 6),
+              Text(
+                "รูปแบบอีเมลไม่ถูกต้อง",
+                style: TextStyle(color: Colors.red, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+
+      const SizedBox(height: 16),
+
+      /// PASSWORD
+      TextFormField(
+        controller: _passwordController,
+        obscureText: _obscurePwd,
+        onChanged: (_) => setState(() {}),
+        decoration: _modernInput(
+          label: "รหัสผ่าน",
+          icon: Icons.lock,
+          suffix: IconButton(
+            icon: Icon(
+              _obscurePwd ? Icons.visibility : Icons.visibility_off,
+            ),
+            onPressed: () => setState(() => _obscurePwd = !_obscurePwd),
+          ),
+        ),
+      ),
+
+      if (_passwordController.text.isNotEmpty &&
+          _passwordController.text.length < 6)
+        const Padding(
+          padding: EdgeInsets.only(top: 6, left: 12),
+          child: Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.red, size: 18),
+              SizedBox(width: 6),
+              Text(
+                "รหัสผ่านต้องมีอย่างน้อย 6 ตัวอักษร",
+                style: TextStyle(color: Colors.red, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+
+      const SizedBox(height: 16),
+
+      /// CONFIRM PASSWORD
+      TextFormField(
+        controller: _confirmController,
+        obscureText: _obscureConfirm,
+        onChanged: (_) => setState(() {}),
+        decoration: _modernInput(
+          label: "ยืนยันรหัสผ่าน",
+          icon: Icons.lock_outline,
+          suffix: IconButton(
+            icon: Icon(
+              _obscureConfirm
+                  ? Icons.visibility
+                  : Icons.visibility_off,
+            ),
+            onPressed: () =>
+                setState(() => _obscureConfirm = !_obscureConfirm),
+          ),
+        ),
+      ),
+
+      if (_confirmController.text.isNotEmpty &&
+          _confirmController.text != _passwordController.text)
+        const Padding(
+          padding: EdgeInsets.only(top: 6, left: 12),
+          child: Row(
+            children: [
+              Icon(Icons.error_outline, color: Colors.red, size: 18),
+              SizedBox(width: 6),
+              Text(
+                "รหัสผ่านไม่ตรงกัน",
+                style: TextStyle(color: Colors.red, fontSize: 13),
+              ),
+            ],
+          ),
+        ),
+    ],
+  ),
+),
+
+              const SizedBox(height: 28),
+
+              /// REGISTER BUTTON
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _createAccount,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: const Color.fromARGB(255, 209, 170, 87),
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                  ),
+                  child: _isLoading
+                      ? const CircularProgressIndicator(color: Colors.white)
+                      : const Text(
+                          "สร้างบัญชี",
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              /// LOGIN LINK
+              Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  const Text("มีบัญชีอยู่แล้ว? "),
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: const Text(
+                      "เข้าสู่ระบบ",
+                      style: TextStyle(
+                        color: Colors.blue,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  )
+                ],
+              ),
+
+              const SizedBox(height: 40),
             ],
           ),
         ),

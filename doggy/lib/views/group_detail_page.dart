@@ -328,13 +328,12 @@ class _GroupDetailPageState extends State<GroupDetailPage> {
           const SliverToBoxAdapter(child: SizedBox(height: 80)),
         ],
       ),
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: _showCreatePostDialog,
-        backgroundColor: _tan,
-        foregroundColor: Colors.black,
-        icon: const Icon(Icons.add),
-        label: const Text('สร้างโพสต์', style: TextStyle(fontWeight: FontWeight.bold)),
-      ),
+      floatingActionButton: FloatingActionButton.small(
+  onPressed: _showCreatePostDialog,
+  backgroundColor: _tan,
+  foregroundColor: Colors.white,
+  child: const Icon(Icons.add_rounded),
+),
     );
   }
 

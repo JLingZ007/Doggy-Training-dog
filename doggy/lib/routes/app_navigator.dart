@@ -20,165 +20,186 @@ import '../views/login_page.dart';
 import '../views/register_page.dart';
 
 class AppNavigator {
+  // ── Bottom nav pages: ไม่มี transition เลย (instant swap) ─────────────────
+  static Route<T> _instantRoute<T>(
+      Widget page, RouteSettings settings) {
+    return PageRouteBuilder<T>(
+      settings: settings,
+      pageBuilder: (_, __, ___) => page,
+      transitionDuration: Duration.zero,
+      reverseTransitionDuration: Duration.zero,
+    );
+  }
+
+  // ── Push pages (detail, modal): fade-in เบาๆ ─────────────────────────────
+  static Route<T> _fadeRoute<T>(Widget page, RouteSettings settings) {
+    return PageRouteBuilder<T>(
+      settings: settings,
+      pageBuilder: (_, animation, __) => page,
+      transitionsBuilder: (_, animation, __, child) {
+        return FadeTransition(
+          opacity: CurvedAnimation(
+            parent: animation,
+            curve: Curves.easeOut,
+          ),
+          child: child,
+        );
+      },
+      transitionDuration: const Duration(milliseconds: 180),
+      reverseTransitionDuration: const Duration(milliseconds: 140),
+    );
+  }
+
+  // ── Push pages (login, register, dog): slide up เบาๆ ──────────────────────
+  static Route<T> _slideUpRoute<T>(
+      Widget page, RouteSettings settings) {
+    return PageRouteBuilder<T>(
+      settings: settings,
+      pageBuilder: (_, animation, __) => page,
+      transitionsBuilder: (_, animation, __, child) {
+        final tween = Tween<Offset>(
+          begin: const Offset(0, 0.06),
+          end: Offset.zero,
+        ).animate(CurvedAnimation(
+          parent: animation,
+          curve: Curves.easeOut,
+        ));
+        return FadeTransition(
+          opacity: CurvedAnimation(
+              parent: animation, curve: Curves.easeOut),
+          child: SlideTransition(position: tween, child: child),
+        );
+      },
+      transitionDuration: const Duration(milliseconds: 220),
+      reverseTransitionDuration: const Duration(milliseconds: 180),
+    );
+  }
+
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
-    print('Navigating to: ${settings.name}'); // เพิ่ม debug log
-    
     switch (settings.name) {
+
+      // ── Bottom nav (instant — ไม่มี animation ทำให้รู้สึก native) ──────────
       case AppRoutes.home:
-        return MaterialPageRoute(
-          builder: (_) => views_home.HomePage(),
-          settings: settings, // เพิ่มบรรทัดนี้
-        );
-        
+        return _instantRoute(views_home.HomePage(), settings);
+
+      case AppRoutes.courses:
+        return _instantRoute(CoursesPage(), settings);
+
+      case AppRoutes.community:
+        return _instantRoute(CommunityPage(), settings);
+
+      case AppRoutes.chat:
+        return _instantRoute(ChatPage(), settings);
+
+      // ── Auth pages (slide up) ────────────────────────────────────────────
+      case AppRoutes.mainPage:
+        return _slideUpRoute(MainPage(), settings);
+
       case AppRoutes.login:
-        return MaterialPageRoute(
-          builder: (_) => LoginPage(),
-          settings: settings,
-        );
-      
+        return _slideUpRoute(LoginPage(), settings);
+
       case AppRoutes.register:
-        return MaterialPageRoute(
-          builder: (_) =>  RegisterPage(),
-          settings: settings,
-        );
-        
+        return _slideUpRoute(RegisterPage(), settings);
+
+      // ── Detail / sub pages (fade) ─────────────────────────────────────────
       case AppRoutes.dogProfiles:
-        return MaterialPageRoute(
-          builder: (_) => DogProfilesPage(),
-          settings: settings,
-        );
-        
+        return _fadeRoute(DogProfilesPage(), settings);
+
       case AppRoutes.AddDogPage:
-        return MaterialPageRoute(
-          builder: (_) => AddDogPage(),
-          settings: settings,
-        );
-        
+        return _fadeRoute(AddDogPage(), settings);
+
       case AppRoutes.editDogProfile:
         final args = settings.arguments as Map<String, dynamic>?;
-        return MaterialPageRoute(
-          builder: (_) => EditDogProfilePage(
+        return _fadeRoute(
+          EditDogProfilePage(
             dogData: args?['dogData'],
             docId: args?['docId'],
           ),
-          settings: settings,
+          settings,
         );
-        
+
       case AppRoutes.myCourses:
-        return MaterialPageRoute(
-          builder: (_) => MyCoursesPage(),
-          settings: settings,
-        );
-        
-      case AppRoutes.mainPage:
-        return MaterialPageRoute(
-          builder: (_) => MainPage(), // MainPage ต้องมาจาก main.dart
-          settings: settings,
-        );
-        
-      case AppRoutes.courses:
-        return MaterialPageRoute(
-          builder: (_) => CoursesPage(),
-          settings: settings,
-        );
-        
+        return _fadeRoute(MyCoursesPage(), settings);
+
       case AppRoutes.trainingPrograms:
         final categoryId = settings.arguments as String;
-        print('Navigating to TrainingProgramsPage with ID: $categoryId');
-        return MaterialPageRoute(
-          builder: (_) => TrainingProgramsPage(categoryId: categoryId),
-          settings: settings,
-        );
-        
+        return _fadeRoute(
+            TrainingProgramsPage(categoryId: categoryId), settings);
+
       case AppRoutes.trainingDetails:
         final args = settings.arguments as Map<String, dynamic>;
-        print('Navigating to TrainingDetailsPage with ID: ${args['documentId']}');
-        return MaterialPageRoute(
-          builder: (_) => TrainingDetailsPage(
+        return _fadeRoute(
+          TrainingDetailsPage(
             documentId: args['documentId'],
             categoryId: args['categoryId'],
+            dogId: args['dogId'] as String?,
           ),
-          settings: settings,
+          settings,
         );
-        
+
       case AppRoutes.clicker:
-        return MaterialPageRoute(
-          builder: (_) => ClickerPage(),
-          settings: settings,
-        );
-        
+        return _fadeRoute(ClickerPage(), settings);
+
       case AppRoutes.whistle:
-        return MaterialPageRoute(
-          builder: (_) => WhistlePage(),
-          settings: settings,
-        );
-      
-      // Chat routes
-      case AppRoutes.chat:
-        return MaterialPageRoute(
-          builder: (_) => ChatPage(),
-          settings: settings,
-        );
-        
+        return _fadeRoute(WhistlePage(), settings);
+
       case AppRoutes.chatHistory:
-        return MaterialPageRoute(
-          builder: (_) => ChatHistoryPage(),
-          settings: settings,
-        );
-        
-      // Community routes
-      case AppRoutes.community:
-        return MaterialPageRoute(
-          builder: (_) => CommunityPage(),
-          settings: settings,
-        );
-        
+        return _fadeRoute(ChatHistoryPage(), settings);
+
       case AppRoutes.groupDetail:
         final group = settings.arguments as CommunityGroup;
-        return MaterialPageRoute(
-          builder: (_) => GroupDetailPage(group: group),
-          settings: settings,
-        );
-        
+        return _fadeRoute(GroupDetailPage(group: group), settings);
+
+      // ── 404 ───────────────────────────────────────────────────────────────
       default:
-        print('Page not found: ${settings.name}');
-        return MaterialPageRoute(
-          builder: (context) => Scaffold( // เปลี่ยนจาก (_) เป็น (context)
+        return _fadeRoute(
+          Scaffold(
+            backgroundColor: const Color(0xFFF7EFE7),
             appBar: AppBar(
-              title: Text('หน้าไม่พบ'),
-              backgroundColor: const Color(0xFFD2B48C),
+              title: const Text('ไม่พบหน้าที่ต้องการ'),
+              backgroundColor: const Color(0xFFEFE2D3),
+              foregroundColor: const Color(0xFF6D4C41),
+              elevation: 0,
             ),
-            body: Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(Icons.error_outline, size: 64, color: Colors.grey),
-                  SizedBox(height: 16),
-                  Text(
-                    'ไม่พบหน้าที่ต้องการ',
-                    style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                  ),
-                  SizedBox(height: 8),
-                  Text(
-                    'Route: ${settings.name}',
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                  SizedBox(height: 24),
-                  ElevatedButton(
-                    onPressed: () => Navigator.pushReplacementNamed(
-                      context, // เปลี่ยนจาก _.context เป็น context
-                      AppRoutes.home,
+            body: Builder(
+              builder: (context) => Center(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    const Icon(Icons.search_off_rounded,
+                        size: 56, color: Color(0xFFB08968)),
+                    const SizedBox(height: 14),
+                    const Text('ไม่พบหน้าที่ต้องการ',
+                        style: TextStyle(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF6D4C41))),
+                    const SizedBox(height: 6),
+                    Text(settings.name ?? '',
+                        style: const TextStyle(
+                            fontSize: 12, color: Color(0xFFB08968))),
+                    const SizedBox(height: 22),
+                    ElevatedButton(
+                      onPressed: () => Navigator.pushReplacementNamed(
+                          context, AppRoutes.home),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: const Color(0xFF6D4C41),
+                        foregroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 24, vertical: 12),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(14)),
+                        elevation: 0,
+                      ),
+                      child: const Text('กลับหน้าหลัก',
+                          style: TextStyle(fontWeight: FontWeight.w700)),
                     ),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFD2B48C),
-                    ),
-                    child: Text('กลับหน้าหลัก'),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
           ),
-          settings: settings,
+          settings,
         );
     }
   }

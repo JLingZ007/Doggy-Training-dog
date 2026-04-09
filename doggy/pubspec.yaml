@@ -44,6 +44,8 @@ dependencies:
   flutter_local_notifications: ^17.2.1  # Local notifications
   permission_handler: ^11.3.1     # จัดการ permissions
   url_launcher: ^6.3.2
+  lottie: ^3.3.1
+  # image_cropper: ^10.0.0+1
 
 dev_dependencies:
   flutter_test:
@@ -52,10 +54,27 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  fonts:
+    - family: Nunito
+      fonts:
+        - asset: assets/fonts/Nunito-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Nunito-SemiBold.ttf
+          weight: 600
+        - asset: assets/fonts/Nunito-Bold.ttf
+          weight: 700
+        - asset: assets/fonts/Nunito-ExtraBold.ttf
+          weight: 800
   assets:
+    - assets/fonts/
+    - assets/lottie/
+    - assets/lottie/dog.lottie
+    - assets/lottie/dog.json
+    - assets/lottie/dogwalk.json
     - assets/images/
     - assets/images/doggy_logo.png
     - assets/images/dog_profile.jpg
+    - assets/images/dog_profiles.png
     - assets/images/whistle.png
     - assets/images/clicker.png
     - assets/images/clicker_use.png

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-// import 'package:youtube_player_iframe/youtube_player_iframe.dart';
 
 import '../services/training_service.dart';
 import '../services/user_service.dart';
@@ -12,17 +11,27 @@ import '../services/youtube_service.dart';
 import '../models/step_item.dart';
 import '../widgets/training/progress_bar.dart';
 import '../widgets/training/error_view.dart';
-// import '../widgets/training/video_header.dart';
 import '../widgets/training/lesson_meta.dart';
 import '../widgets/training/need_dog_callout.dart';
 import '../widgets/training/step_navigator.dart';
 import '../widgets/training/step_card.dart';
 import '../widgets/training/_dialogs.dart';
 
+// ─── Design Tokens ────────────────────────────────────────────────────────────
+const kBgColor      = Color(0xFFF7EFE7);
+const kSurfaceCream = Color(0xFFEFE2D3);
+const kFieldCream   = Color(0xFFEAD8C8);
+const kCancelColor  = Color(0xFF7C5959);
+const kPrimaryBrown = Color(0xFFB08968);
+const kDarkBrown    = Color(0xFF6D4C41);
+const kLightPaw     = Color(0xFFE8D5C0);
+const kSuccessGreen = Color(0xFF4C9A5C);
+
 class TrainingDetailsPage extends StatefulWidget {
   final String documentId;
   final String categoryId;
   final String? dogId;
+
   const TrainingDetailsPage({
     super.key,
     required this.documentId,
@@ -35,36 +44,28 @@ class TrainingDetailsPage extends StatefulWidget {
 }
 
 class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
-  final _auth = FirebaseAuth.instance;
-  final _service = TrainingService(firestore: FirebaseFirestore.instance);
+  final _auth        = FirebaseAuth.instance;
+  final _service     = TrainingService(firestore: FirebaseFirestore.instance);
   final _userService = UserService();
 
-  // // Youtube (iframe)
-  // YoutubePlayerController? _yt;
-  // StreamSubscription<Duration>? _posSub;
-  // StreamSubscription<YoutubePlayerValue>? _valSub;
-  // int _lastSeconds = 0;
-
-  // state
-  bool _isLoading = true;
-  bool _saving = false;
-  String? _error;
+  bool     _isLoading   = true;
+  bool     _saving      = false;
+  String?  _error;
   Map<String, dynamic>? lesson;
 
-  // progress
-  User? _user;
-  String? _dogId;
-  int _currentStep = 1;
-  Set<int> _completed = {};
-  int _totalSteps = 0;
+  User?    _user;
+  String?  _dogId;
+  int      _currentStep  = 1;
+  Set<int> _completed    = {};
+  int      _totalSteps   = 0;
+  bool     _introWatched = false;
 
-  // intro gating
-  bool _introWatched = false;
+  final ScrollController _scroll   = ScrollController();
+  final List<GlobalKey>  _stepKeys = [];
+  final Set<int> _showInlineHint   = {};
 
-  // UI helpers
-  final ScrollController _scroll = ScrollController();
-  final List<GlobalKey> _stepKeys = [];
-  final Set<int> _showInlineHint = {};
+  // ✅ Key สำหรับ scroll ไปที่ video thumbnail
+  final GlobalKey _videoKey = GlobalKey();
 
   @override
   void initState() {
@@ -75,93 +76,19 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
 
   @override
   void dispose() {
-    try {
-      // _posSub?.cancel();
-      // _valSub?.cancel();
-      // _yt?.close();
-    } catch (_) {}
     _scroll.dispose();
     super.dispose();
   }
 
   Future<void> _init() async {
     try {
-      // เลือก dogId: จาก args หรือ activeDogId
       _dogId = widget.dogId ?? await _userService.getActiveDogId();
 
-      // 1) ดึงบทเรียน
       final data = await _service.fetchLesson(
         categoryId: widget.categoryId,
         documentId: widget.documentId,
       );
 
-      // videoId จาก firebase
-      final videoId = (data?['video'] ?? '').toString();
-
-      // ถ้ามีวิดีโอ ถือว่า intro ยังไม่ดู
-
-      // if (data != null) {
-      //   final id = _service.extractYoutubeId((data['video'] ?? '').toString());
-
-      //   if (id.isNotEmpty) {
-      //     _yt = YoutubePlayerController.fromVideoId(
-      //       videoId: id,
-      //       autoPlay: false,
-      //       params: const YoutubePlayerParams(
-      //         showControls: true,
-      //         showFullscreenButton: true,
-      //         enableCaption: true,
-      //         strictRelatedVideos: true,
-      //         playsInline: true,
-      //       ),
-      //     );
-
-      //     // track time
-      //     _posSub?.cancel();
-      //     _posSub = _yt!.getCurrentPositionStream().listen((dur) async {
-      //       final sec = dur.inSeconds;
-      //       if (sec > _lastSeconds) {
-      //         _lastSeconds = sec;
-      //         _introWatchSec = sec;
-      //         if (!_introWatched &&
-      //             _introWatchSec >= _INTRO_MIN_SEC &&
-      //             _user != null &&
-      //             _dogId != null) {
-      //           _introWatched = true;
-      //           await _service.updateIntroWatch(
-      //             userId: _user!.uid,
-      //             dogId: _dogId!,
-      //             documentId: widget.documentId,
-      //             watched: true,
-      //             watchSec: _introWatchSec,
-      //           );
-      //           if (mounted) setState(() {});
-      //         }
-      //       }
-      //     });
-
-      //     // track ended state
-      //     _valSub?.cancel();
-      //     _valSub = _yt!.stream.listen((value) async {
-      //       if (!_introWatched &&
-      //           value.playerState == PlayerState.ended &&
-      //           _user != null &&
-      //           _dogId != null) {
-      //         _introWatched = true;
-      //         await _service.updateIntroWatch(
-      //           userId: _user!.uid,
-      //           dogId: _dogId!,
-      //           documentId: widget.documentId,
-      //           watched: true,
-      //           watchSec: _introWatchSec,
-      //         );
-      //         if (mounted) setState(() {});
-      //       }
-      //     });
-      //   }
-      // }
-
-      // 2) โหลด progress
       if (_user != null && _dogId != null) {
         final p = await _service.loadProgress(
           userId: _user!.uid,
@@ -170,9 +97,9 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
           categoryId: widget.categoryId,
           lesson: data,
         );
-        _currentStep = p.currentStep;
-        _completed = p.completed;
-        _totalSteps = p.totalSteps;
+        _currentStep  = p.currentStep;
+        _completed    = p.completed;
+        _totalSteps   = p.totalSteps;
         _introWatched = p.introWatched;
       } else {
         _totalSteps =
@@ -182,27 +109,23 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
 
       if (!mounted) return;
       setState(() {
-        lesson = data;
+        lesson     = data;
         _isLoading = false;
-        _error = null;
+        _error     = null;
       });
 
       WidgetsBinding.instance.addPostFrameCallback((_) {
         if (_introWatched) {
           _scrollToCurrentStep();
         } else {
-          _scroll.animateTo(
-            0,
-            duration: const Duration(milliseconds: 400),
-            curve: Curves.easeInOut,
-          );
+          _scrollToVideo();
         }
       });
     } catch (e, st) {
       debugPrint('[TrainingDetails] init error: $e\n$st');
       if (!mounted) return;
       setState(() {
-        _error = 'โหลดบทเรียนไม่สำเร็จ: $e';
+        _error     = 'โหลดบทเรียนไม่สำเร็จ: $e';
         _isLoading = false;
       });
     }
@@ -230,6 +153,25 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
     return result;
   }
 
+  // ✅ Scroll ไปที่ video thumbnail
+  Future<void> _scrollToVideo() async {
+    if (!mounted) return;
+    final ctx = _videoKey.currentContext;
+    if (ctx == null) {
+      _scroll.animateTo(0,
+          duration: const Duration(milliseconds: 400),
+          curve: Curves.easeInOut);
+      return;
+    }
+    await Scrollable.ensureVisible(
+      ctx,
+      duration: const Duration(milliseconds: 400),
+      alignment: 0.0,
+      curve: Curves.easeInOut,
+    );
+  }
+
+  // ✅ Scroll ไปที่ current step card
   Future<void> _scrollToCurrentStep() async {
     if (!mounted) return;
     if (_currentStep <= 0 || _stepKeys.length < _currentStep) return;
@@ -244,30 +186,56 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
     );
   }
 
-  Future<void> _confirmAndMarkDone(int stepNo) async {
-    // ต้องมีสุนัขที่ถูกเลือกไว้ก่อน (ตั้งจากหน้าแรก)
-    if (_user == null || _dogId == null) {
-      await showNeedDogDialog(
-        context,
-        () => Navigator.pushNamed(context, AppRoutes.dogProfiles),
-      );
-      return;
-    }
-
-    // ต้องดู intro ก่อน
+  // ✅ ปุ่ม AppBar action:
+  //    - ยังไม่ดูวิดีโอ → เปิด YouTube + scroll ไป video
+  //    - ดูแล้ว → scroll ไป current step card
+  void _onAppBarActionTap() {
     if (!_introWatched) {
-      await showWatchIntroDialog(
-        context,
-        () => _scroll.animateTo(
-          0,
-          duration: const Duration(milliseconds: 00),
-          curve: Curves.easeInOut,
-        ),
+      _openVideo();
+    } else {
+      _scrollToCurrentStep();
+    }
+  }
+
+  // ✅ เปิดวิดีโอและ mark introWatched
+  void _openVideo() {
+    final videoId = (lesson?['video'] ?? '').toString();
+    if (videoId.isEmpty) return;
+    YoutubeService.openVideo(videoId);
+    if (!mounted) return;
+    setState(() => _introWatched = true);
+    if (_user != null && _dogId != null) {
+      _service.updateIntroWatch(
+        userId: _user!.uid,
+        dogId: _dogId!,
+        documentId: widget.documentId,
+        watched: true,
+        watchSec: 0,
       );
+    }
+  }
+
+  Future<void> _confirmAndMarkDone(int stepNo) async {
+    if (_user == null || _dogId == null) {
+  await showNeedDogDialog(
+    context,
+    () async {
+      // ✅ รอ result จาก dog_profiles
+      final changed = await Navigator.pushNamed(
+          context, AppRoutes.dogProfiles);
+      if (changed == true && mounted) {
+        // reload ข้อมูลทั้งหมดรวมถึง dogId ใหม่
+        _init();
+      }
+    },
+  );
+  return;
+}
+    if (!_introWatched) {
+      // ✅ ส่ง _scrollToVideo แทน anonymous function
+      await showWatchIntroDialog(context, _scrollToVideo);
       return;
     }
-
-    // ต้องทำตามลำดับ
     if (stepNo != _currentStep) {
       setState(() => _showInlineHint.add(stepNo));
       _scrollToCurrentStep();
@@ -296,7 +264,13 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('บันทึกไม่สำเร็จ: $e')),
+          SnackBar(
+            content: Text('บันทึกไม่สำเร็จ: $e'),
+            backgroundColor: kCancelColor,
+            behavior: SnackBarBehavior.floating,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12)),
+          ),
         );
       }
     }
@@ -309,24 +283,24 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
 
   @override
   Widget build(BuildContext context) {
-    final data = lesson;
+    final data  = lesson;
     final steps = _parseSteps(data?['step']);
 
-    // เตรียม keys สำหรับเลื่อน-โฟกัส step
     if (_stepKeys.length != steps.length) {
       _stepKeys
         ..clear()
         ..addAll(List.generate(steps.length, (_) => GlobalKey()));
     }
 
-    final total = steps.length;
-    final finished = _completed.length.clamp(0, total);
-    final progress = (total == 0) ? 0.0 : finished / total;
+    final total     = steps.length;
+    final finished  = _completed.length.clamp(0, total);
+    final progress  = (total == 0) ? 0.0 : finished / total;
+    final isAllDone = total > 0 && finished == total;
 
     return Scaffold(
-      backgroundColor: const Color(0xFFFDF9F4),
+      backgroundColor: kBgColor,
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const _LoadingView()
           : (_error != null)
               ? ErrorView(message: _error!, onRetry: _init)
               : (data == null)
@@ -334,69 +308,88 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
                   : CustomScrollView(
                       controller: _scroll,
                       slivers: [
-                        // ===== AppBar + Progress =====
+
+                        // ── SliverAppBar ──────────────────────────────────
                         SliverAppBar(
-                          pinned: true,
-                          backgroundColor: Colors.white,
-                          elevation: 0.5,
-                          leading: IconButton(
-                            icon: const Icon(Icons.arrow_back,
-                                color: Colors.black),
-                            onPressed: () => Navigator.pop(context),
-                          ),
-                          centerTitle: true,
-                          title: Text(
-                            data['name']?.toString() ?? 'บทเรียนการฝึก',
-                            style: const TextStyle(
-                              color: Colors.black,
-                              fontWeight: FontWeight.bold,
-                            ),
-                          ),
-                          actions: [
-                            TextButton(
-                              onPressed: () {
-                                final videoId =
-                                    (lesson?['video'] ?? '').toString();
-                                if (videoId.isNotEmpty) {
-                                  YoutubeService.openVideo(videoId);
-                                  // ✅ เพิ่มตรงนี้
-                                  setState(() {
-                                    _introWatched = true;
-                                  });
+  pinned: true,
+  backgroundColor: Colors.white,
+  elevation: 0,
+  centerTitle: true,
+  toolbarHeight: 56,
+  leadingWidth: 56,
+  leading: Center(
+    child: _CircleIconBtn(
+      icon: Icons.arrow_back_ios_new_rounded,
+      onTap: () => Navigator.pop(context),
+    ),
+  ),
+  title: Text(
+    data['name']?.toString() ?? 'บทเรียนการฝึก',
+    maxLines: 1,
+    overflow: TextOverflow.ellipsis,
+    style: const TextStyle(
+      color: kDarkBrown,
+      fontWeight: FontWeight.w800,
+      fontSize: 16,
+      letterSpacing: -0.2,
+    ),
+  ),
+  actions: [
+    Center(
+      child: GestureDetector(
+        onTap: _onAppBarActionTap,
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 220),
+          margin: const EdgeInsets.only(right: 16),
+          padding: const EdgeInsets.symmetric(
+              horizontal: 11, vertical: 7),
+          decoration: BoxDecoration(
+            color: !_introWatched ? kDarkBrown : kSurfaceCream,
+            borderRadius: BorderRadius.circular(20),
+            border: _introWatched
+                ? Border.all(color: kLightPaw)
+                : null,
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                !_introWatched
+                    ? Icons.play_circle_outline_rounded
+                    : Icons.navigation_rounded,
+                size: 13,
+                color: !_introWatched ? Colors.white : kDarkBrown,
+              ),
+              const SizedBox(width: 5),
+              Text(
+                !_introWatched
+                    ? 'ดูวิดีโอ'
+                    : 'ขั้นที่ $_currentStep',
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: !_introWatched
+                      ? Colors.white
+                      : kDarkBrown,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    ),
+  ],
+  bottom: PreferredSize(
+    preferredSize: const Size.fromHeight(52),
+    child: _ProgressSection(
+      progress: progress,
+      finished: finished,
+      total: total,
+    ),
+  ),
+),
 
-                                  // ✅ เพิ่มบันทึก
-                                  if (_user != null && _dogId != null) {
-                                    _service.updateIntroWatch(
-                                      userId: _user!.uid,
-                                      dogId: _dogId!,
-                                      documentId: widget.documentId,
-                                      watched: true,
-                                      watchSec: 0, // ไม่ใช้เวลาแล้ว
-                                    );
-                                  }
-                                }
-                              },
-                              child: Text(
-                                !_introWatched
-                                    ? 'ไปดูวิดีโอ'
-                                    : 'ไปขั้นตอนที่ $_currentStep',
-                              ),
-                            ),
-                          ],
-                          bottom: PreferredSize(
-                            preferredSize: const Size.fromHeight(54),
-                            child: Padding(
-                              padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-                              child: ProgressBar(
-                                progress: progress,
-                                label:
-                                    'ความคืบหน้า ${(progress * 100).toStringAsFixed(0)}%',
-                              ),
-                            ),
-                          ),
-                        ),
-
-                        // ===== Callout: ยังไม่ได้เลือกสุนัข =====
+                        // ── Need Dog Banner ───────────────────────────────
                         if (_user != null && _dogId == null)
                           SliverToBoxAdapter(
                             child: NeedDogCallout(
@@ -405,106 +398,124 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
                             ),
                           ),
 
-                        // ===== วิดีโอหัวบท / ภาพสำรอง =====
+                        // ── Video Thumbnail ✅ ใส่ key ─────────────────────
                         SliverToBoxAdapter(
-                          child: GestureDetector(
-                            onTap: () {
-                              final videoId = (data['video'] ?? '').toString();
-                              if (videoId.isNotEmpty) {
-                                YoutubeService.openVideo(videoId);
-                                setState(() {
-                                  _introWatched = true;
-                                });
+                          child: _VideoThumbnail(
+                            key: _videoKey,
+                            videoId: (data['video'] ?? '').toString(),
+                            introWatched: _introWatched,
+                            onTap: _openVideo,
+                          ),
+                        ),
 
-                                // ✅ เพิ่มบันทึก
-                                if (_user != null && _dogId != null) {
-                                  _service.updateIntroWatch(
-                                    userId: _user!.uid,
-                                    dogId: _dogId!,
-                                    documentId: widget.documentId,
-                                    watched: true,
-                                    watchSec: 0, // ไม่ใช้เวลาแล้ว
-                                  );
-                                }
-                              }
-                            },
-                            child: Stack(
-                              alignment: Alignment.center,
+                        // ── Lesson Meta ───────────────────────────────────
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 0, 16, 0),
+                            child: LessonMeta(
+                              difficulty:
+                                  (data['difficulty'] ?? '-').toString(),
+                              durationMin:
+                                  (data['duration'] ?? '-').toString(),
+                              description:
+                                  (data['description'] ?? '').toString(),
+                            ),
+                          ),
+                        ),
+
+                        // ── Step Navigator ────────────────────────────────
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+                            child: StepNavigator(
+                              steps: steps,
+                              completed: _completed,
+                              currentStep: _currentStep,
+                              introWatched: _introWatched,
+                              // ✅ ส่ง method reference ตรงๆ
+                              onNeedWatchIntro: () =>
+                                  showWatchIntroDialog(context, _scrollToVideo),
+                              onJumpToCurrent: _scrollToCurrentStep,
+                              onTapLocked: (s) {
+                                setState(() => _showInlineHint.add(s));
+                                _scrollToCurrentStep();
+                              },
+                            ),
+                          ),
+                        ),
+
+                        // ── Section label ─────────────────────────────────
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
+                            child: Row(
                               children: [
-                                Image.network(
-                                  'https://img.youtube.com/vi/${data['video']}/hqdefault.jpg',
-                                  fit: BoxFit.cover,
-                                  width: double.infinity,
-                                  height: 220,
+                                Container(
+                                  padding: const EdgeInsets.all(6),
+                                  decoration: BoxDecoration(
+                                    color: kSurfaceCream,
+                                    borderRadius: BorderRadius.circular(8),
+                                  ),
+                                  child: const Icon(
+                                    Icons.format_list_numbered_rounded,
+                                    size: 15,
+                                    color: kCancelColor,
+                                  ),
                                 ),
-                                const Icon(
-                                  Icons.play_circle_fill,
-                                  size: 64,
-                                  color: Colors.red,
+                                const SizedBox(width: 8),
+                                const Text(
+                                  'ขั้นตอนการฝึก',
+                                  style: TextStyle(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w800,
+                                    color: kDarkBrown,
+                                  ),
+                                ),
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 9, vertical: 3),
+                                  decoration: BoxDecoration(
+                                    color: kFieldCream,
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Text(
+                                    '$finished / $total',
+                                    style: const TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: FontWeight.w700,
+                                      color: kDarkBrown,
+                                    ),
+                                  ),
                                 ),
                               ],
                             ),
                           ),
                         ),
 
-                        // ===== สรุป/คำอธิบาย =====
-                        SliverToBoxAdapter(
-                          child: LessonMeta(
-                            difficulty: (data['difficulty'] ?? '-').toString(),
-                            durationMin: (data['duration'] ?? '-').toString(),
-                            description: (data['description'] ?? '').toString(),
-                          ),
-                        ),
-
-                        // ===== Step Navigator =====
-                        SliverToBoxAdapter(
-                          child: StepNavigator(
-                            steps: steps,
-                            completed: _completed,
-                            currentStep: _currentStep,
-                            introWatched: _introWatched,
-                            onNeedWatchIntro: () => showWatchIntroDialog(
-                              context,
-                              () => _scroll.animateTo(
-                                0,
-                                duration: const Duration(milliseconds: 400),
-                                curve: Curves.easeInOut,
-                              ),
-                            ),
-                            onJumpToCurrent: _scrollToCurrentStep,
-                            onTapLocked: (s) {
-                              setState(() => _showInlineHint.add(s));
-                              _scrollToCurrentStep();
-                            },
-                          ),
-                        ),
-
-                        // ===== Step list =====
+                        // ── Step List ─────────────────────────────────────
                         SliverList(
                           delegate: SliverChildBuilderDelegate(
                             (context, i) {
                               final item = steps[i];
                               return Padding(
-                                padding: EdgeInsets.fromLTRB(
-                                    16, i == 0 ? 8 : 0, 16, 16),
+                                padding: const EdgeInsets.fromLTRB(
+                                    16, 0, 16, 12),
                                 child: StepCard(
                                   key: _stepKeys[i],
                                   item: item,
                                   isCompleted:
                                       _completed.contains(item.index1Based),
-                                  isCurrent: _currentStep == item.index1Based,
+                                  isCurrent:
+                                      _currentStep == item.index1Based,
                                   showInlineHint: _showInlineHint
                                       .contains(item.index1Based),
                                   saving: _saving,
                                   onStart: () {
                                     if (!_introWatched) {
+                                      // ✅ ส่ง _scrollToVideo ตรงๆ
                                       showWatchIntroDialog(
-                                        context,
-                                        () => _scroll.animateTo(0,
-                                            duration: const Duration(
-                                                milliseconds: 400),
-                                            curve: Curves.easeInOut),
-                                      );
+                                          context, _scrollToVideo);
                                       return;
                                     }
                                     if (item.index1Based != _currentStep) {
@@ -516,12 +527,7 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
                                   onDone: () {
                                     if (!_introWatched) {
                                       showWatchIntroDialog(
-                                        context,
-                                        () => _scroll.animateTo(0,
-                                            duration: const Duration(
-                                                milliseconds: 400),
-                                            curve: Curves.easeInOut),
-                                      );
+                                          context, _scrollToVideo);
                                       return;
                                     }
                                     _confirmAndMarkDone(item.index1Based);
@@ -533,54 +539,282 @@ class _TrainingDetailsPageState extends State<TrainingDetailsPage> {
                           ),
                         ),
 
-                        // ===== ปุ่มจบบทเรียน =====
-                        if (total > 0 && finished == total)
+                        // ── Complete Banner ───────────────────────────────
+                        if (isAllDone)
                           SliverToBoxAdapter(
-                            child: Center(
-                              child: Padding(
-                                padding:
-                                    const EdgeInsets.only(top: 12, bottom: 40),
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(
-                                        content: Text(
-                                            '🎉 เยี่ยมมาก! จบบทเรียนนี้แล้ว'),
-                                        duration: Duration(seconds: 1),
-                                      ),
-                                    );
-
-                                    Future.delayed(
-                                        const Duration(milliseconds: 900), () {
-                                      Navigator.pushNamedAndRemoveUntil(
-                                        context,
-                                        AppRoutes.myCourses,
-                                        (route) => route.isFirst,
-                                      );
-                                    });
-                                  },
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: const Color(0xFF34C759),
-                                    foregroundColor: Colors.white,
-                                    padding: const EdgeInsets.symmetric(
-                                      horizontal: 36,
-                                      vertical: 14,
-                                    ),
+                            child: _CompleteBanner(
+                              onFinish: () {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  SnackBar(
+                                    content: const Text(
+                                        '🎉 เยี่ยมมาก! จบบทเรียนนี้แล้ว'),
+                                    backgroundColor: kSuccessGreen,
+                                    behavior: SnackBarBehavior.floating,
                                     shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(16),
-                                    ),
+                                        borderRadius:
+                                            BorderRadius.circular(12)),
                                   ),
-                                  child: const Text(
-                                    'สิ้นสุดบทเรียน',
-                                    style:
-                                        TextStyle(fontWeight: FontWeight.bold),
-                                  ),
-                                ),
-                              ),
+                                );
+                                Future.delayed(
+                                    const Duration(milliseconds: 900), () {
+                                  Navigator.pushNamedAndRemoveUntil(
+                                      context,
+                                      AppRoutes.myCourses,
+                                      (route) => route.isFirst);
+                                });
+                              },
                             ),
                           ),
+
+                        const SliverToBoxAdapter(
+                            child: SizedBox(height: 40)),
                       ],
                     ),
+    );
+  }
+}
+
+// ─── Loading View ─────────────────────────────────────────────────────────────
+class _LoadingView extends StatelessWidget {
+  const _LoadingView();
+  @override
+  Widget build(BuildContext context) {
+    return const Scaffold(
+      backgroundColor: kBgColor,
+      body: Center(
+        child: CircularProgressIndicator(
+            color: kPrimaryBrown, strokeWidth: 2.5),
+      ),
+    );
+  }
+}
+
+// ─── Circle Icon Button ───────────────────────────────────────────────────────
+class _CircleIconBtn extends StatelessWidget {
+  final IconData icon;
+  final VoidCallback onTap;
+  const _CircleIconBtn({required this.icon, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 36,
+        height: 36,
+        decoration: BoxDecoration(
+          color: kSurfaceCream,
+          shape: BoxShape.circle,
+          border: Border.all(color: kLightPaw),
+        ),
+        child: Icon(icon, size: 16, color: kDarkBrown),
+      ),
+    );
+  }
+}
+
+// ─── Progress Section ─────────────────────────────────────────────────────────
+class _ProgressSection extends StatelessWidget {
+  final double progress;
+  final int finished;
+  final int total;
+  const _ProgressSection(
+      {required this.progress,
+      required this.finished,
+      required this.total});
+
+  @override
+  Widget build(BuildContext context) {
+    final pct = (progress * 100).toStringAsFixed(0);
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('ความคืบหน้า $pct%',
+                  style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: kPrimaryBrown)),
+              Text('$finished / $total ขั้นตอน',
+                  style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: kPrimaryBrown)),
+            ],
+          ),
+          const SizedBox(height: 6),
+          ClipRRect(
+            borderRadius: BorderRadius.circular(8),
+            child: LinearProgressIndicator(
+              value: progress,
+              minHeight: 8,
+              backgroundColor: kFieldCream,
+              valueColor:
+                  const AlwaysStoppedAnimation<Color>(kPrimaryBrown),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ─── Video Thumbnail ──────────────────────────────────────────────────────────
+class _VideoThumbnail extends StatelessWidget {
+  final String videoId;
+  final bool introWatched;
+  final VoidCallback onTap;
+
+  // ✅ super.key เพื่อให้ _videoKey ใช้ได้
+  const _VideoThumbnail({
+    super.key,
+    required this.videoId,
+    required this.introWatched,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTap: onTap,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          videoId.isNotEmpty
+              ? Image.network(
+                  'https://img.youtube.com/vi/$videoId/hqdefault.jpg',
+                  fit: BoxFit.cover,
+                  width: double.infinity,
+                  height: 220,
+                  errorBuilder: (_, __, ___) => _placeholder(),
+                )
+              : _placeholder(),
+          Positioned(
+            bottom: 0, left: 0, right: 0, height: 80,
+            child: Container(
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  begin: Alignment.bottomCenter,
+                  end: Alignment.topCenter,
+                  colors: [
+                    kDarkBrown.withOpacity(0.5),
+                    Colors.transparent,
+                  ],
+                ),
+              ),
+            ),
+          ),
+          Container(
+            padding: const EdgeInsets.all(14),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.92),
+              shape: BoxShape.circle,
+              boxShadow: [
+                BoxShadow(
+                    color: kDarkBrown.withOpacity(0.2),
+                    blurRadius: 12,
+                    offset: const Offset(0, 4)),
+              ],
+            ),
+            child: Icon(Icons.play_arrow_rounded,
+                size: 36, color: Colors.red.shade600),
+          ),
+          if (!introWatched)
+            Positioned(
+              top: 12, right: 12,
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 10, vertical: 5),
+                decoration: BoxDecoration(
+                  color: kCancelColor,
+                  borderRadius: BorderRadius.circular(20),
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.info_outline_rounded,
+                        size: 12, color: Colors.white),
+                    SizedBox(width: 4),
+                    Text('ดูวิดีโอก่อนเริ่ม',
+                        style: TextStyle(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w700,
+                            color: Colors.white)),
+                  ],
+                ),
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+
+  Widget _placeholder() => Container(
+        width: double.infinity,
+        height: 220,
+        color: kSurfaceCream,
+        child: const Center(
+          child: Icon(Icons.play_circle_outline_rounded,
+              size: 56, color: kPrimaryBrown),
+        ),
+      );
+}
+
+// ─── Complete Banner ──────────────────────────────────────────────────────────
+class _CompleteBanner extends StatelessWidget {
+  final VoidCallback onFinish;
+  const _CompleteBanner({required this.onFinish});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.fromLTRB(16, 8, 16, 0),
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: const Color(0xFFEDF6EE),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: const Color(0xFFC3E6CB)),
+      ),
+      child: Column(
+        children: [
+          const Text('🎉', style: TextStyle(fontSize: 40)),
+          const SizedBox(height: 8),
+          const Text('ผ่านบทเรียนนี้แล้ว!',
+              style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w800,
+                  color: Color(0xFF2D6A3F))),
+          const SizedBox(height: 4),
+          const Text('น้องหมาของคุณก้าวหน้าไปอีกขั้น 🐾',
+              style: TextStyle(
+                  fontSize: 13,
+                  color: Color(0xFF4C9A5C),
+                  fontWeight: FontWeight.w600)),
+          const SizedBox(height: 16),
+          SizedBox(
+            width: double.infinity,
+            child: ElevatedButton(
+              onPressed: onFinish,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: kSuccessGreen,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14)),
+                elevation: 0,
+                textStyle: const TextStyle(
+                    fontSize: 15, fontWeight: FontWeight.w700),
+              ),
+              child: const Text('สิ้นสุดบทเรียน →'),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

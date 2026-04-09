@@ -16,7 +16,7 @@ String normalizeRaw(String? raw) {
 class StableAvatar extends StatefulWidget {
   const StableAvatar({
     Key? key,
-    required this.raw,                 // url / base64 / data-url / '' 
+    required this.raw, // url / base64 / data-url / ''
     required this.placeholder,
     this.radius = 18,
   }) : super(key: key);
@@ -103,12 +103,12 @@ class _SlideBarState extends State<SlideBar> {
   final UserService _userService = UserService();
 
   // Color scheme
-  static const Color primaryColor   = Color(0xFFD2B48C);
-  static const Color accentColor    = Color(0xFF8B4513);
+  static const Color primaryColor = Color(0xFFD2B48C);
+  static const Color accentColor = Color(0xFF8B4513);
   static const Color secondaryColor = Color(0xFFC19A5B);
-  static const Color surfaceColor   = Colors.white;
-  static const Color textPrimary    = Color(0xFF5D4037);
-  static const Color textSecondary  = Color(0xFF8D6E63);
+  static const Color surfaceColor = Colors.white;
+  static const Color textPrimary = Color(0xFF5D4037);
+  static const Color textSecondary = Color(0xFF8D6E63);
 
   @override
   Widget build(BuildContext context) {
@@ -146,34 +146,33 @@ class _SlideBarState extends State<SlideBar> {
                         icon: Icons.home,
                         activeIcon: Icons.home,
                         title: 'หน้าหลัก',
-                        onTap: () => Navigator.pushReplacementNamed(context, AppRoutes.home),
+                        onTap: () => Navigator.pushReplacementNamed(
+                            context, AppRoutes.home),
                       ),
                       _buildSimpleMenuItem(
                         icon: Icons.pets,
                         activeIcon: Icons.pets,
                         title: 'ข้อมูลสุนัขของคุณ',
-                        onTap: () => Navigator.pushNamed(context, AppRoutes.dogProfiles),
+                        onTap: () =>
+                            Navigator.pushNamed(context, AppRoutes.dogProfiles),
                       ),
-                      
-
                       _buildDivider(),
-
                       _buildSectionTitle('การเรียนรู้'),
                       _buildSimpleMenuItem(
                         icon: Icons.school_outlined,
                         activeIcon: Icons.school,
                         title: 'บทเรียนของฉัน',
-                        onTap: () => Navigator.pushNamed(context, AppRoutes.myCourses),
+                        onTap: () =>
+                            Navigator.pushNamed(context, AppRoutes.myCourses),
                       ),
                       _buildSimpleMenuItem(
                         icon: Icons.menu_book_outlined,
                         activeIcon: Icons.menu_book,
                         title: 'บทเรียนทั้งหมด',
-                        onTap: () => Navigator.pushNamed(context, AppRoutes.courses),
+                        onTap: () =>
+                            Navigator.pushNamed(context, AppRoutes.courses),
                       ),
-
                       _buildDivider(),
-
                       _buildSectionTitle('ชุมชนและผู้ช่วย'),
                       _buildSimpleMenuItem(
                         icon: Icons.groups_outlined,
@@ -210,27 +209,27 @@ class _SlideBarState extends State<SlideBar> {
                           icon: Icons.history_outlined,
                           activeIcon: Icons.history,
                           title: 'ประวัติการสนทนา',
-                          onTap: () => Navigator.pushNamed(context, AppRoutes.chatHistory),
+                          onTap: () => Navigator.pushNamed(
+                              context, AppRoutes.chatHistory),
                         ),
-
                       _buildDivider(),
-
                       _buildSectionTitle('เครื่องมือฝึกสุนัข'),
                       _buildSimpleMenuItem(
                         icon: Icons.touch_app_outlined,
                         activeIcon: Icons.touch_app,
                         title: 'คลิกเกอร์',
                         subtitle: 'เครื่องมือฝึกด้วยเสียง',
-                        onTap: () => Navigator.pushNamed(context, AppRoutes.clicker),
+                        onTap: () =>
+                            Navigator.pushNamed(context, AppRoutes.clicker),
                       ),
                       _buildSimpleMenuItem(
                         icon: Icons.volume_up_outlined,
                         activeIcon: Icons.volume_up,
                         title: 'นกหวีด',
                         subtitle: 'เครื่องมือเรียกสุนัข',
-                        onTap: () => Navigator.pushNamed(context, AppRoutes.whistle),
+                        onTap: () =>
+                            Navigator.pushNamed(context, AppRoutes.whistle),
                       ),
-
                       _buildDivider(),
                       if (user == null || user.isAnonymous)
                         _buildSimpleMenuItem(
@@ -238,7 +237,8 @@ class _SlideBarState extends State<SlideBar> {
                           activeIcon: Icons.login,
                           title: 'เข้าสู่ระบบ',
                           subtitle: 'ใช้งานฟีเจอร์เพิ่มเติม',
-                          onTap: () => Navigator.pushNamed(context, AppRoutes.login),
+                          onTap: () =>
+                              Navigator.pushNamed(context, AppRoutes.login),
                         )
                       else
                         _buildSimpleMenuItem(
@@ -248,7 +248,6 @@ class _SlideBarState extends State<SlideBar> {
                           subtitle: user.email ?? '',
                           onTap: () => _showLogoutDialog(context),
                         ),
-
                       const SizedBox(height: 32),
                       Padding(
                         padding: const EdgeInsets.all(16),
@@ -298,7 +297,7 @@ class _SlideBarState extends State<SlideBar> {
                 backgroundColor: surfaceColor,
                 child: const StableAvatar(
                   raw: '',
-                  placeholder: AssetImage('assets/images/dog_profile.jpg'),
+                  placeholder: AssetImage('assets/images/dog_profiles.png'),
                   radius: 32,
                 ),
               ),
@@ -324,12 +323,15 @@ class _SlideBarState extends State<SlideBar> {
                 style: ElevatedButton.styleFrom(
                   backgroundColor: surfaceColor,
                   foregroundColor: textPrimary,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(12)),
                   elevation: 0,
                 ),
                 icon: const Icon(Icons.login),
-                label: const Text('เข้าสู่ระบบ', style: TextStyle(fontWeight: FontWeight.w700)),
+                label: const Text('เข้าสู่ระบบ',
+                    style: TextStyle(fontWeight: FontWeight.w700)),
               ),
             ],
           ),
@@ -367,7 +369,8 @@ class _SlideBarState extends State<SlideBar> {
               }
 
               final data = userSnap.data!.data() ?? <String, dynamic>{};
-              final String? activeDogId = (data['activeDogId'] as String?)?.trim();
+              final String? activeDogId =
+                  (data['activeDogId'] as String?)?.trim();
 
               if (activeDogId == null || activeDogId.isEmpty) {
                 return _avatarBlockRaw(
@@ -395,7 +398,8 @@ class _SlideBarState extends State<SlideBar> {
                     final d = dogSnap.data!.data() ?? <String, dynamic>{};
                     name = (d['name'] ?? name).toString();
                     raw = normalizeRaw(d['image'] as String?);
-                  } else if (dogSnap.connectionState == ConnectionState.waiting) {
+                  } else if (dogSnap.connectionState ==
+                      ConnectionState.waiting) {
                     subtitle = 'กำลังโหลดโปรไฟล์สุนัข…';
                   } else if (dogSnap.hasError) {
                     subtitle = 'โหลดโปรไฟล์สุนัขไม่สำเร็จ';
@@ -431,9 +435,12 @@ class _SlideBarState extends State<SlideBar> {
         context: context,
         builder: (_) => AlertDialog(
           title: const Text('ยังไม่มีสุนัข'),
-          content: const Text('โปรดเพิ่มสุนัขก่อน จากนั้นจึงเลือกโปรไฟล์ที่ต้องการ'),
+          content:
+              const Text('โปรดเพิ่มสุนัขก่อน จากนั้นจึงเลือกโปรไฟล์ที่ต้องการ'),
           actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('ปิด')),
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('ปิด')),
             FilledButton(
               onPressed: () {
                 Navigator.pop(context);
@@ -486,11 +493,13 @@ class _SlideBarState extends State<SlideBar> {
                         backgroundColor: surfaceColor,
                         child: StableAvatar(
                           raw: image, // URL / base64 / ''
-                          placeholder: const AssetImage('assets/images/dog_profile.jpg'),
+                          placeholder:
+                              const AssetImage('assets/images/dog_profiles.png'),
                           radius: 18,
                         ),
                       ),
-                      title: Text(name, style: const TextStyle(fontWeight: FontWeight.w700)),
+                      title: Text(name,
+                          style: const TextStyle(fontWeight: FontWeight.w700)),
                       trailing: isActive
                           ? const Chip(
                               label: Text('ใช้งานอยู่'),
@@ -504,20 +513,25 @@ class _SlideBarState extends State<SlideBar> {
                                   if (!mounted) return;
                                   Navigator.pop(context);
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('เปลี่ยนโปรไฟล์เป็น "$name"')),
+                                    SnackBar(
+                                        content:
+                                            Text('เปลี่ยนโปรไฟล์เป็น "$name"')),
                                   );
                                   setState(() {}); // refresh header
                                 } catch (e) {
                                   if (!mounted) return;
                                   ScaffoldMessenger.of(context).showSnackBar(
-                                    SnackBar(content: Text('สลับโปรไฟล์ไม่สำเร็จ: $e')),
+                                    SnackBar(
+                                        content:
+                                            Text('สลับโปรไฟล์ไม่สำเร็จ: $e')),
                                   );
                                 }
                               },
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: const Color(0xFFEBC7A6),
                                 foregroundColor: Colors.black,
-                                padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 14, vertical: 8),
                                 elevation: 0,
                               ),
                               child: const Text('ใช้โปรไฟล์นี้'),
@@ -619,7 +633,8 @@ class _SlideBarState extends State<SlideBar> {
               ),
               if (showLoginBadge)
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                   decoration: BoxDecoration(
                     color: secondaryColor,
                     borderRadius: BorderRadius.circular(12),
@@ -670,7 +685,8 @@ class _SlideBarState extends State<SlideBar> {
       barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          shape:
+              RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
           elevation: 10,
           title: Row(
             children: [
@@ -680,15 +696,19 @@ class _SlideBarState extends State<SlideBar> {
                   color: Colors.blue[50],
                   borderRadius: BorderRadius.circular(10),
                 ),
-                child: Icon(Icons.login_outlined, color: Colors.blue[600], size: 24),
+                child: Icon(Icons.login_outlined,
+                    color: Colors.blue[600], size: 24),
               ),
               const SizedBox(width: 12),
               const Expanded(
-                child: Text('ต้องเข้าสู่ระบบ', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
+                child: Text('ต้องเข้าสู่ระบบ',
+                    style:
+                        TextStyle(fontSize: 18, fontWeight: FontWeight.w600)),
               ),
             ],
           ),
-          content: const Text('กรุณาเข้าสู่ระบบก่อนใช้งานฟีเจอร์นี้', style: TextStyle(fontSize: 14, height: 1.4)),
+          content: const Text('กรุณาเข้าสู่ระบบก่อนใช้งานฟีเจอร์นี้',
+              style: TextStyle(fontSize: 14, height: 1.4)),
           actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
           actions: [
             Row(
@@ -703,7 +723,9 @@ class _SlideBarState extends State<SlideBar> {
                         side: BorderSide(color: Colors.grey[300]!),
                       ),
                     ),
-                    child: const Text('ยกเลิก', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w500)),
+                    child: const Text('ยกเลิก',
+                        style: TextStyle(
+                            color: Colors.grey, fontWeight: FontWeight.w500)),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -717,10 +739,12 @@ class _SlideBarState extends State<SlideBar> {
                       backgroundColor: Colors.blue[600],
                       foregroundColor: Colors.white,
                       padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12)),
                       elevation: 2,
                     ),
-                    child: const Text('เข้าสู่ระบบ', style: TextStyle(fontWeight: FontWeight.w600)),
+                    child: const Text('เข้าสู่ระบบ',
+                        style: TextStyle(fontWeight: FontWeight.w600)),
                   ),
                 ),
               ],
@@ -732,91 +756,116 @@ class _SlideBarState extends State<SlideBar> {
   }
 
   void _showLogoutDialog(BuildContext context) {
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-          elevation: 10,
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Container(
-                padding: const EdgeInsets.all(16),
-                decoration: BoxDecoration(color: Colors.red[50], shape: BoxShape.circle),
-                child: Icon(Icons.logout, size: 40, color: Colors.red[600]),
+  showDialog(
+    context: context,
+    barrierColor: Colors.black.withOpacity(0.35),
+    barrierDismissible: true, // ✅ กดพื้นหลังเพื่อปิดได้
+    builder: (_) => Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.symmetric(horizontal: 28),
+      child: Container(
+        decoration: BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.circular(24),
+          border: Border.all(color: const Color(0xFFE8D5C0)),
+        ),
+        padding: const EdgeInsets.fromLTRB(24, 28, 24, 20),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+
+            // ── Icon ────────────────────────────────────────────────
+            Container(
+              padding: const EdgeInsets.all(14),
+              decoration: BoxDecoration(
+                color: const Color(0xFFEFE2D3),
+                shape: BoxShape.circle,
+                border: Border.all(color: const Color(0xFFE8D5C0)),
               ),
-              const SizedBox(height: 16),
-              const Text(
-                'คุณต้องการออกจากระบบหรือไม่',
-                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
-                textAlign: TextAlign.center,
+              child: const Icon(
+                Icons.pets_rounded,
+                size: 28,
+                color: Color(0xFFB08968),
               ),
-              const SizedBox(height: 8),
-              const Text(
-                'ข้อมูลในเครื่องจะถูกลบออก',
-                style: TextStyle(fontSize: 12, color: textSecondary),
-                textAlign: TextAlign.center,
+            ),
+
+            const SizedBox(height: 16),
+
+            // ── Title ────────────────────────────────────────────────
+            const Text(
+              'ออกจากระบบ',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.w800,
+                color: Color(0xFF6D4C41),
+                letterSpacing: -0.2,
               ),
-            ],
-          ),
-          actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-          actions: [
-            Row(
-              children: [
-                Expanded(
-                  child: TextButton(
-                    onPressed: () => Navigator.pop(context),
-                    style: TextButton.styleFrom(
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(12),
-                        side: BorderSide(color: Colors.grey[300]!),
-                      ),
-                    ),
-                    child: const Text('ยกเลิก', style: TextStyle(color: Colors.grey, fontWeight: FontWeight.w500)),
-                  ),
+            ),
+
+            const SizedBox(height: 8),
+
+            // ── Body ─────────────────────────────────────────────────
+            const Text(
+              'น้องหมาจะรอคุณกลับมานะ 🐾\nแน่ใจหรือไม่ว่าต้องการออกจากระบบ?',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                color: Color(0xFFB08968),
+                height: 1.6,
+                fontWeight: FontWeight.w500,
+              ),
+            ),
+
+            const SizedBox(height: 24),
+
+            // ── Primary: ออกจากระบบ ──────────────────────────────────
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: () async {
+                  Navigator.pop(context);
+                  await _userService.logout();
+                  if (mounted) {
+                    Navigator.pushReplacementNamed(
+                        context, AppRoutes.login);
+                  }
+                },
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF6D4C41),
+                  foregroundColor: Colors.white,
+                  padding: const EdgeInsets.symmetric(vertical: 14),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(14)),
+                  elevation: 0,
+                  textStyle: const TextStyle(
+                      fontSize: 15, fontWeight: FontWeight.w700),
                 ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: ElevatedButton(
-                    onPressed: () async {
-                      try {
-                        await _userService.logout();
-                        if (mounted) {
-                          Navigator.pop(context);
-                          Navigator.pushReplacementNamed(context, AppRoutes.login);
-                        }
-                      } catch (e) {
-                        if (mounted) {
-                          Navigator.pop(context);
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text('เกิดข้อผิดพลาดในการออกจากระบบ: $e'),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                        }
-                      }
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.red[600],
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 12),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                      elevation: 2,
-                    ),
-                    child: const Text('ออกจากระบบ', style: TextStyle(fontWeight: FontWeight.w600)),
-                  ),
+                child: const Text('ออกจากระบบ'),
+              ),
+            ),
+
+            const SizedBox(height: 10),
+
+            // ── Secondary: ยังอยู่ต่อ ────────────────────────────────
+            SizedBox(
+              width: double.infinity,
+              child: TextButton(
+                onPressed: () => Navigator.pop(context),
+                style: TextButton.styleFrom(
+                  foregroundColor: const Color(0xFFB08968),
+                  padding: const EdgeInsets.symmetric(vertical: 13),
+                  textStyle: const TextStyle(
+                      fontSize: 14, fontWeight: FontWeight.w600),
                 ),
-              ],
+                child: const Text('ยังอยู่ฝึกต่อ 🦮'),
+              ),
             ),
           ],
-        );
-      },
-    );
-  }
+        ),
+      ),
+    ),
+  );
+}
 
   // ---------- Small helpers ----------
   Widget _headerSkeleton() => Row(
@@ -843,7 +892,7 @@ class _SlideBarState extends State<SlideBar> {
           backgroundColor: surfaceColor,
           child: StableAvatar(
             raw: raw,
-            placeholder: const AssetImage('assets/images/dog_profile.jpg'),
+            placeholder: const AssetImage('assets/images/dog_profiles.png'),
             radius: 32,
           ),
         ),
@@ -873,7 +922,8 @@ class _SlideBarState extends State<SlideBar> {
             foregroundColor: textPrimary,
             elevation: 0,
             padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+            shape:
+                RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
           ),
         ),
       ],

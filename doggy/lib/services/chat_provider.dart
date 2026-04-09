@@ -271,7 +271,7 @@ class ChatProvider with ChangeNotifier {
     if (_messages.isEmpty) {
       final welcomeMessage = ChatMessage(
         id: 'welcome_${DateTime.now().millisecondsSinceEpoch}',
-        content: 'สวัสดีครับ! ผมคือผู้ช่วยด้านการฝึกสุนัข 🐕\n\nผมพร้อมตอบคำถามเกี่ยวกับ:\n• การฝึกพฤติกรรมสุนัข\n• การดูแลสุขภาพ\n• โภชนาการและอาหาร\n• การแก้ปัญหาพฤติกรรม\n\nมีคำถามอะไรเกี่ยวกับน้องหมาไหมครับ?',
+        content: 'สวัสดีครับ! ผมคือผู้ช่วยด้านการฝึกสุนัข 🐕\n\nผมพร้อมตอบคำถามเกี่ยวกับ:\n\n• การฝึกพฤติกรรมสุนัข\n• การดูแลสุขภาพ\n• โภชนาการและอาหาร\n• การแก้ปัญหาพฤติกรรม\n\nมีคำถามอะไรเกี่ยวกับน้องหมาไหมครับ?',
         isUser: false,
         timestamp: DateTime.now(),
       );
@@ -287,3 +287,4 @@ class ChatProvider with ChangeNotifier {
     notifyListeners();
   }
 }
+
